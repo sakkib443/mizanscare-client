@@ -6,20 +6,15 @@ import {
     FaHeadphones,
     FaBook,
     FaPen,
-    FaMicrophone,
     FaPlay,
-    FaStop,
-    FaVolumeUp,
     FaClock,
     FaQuestionCircle,
     FaArrowRight,
-    FaArrowLeft,
     FaLayerGroup,
     FaSpinner,
     FaUser,
     FaCheckCircle,
     FaLock,
-    FaTimes
 } from "react-icons/fa";
 import { studentsAPI } from "@/lib/api";
 import Logo from "@/components/Logo";
@@ -34,39 +29,6 @@ export default function ExamSelectionPage() {
     const [error, setError] = useState("");
     const [completedModules, setCompletedModules] = useState([]);
     const [moduleScores, setModuleScores] = useState(null);
-
-    // System Check States — only shows once per exam session
-    const [systemChecked, setSystemChecked] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('systemCheckDone') === 'true';
-        }
-        return false;
-    });
-    const [checkStep, setCheckStep] = useState(1);
-    const [testAudioPlaying, setTestAudioPlaying] = useState(false);
-    const [cameraStream, setCameraStream] = useState(null);
-    const videoRef = React.useRef(null);
-    const testAudioRef = React.useRef(null);
-
-    // Audio/Visual states
-    const [audioDevices, setAudioDevices] = useState([]);
-    const [selectedOutput, setSelectedOutput] = useState("");
-    const [micVolume, setMicVolume] = useState(0);
-    const audioContextRef = React.useRef(null);
-    const analyserRef = React.useRef(null);
-    const animationFrameRef = React.useRef(null);
-
-    // Recording states for mic test
-    const [isRecording, setIsRecording] = useState(false);
-    const [recordedUrl, setRecordedUrl] = useState(null);
-    const mediaRecorderRef = React.useRef(null);
-    const chunksRef = React.useRef([]);
-
-    // UI Settings
-    const [displaySettings, setDisplaySettings] = useState({
-        fontSize: 'standard',
-        theme: 'standard',
-    });
 
     useEffect(() => {
         const loadSessionAndVerify = async () => {
@@ -132,59 +94,6 @@ export default function ExamSelectionPage() {
         };
         loadSessionAndVerify();
     }, [sessionId]);
-
-    // Handle Media and Devices for system check
-    useEffect(() => {
-        const getDevices = async () => {
-            try {
-                // Request permission first to get device labels
-                await navigator.mediaDevices.getUserMedia({ audio: true });
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const outputs = devices.filter(d => d.kind === 'audiooutput');
-                setAudioDevices(outputs);
-                if (outputs.length > 0) setSelectedOutput(outputs[0].deviceId);
-            } catch (err) {
-                console.error("Error enumeration devices:", err);
-            }
-        };
-        getDevices();
-
-        if (checkStep === 2 && !cameraStream) {
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-                .then(stream => {
-                    setCameraStream(stream);
-                    if (videoRef.current) videoRef.current.srcObject = stream;
-
-                    // Setup Audio Visualizer
-                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    const analyser = audioContext.createAnalyser();
-                    const source = audioContext.createMediaStreamSource(stream);
-                    source.connect(analyser);
-                    analyser.fftSize = 256;
-
-                    audioContextRef.current = audioContext;
-                    analyserRef.current = analyser;
-
-                    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-                    const updateVolume = () => {
-                        if (!analyserRef.current) return;
-                        analyserRef.current.getByteFrequencyData(dataArray);
-                        const volume = dataArray.reduce((p, c) => p + c, 0) / dataArray.length;
-                        setMicVolume(volume);
-                        animationFrameRef.current = requestAnimationFrame(updateVolume);
-                    };
-                    updateVolume();
-                })
-                .catch(err => console.error("Media access error:", err));
-        }
-        return () => {
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-            }
-            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-            if (audioContextRef.current) audioContextRef.current.close();
-        };
-    }, [checkStep]);
 
     if (isLoading) {
         return (
@@ -261,230 +170,6 @@ export default function ExamSelectionPage() {
         router.push(`/exam/${sessionId}/full`);
     };
 
-    // ── System Check Overlay ──
-    if (!systemChecked && completedModules.length < 3) {
-        return (
-            <div className="min-h-screen bg-[#4b4b4b] flex items-center justify-center p-6 transition-all duration-500">
-                <div className="max-w-xl w-full bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-600">
-                    <div className="bg-[#1f2937] px-6 py-4 flex items-center justify-between">
-                        <h2 className="text-white font-bold flex items-center gap-2">
-                            <FaUser size={14} /> System Check
-                        </h2>
-                        <div className="flex items-center gap-4">
-                            <div className="flex gap-2">
-                                {[1, 2].map(s => (
-                                    <div key={s} className={`w-2 h-2 rounded-full ${checkStep === s ? 'bg-cyan-400' : 'bg-gray-600'}`}></div>
-                                ))}
-                            </div>
-                            <button
-                                onClick={() => router.push('/')}
-                                className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-gray-700"
-                                title="Exit to Home"
-                            >
-                                <FaTimes size={14} />
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="p-8 text-center">
-                        {checkStep === 1 && (
-                            <div className="space-y-6">
-                                <div className="w-16 h-16 bg-cyan-100 text-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <FaHeadphones size={28} />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-800">Check Your Audio</h3>
-                                <p className="text-gray-600 text-sm">
-                                    Select your speaker/headphones and play the test sound.
-                                </p>
-
-                                <div className="max-w-xs mx-auto text-left">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Output Device</label>
-                                    <select
-                                        value={selectedOutput}
-                                        onChange={(e) => setSelectedOutput(e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                    >
-                                        {audioDevices.length > 0 ? (
-                                            audioDevices.map(d => (
-                                                <option key={d.deviceId} value={d.deviceId}>{d.label || `Speaker ${d.deviceId.slice(0, 5)}`}</option>
-                                            ))
-                                        ) : (
-                                            <option value="">Default Speaker</option>
-                                        )}
-                                    </select>
-                                </div>
-
-                                <button
-                                    onClick={async () => {
-                                        if (testAudioPlaying && testAudioRef.current) {
-                                            testAudioRef.current.close();
-                                            testAudioRef.current = null;
-                                            setTestAudioPlaying(false);
-                                            return;
-                                        }
-                                        // Generate a pleasant test tone using Web Audio API
-                                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                                        testAudioRef.current = ctx;
-                                        setTestAudioPlaying(true);
-
-                                        const playTone = (freq, startTime, duration) => {
-                                            const osc = ctx.createOscillator();
-                                            const gain = ctx.createGain();
-                                            osc.type = 'sine';
-                                            osc.frequency.value = freq;
-                                            gain.gain.setValueAtTime(0, startTime);
-                                            gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
-                                            gain.gain.linearRampToValueAtTime(0, startTime + duration);
-                                            osc.connect(gain);
-                                            gain.connect(ctx.destination);
-                                            osc.start(startTime);
-                                            osc.stop(startTime + duration);
-                                        };
-
-                                        // Play a pleasant melody pattern (C-E-G-C chord progression)
-                                        const notes = [523, 659, 784, 1047, 784, 659, 523];
-                                        const now = ctx.currentTime;
-                                        notes.forEach((freq, i) => {
-                                            playTone(freq, now + i * 0.4, 0.35);
-                                        });
-
-                                        // Auto stop after melody finishes
-                                        setTimeout(() => {
-                                            setTestAudioPlaying(false);
-                                            if (testAudioRef.current) {
-                                                testAudioRef.current.close();
-                                                testAudioRef.current = null;
-                                            }
-                                        }, notes.length * 400 + 200);
-                                    }}
-                                    className={`px-8 py-4 rounded-md font-bold text-sm transition-all border-2 flex items-center justify-center gap-3 mx-auto ${testAudioPlaying ? 'bg-cyan-50 border-cyan-500 text-cyan-600 animate-pulse' : 'bg-gray-100 border-gray-200 text-gray-700 hover:border-cyan-400'}`}
-                                >
-                                    {testAudioPlaying ? <FaVolumeUp size={14} className="animate-bounce" /> : <FaPlay size={14} />}
-                                    {testAudioPlaying ? "Playing... Click to Stop" : "🔊 Play Test Sound"}
-                                </button>
-                                <div className="pt-8">
-                                    <button onClick={() => setCheckStep(2)} className="bg-black text-white px-8 py-3 rounded font-bold hover:bg-gray-900 w-full flex items-center justify-center gap-3">
-                                        I can hear the sound <FaArrowRight size={12} />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {checkStep === 2 && (
-                            <div className="space-y-6">
-                                <div className="flex items-center justify-between">
-                                    <button
-                                        onClick={() => setCheckStep(1)}
-                                        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors font-medium"
-                                    >
-                                        <FaArrowLeft size={12} /> Back
-                                    </button>
-                                    <h3 className="text-xl font-bold text-gray-800">Video & Microphone Check</h3>
-                                    <div className="w-16"></div>
-                                </div>
-                                <div className="aspect-video bg-black rounded-lg overflow-hidden border-4 border-gray-800 shadow-inner relative">
-                                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                                    <div className="absolute bottom-4 left-4 flex gap-2">
-                                        <div className="bg-black/60 px-3 py-1 rounded text-[10px] text-white flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div> LIVE CAMERA
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-gray-50 p-5 rounded-lg border border-gray-200 text-left">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Microphone Verification</p>
-                                        {isRecording && <span className="flex items-center gap-1.5 text-xs text-red-600 font-bold bg-red-50 px-2 py-1 rounded animate-pulse">
-                                            <div className="w-1.5 h-1.5 bg-red-600 rounded-full"></div> RECORDING
-                                        </span>}
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3 mb-4">
-                                        <button
-                                            onClick={() => {
-                                                if (!isRecording) {
-                                                    chunksRef.current = [];
-                                                    const mediaRecorder = new MediaRecorder(cameraStream);
-                                                    mediaRecorderRef.current = mediaRecorder;
-                                                    mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-                                                    mediaRecorder.onstop = () => {
-                                                        const blob = new Blob(chunksRef.current, { type: 'audio/ogg; codecs=opus' });
-                                                        setRecordedUrl(URL.createObjectURL(blob));
-                                                    };
-                                                    mediaRecorder.start();
-                                                    setIsRecording(true);
-                                                    setTimeout(() => {
-                                                        if (mediaRecorder.state === 'recording') {
-                                                            mediaRecorder.stop();
-                                                            setIsRecording(false);
-                                                        }
-                                                    }, 3000);
-                                                }
-                                            }}
-                                            disabled={isRecording}
-                                            className={`flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-xs border-2 transition-all ${isRecording ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-200 text-gray-700 hover:border-cyan-500'}`}
-                                        >
-                                            <FaMicrophone size={12} />
-                                            {isRecording ? "Recording..." : "Record 3s Voice"}
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                if (recordedUrl) {
-                                                    const audio = new Audio(recordedUrl);
-                                                    audio.play();
-                                                }
-                                            }}
-                                            disabled={!recordedUrl || isRecording}
-                                            className={`flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-xs border-2 transition-all ${!recordedUrl ? 'bg-gray-50 border-gray-100 text-gray-300' : 'bg-cyan-50 border-cyan-200 text-cyan-600 hover:bg-cyan-100'}`}
-                                        >
-                                            <FaPlay size={10} />
-                                            Play Back Voice
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden flex items-center px-1">
-                                            <div
-                                                className="h-1.5 bg-cyan-500 rounded-full transition-all duration-75"
-                                                style={{ width: `${Math.min(100, (micVolume / 100) * 100)}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                    <p className="text-[10px] text-gray-400 mt-2 italic text-center">Speak now to see the volume bar bounce. Record and play back to verify.</p>
-                                </div>
-                                <div className="pt-4">
-                                    <button
-                                        onClick={() => {
-                                            setSystemChecked(true);
-                                            localStorage.setItem('systemCheckDone', 'true');
-                                            localStorage.setItem('examSettings', JSON.stringify(displaySettings));
-                                        }}
-                                        className="bg-[#1a56db] text-white px-8 py-4 rounded font-bold hover:bg-[#1e429f] w-full flex items-center justify-center gap-3 shadow-xl"
-                                    >
-                                        Confirm & Go to Exam <FaArrowRight size={14} />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Dynamic styles based on settings
-    const themeStyles = {
-        standard: "bg-white text-gray-900 border-gray-200",
-        yellow: "bg-[#fff9c4] text-black border-[#fbc02d]",
-        blue: "bg-[#e3f2fd] text-black border-[#90caf9]",
-        'high-contrast': "bg-black text-white border-gray-800",
-    }[displaySettings.theme];
-
-    const fontStyles = {
-        standard: "text-base",
-        large: "text-lg",
-        'extra-large': "text-xl",
-    }[displaySettings.fontSize];
 
     return (
         <div className="min-h-screen bg-white transition-colors duration-300">

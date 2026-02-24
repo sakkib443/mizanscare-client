@@ -19,6 +19,7 @@ import {
     FaImage,
     FaLock,
     FaCheckCircle,
+    FaExpand,
 } from "react-icons/fa";
 import { writingAPI, studentsAPI } from "@/lib/api";
 import ExamSecurity from "@/components/ExamSecurity";
@@ -28,110 +29,42 @@ import TextHighlighter from "@/components/TextHighlighter";
 const ResizableDivider = ({ onMouseDown }) => (
     <div
         onMouseDown={onMouseDown}
-        className="w-[5px] cursor-col-resize flex-shrink-0 relative group"
-        style={{ touchAction: "none" }}
+        className="cursor-col-resize flex-shrink-0 relative group flex items-center justify-center"
+        style={{ touchAction: "none", width: '12px' }}
     >
-        <div className="absolute inset-0 bg-gray-300 group-hover:bg-gray-500 transition-colors" />
+        <div className="absolute inset-0 bg-gray-200 group-hover:bg-gray-300 transition-colors" />
+        <div className="relative z-10 flex flex-col items-center gap-0.5 pointer-events-none">
+            <span className="text-[8px] text-gray-400 group-hover:text-gray-600 transition-colors select-none" style={{ lineHeight: 1 }}>◀</span>
+            <div className="w-[3px] h-6 rounded-full bg-gray-400 group-hover:bg-gray-600 transition-colors" />
+            <span className="text-[8px] text-gray-400 group-hover:text-gray-600 transition-colors select-none" style={{ lineHeight: 1 }}>▶</span>
+        </div>
     </div>
 );
 
-// ==================== Image Zoom/Pan Viewer ====================
+// ==================== Image Viewer ====================
 const ImageZoomViewer = ({ imageUrl }) => {
-    const [zoom, setZoom] = useState(1);
-    const [pan, setPan] = useState({ x: 0, y: 0 });
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [showFullscreen, setShowFullscreen] = useState(false);
-    const containerRef = useRef(null);
-
-    const MIN_ZOOM = 0.5;
-    const MAX_ZOOM = 5;
-
-    const handleWheel = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setZoom(prev => {
-            const delta = e.deltaY < 0 ? 0.15 : -0.15;
-            const newZoom = Math.max(MIN_ZOOM, Math.min(prev + delta, MAX_ZOOM));
-            if (newZoom <= 1) setPan({ x: 0, y: 0 });
-            return newZoom;
-        });
-    }, []);
-
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        el.addEventListener("wheel", handleWheel, { passive: false });
-        return () => el.removeEventListener("wheel", handleWheel);
-    }, [handleWheel]);
-
-    const handleMouseDown = useCallback((e) => {
-        if (zoom <= 1) return;
-        e.preventDefault();
-        setIsDragging(true);
-        setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-    }, [zoom, pan]);
-
-    const handleMouseMove = useCallback((e) => {
-        if (!isDragging) return;
-        setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
-    }, [isDragging, dragStart]);
-
-    const handleMouseUp = useCallback(() => setIsDragging(false), []);
-
-    useEffect(() => {
-        if (isDragging) {
-            window.addEventListener("mousemove", handleMouseMove);
-            window.addEventListener("mouseup", handleMouseUp);
-            return () => {
-                window.removeEventListener("mousemove", handleMouseMove);
-                window.removeEventListener("mouseup", handleMouseUp);
-            };
-        }
-    }, [isDragging, handleMouseMove, handleMouseUp]);
 
     return (
         <>
-            <div
-                ref={containerRef}
-                className="relative bg-white border border-gray-300 overflow-hidden mt-3"
-                style={{
-                    cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
-                    userSelect: "none",
-                    touchAction: "none",
-                }}
-                onMouseDown={handleMouseDown}
-                onDoubleClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-            >
+            <div className="relative bg-white border border-gray-300 mt-3">
                 <img
                     src={imageUrl}
                     alt="Reference"
                     draggable={false}
-                    className="w-full"
                     style={{
-                        transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
-                        transformOrigin: "center center",
-                        transition: isDragging ? "none" : "transform 0.2s ease-out",
-                        maxHeight: zoom <= 1 ? "400px" : "none",
-                        objectFit: "contain",
-                        pointerEvents: "none",
+                        width: '100%',
+                        height: 'auto',
+                        display: 'block',
                     }}
                 />
-                <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-white border border-gray-300 px-1">
-                    <button onClick={(e) => { e.stopPropagation(); setZoom(prev => Math.max(MIN_ZOOM, prev - 0.3)); }}
-                        className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-black cursor-pointer">
-                        <FaSearchMinus className="text-xs" />
-                    </button>
-                    <span className="text-[10px] text-gray-500 font-mono w-8 text-center">{Math.round(zoom * 100)}%</span>
-                    <button onClick={(e) => { e.stopPropagation(); setZoom(prev => Math.min(MAX_ZOOM, prev + 0.3)); }}
-                        className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-black cursor-pointer">
-                        <FaSearchPlus className="text-xs" />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); setShowFullscreen(true); }}
-                        className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-black cursor-pointer border-l border-gray-300">
-                        <FaImage className="text-xs" />
-                    </button>
-                </div>
+                <button
+                    onClick={() => setShowFullscreen(true)}
+                    className="absolute bottom-2 right-2 w-7 h-7 flex items-center justify-center bg-white/90 border border-gray-300 text-gray-600 hover:text-black hover:bg-white rounded cursor-pointer"
+                    title="View fullscreen"
+                >
+                    <FaExpand className="text-xs" />
+                </button>
             </div>
 
             {showFullscreen && (
@@ -146,6 +79,7 @@ const ImageZoomViewer = ({ imageUrl }) => {
         </>
     );
 };
+
 
 export default function WritingExamPage() {
     const params = useParams();

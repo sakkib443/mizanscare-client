@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -141,6 +141,52 @@ export default function ListeningExamPage() {
     const [volume, setVolume] = useState(1);
     const audioRef = useRef(null);
     const hasStarted = useRef(false);
+
+    // Speaker Check State
+    const [speakerChecked, setSpeakerChecked] = useState(false);
+    const [isPlayingTestSound, setIsPlayingTestSound] = useState(false);
+    const [testSoundPlayed, setTestSoundPlayed] = useState(false);
+
+    const playTestSound = useCallback(() => {
+        setIsPlayingTestSound(true);
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioCtx();
+
+            const beepDuration = 0.15;
+            const gap = 0.12;
+            const frequencies = [523.25, 659.25, 783.99];
+
+            frequencies.forEach((freq, i) => {
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(ctx.destination);
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
+
+                const startTime = ctx.currentTime + i * (beepDuration + gap);
+                gainNode.gain.setValueAtTime(0, startTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
+                gainNode.gain.linearRampToValueAtTime(0, startTime + beepDuration);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + beepDuration);
+            });
+
+            const totalDuration = frequencies.length * (beepDuration + gap) * 1000;
+            setTimeout(() => {
+                setIsPlayingTestSound(false);
+                setTestSoundPlayed(true);
+                ctx.close();
+            }, totalDuration + 200);
+        } catch (err) {
+            console.error('Audio test failed:', err);
+            setIsPlayingTestSound(false);
+            setTestSoundPlayed(true);
+        }
+    }, []);
 
     // ── Load exam data ───────────────────────────────────────────────────
     useEffect(() => {
@@ -406,6 +452,7 @@ export default function ListeningExamPage() {
         </div>
     );
 
+
     // ─────────────────────────────────────────────────────────────────────
     // RENDER: Instructions
     // ─────────────────────────────────────────────────────────────────────
@@ -422,15 +469,112 @@ export default function ListeningExamPage() {
                     You will be listening to an audio clip during this test. You will not be permitted to pause or rewind the audio while answering the questions.
                 </p>
 
-                <p style={{ fontSize: '15px', marginBottom: '30px', fontWeight: '400' }}>
-                    To continue, click Play.
-                </p>
+                {/* Speaker Check Section */}
+                <div style={{
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '8px',
+                    padding: '24px',
+                    marginBottom: '30px',
+                    maxWidth: '500px',
+                    marginLeft: 'auto',
+                    marginRight: 'auto'
+                }}>
+                    <p style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: '#fbbf24' }}>
+                        🔊 Speaker Check
+                    </p>
+                    <p style={{ fontSize: '13px', marginBottom: '16px', color: 'rgba(255,255,255,0.8)', lineHeight: '1.5' }}>
+                        Before starting, please check that your speaker/headphones are working properly.
+                    </p>
 
-                {/* Play Button */}
+                    {!testSoundPlayed ? (
+                        <>
+                            {/* Play Test Sound Button */}
+                            <button
+                                onClick={playTestSound}
+                                disabled={isPlayingTestSound}
+                                style={{
+                                    backgroundColor: isPlayingTestSound ? '#6b7280' : '#2563eb',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '10px 24px',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    cursor: isPlayingTestSound ? 'not-allowed' : 'pointer',
+                                    borderRadius: '6px',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <FaVolumeUp size={14} style={isPlayingTestSound ? { animation: 'pulse 0.5s infinite alternate' } : {}} />
+                                {isPlayingTestSound ? 'Playing...' : 'Play Test Sound'}
+                            </button>
+                            {isPlayingTestSound && (
+                                <p style={{ fontSize: '12px', marginTop: '10px', color: 'rgba(255,255,255,0.6)' }}>
+                                    Listening for beeps...
+                                </p>
+                            )}
+                        </>
+                    ) : !speakerChecked ? (
+                        <>
+                            <p style={{ fontSize: '13px', marginBottom: '14px', color: 'rgba(255,255,255,0.9)' }}>
+                                Did you hear the test sound?
+                            </p>
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                                <button
+                                    onClick={() => setSpeakerChecked(true)}
+                                    style={{
+                                        backgroundColor: '#16a34a',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '8px 20px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        cursor: 'pointer',
+                                        borderRadius: '6px',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    <FaCheck size={11} />
+                                    Yes, I can hear it
+                                </button>
+                                <button
+                                    onClick={() => { setTestSoundPlayed(false); }}
+                                    style={{
+                                        backgroundColor: 'transparent',
+                                        color: 'rgba(255,255,255,0.8)',
+                                        border: '1px solid rgba(255,255,255,0.3)',
+                                        padding: '8px 20px',
+                                        fontSize: '13px',
+                                        fontWeight: '500',
+                                        cursor: 'pointer',
+                                        borderRadius: '6px',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    No, try again
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#4ade80' }}>
+                            <FaCheck size={14} />
+                            <span style={{ fontSize: '14px', fontWeight: '600' }}>Speaker verified ✓</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Start Test Button - only enabled after speaker check */}
                 <button
-                    onClick={() => setShowInstructions(false)}
+                    onClick={() => speakerChecked && setShowInstructions(false)}
+                    disabled={!speakerChecked}
                     style={{
-                        backgroundColor: 'black',
+                        backgroundColor: speakerChecked ? 'black' : '#6b7280',
                         color: 'white',
                         border: 'none',
                         padding: '10px 25px',
@@ -439,9 +583,11 @@ export default function ListeningExamPage() {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '12px',
-                        cursor: 'pointer',
+                        cursor: speakerChecked ? 'pointer' : 'not-allowed',
                         borderRadius: '4px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                        opacity: speakerChecked ? 1 : 0.6,
+                        transition: 'all 0.3s ease'
                     }}
                 >
                     <div style={{
@@ -454,10 +600,23 @@ export default function ListeningExamPage() {
                         justifyContent: 'center',
                         paddingLeft: '2px'
                     }}>
-                        <FaPlay size={10} style={{ color: 'black' }} />
+                        <FaPlay size={10} style={{ color: speakerChecked ? 'black' : '#6b7280' }} />
                     </div>
-                    Play
+                    Start Listening Test
                 </button>
+                {!speakerChecked && (
+                    <p style={{ fontSize: '12px', marginTop: '12px', color: 'rgba(255,255,255,0.5)' }}>
+                        Please complete the speaker check above to continue
+                    </p>
+                )}
+
+                {/* Pulse animation for speaker icon */}
+                <style>{`
+                    @keyframes pulse {
+                        0% { opacity: 0.5; transform: scale(0.95); }
+                        100% { opacity: 1; transform: scale(1.05); }
+                    }
+                `}</style>
             </div>
         </div>
     );
