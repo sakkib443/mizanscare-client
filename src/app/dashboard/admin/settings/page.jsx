@@ -36,7 +36,7 @@ export default function SettingsPage() {
         // Notification Settings
         sendEmailOnRegistration: true,
         sendEmailOnExamComplete: true,
-        adminEmail: "admin@bdcalling.com",
+        adminEmail: "admin@mizanscare.com",
     });
 
     const handleChange = (e) => {
