@@ -1,17 +1,11 @@
 export default function Logo({ className = "", size = "default" }) {
-    const heightClass = size === "small" ? "h-6" : size === "large" ? "h-12" : "h-9";
+    const heightClass = size === "small" ? "h-8" : size === "large" ? "h-14" : "h-10";
 
     return (
-        <div className={`flex items-center gap-3 ${className}`}>
+        <div className={`flex items-center ${className}`}>
             <img
-                src="/images/Logo-01.png"
-                alt="Betopia Group"
-                className={`${heightClass} object-contain`}
-            />
-            <div className="w-px bg-gray-300 self-stretch my-1"></div>
-            <img
-                src="/images/Logo-03.png"
-                alt="Bdcalling Academy"
+                src="/images/IMG_5177.PNG"
+                alt="Mizan's Care - An English Language Training Centre"
                 className={`${heightClass} object-contain`}
             />
         </div>

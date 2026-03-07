@@ -505,9 +505,20 @@ export default function StudentResults() {
 
     // Get score for a module+set combo
     const getScore = (moduleId, setNum) => {
-        const setKey = `${moduleId}_${setNum}`;
-        const perSet = scores?.[setKey] || null;
-        return perSet || scores?.[moduleId] || {};
+        if (setNum) {
+            const setKey = `${moduleId}_${setNum}`;
+            const perSet = scores?.[setKey] || null;
+            // If per-set score exists, use it; otherwise check if this is the only/first set
+            if (perSet) return perSet;
+            // Only fallback to base score if this setNum matches the first/legacy set number
+            const legacySetNum = assignedSets?.[`${moduleId}SetNumber`];
+            if (legacySetNum === setNum || (!legacySetNum && fullSets.length <= 1)) {
+                return scores?.[moduleId] || {};
+            }
+            // This set hasn't been taken yet - return empty
+            return {};
+        }
+        return scores?.[moduleId] || {};
     };
 
     // Calculate per-Full-Set overall

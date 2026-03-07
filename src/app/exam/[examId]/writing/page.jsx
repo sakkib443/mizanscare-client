@@ -486,7 +486,7 @@ export default function WritingExamPage() {
                 {/* ═══════════════════════════════════
                     MAIN CONTENT — Two Column Layout
                 ═══════════════════════════════════ */}
-                <div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+                <div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', marginBottom: '44px' }}>
                     {/* LEFT: Task Prompt + Image */}
                     <div style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
                         <TextHighlighter passageId={`writing_part_${activePart}`}>
@@ -521,25 +521,26 @@ export default function WritingExamPage() {
                     </div>
 
                     {/* RIGHT: Writing Area */}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: cs.bg }}>
-                        <textarea
-                            value={currentAnswer}
-                            onChange={(e) => handleTextChange(e.target.value)}
-                            placeholder={`Enter your ${currentTaskData.title.toLowerCase()} answer...`}
-                            autoFocus
-                            style={{
-                                flex: 1, padding: '20px 24px', resize: 'none', outline: 'none',
-                                border: `1px solid ${contrastMode === 'black-on-white' ? '#000' : '#555'}`,
-                                margin: '16px 16px 0 0',
-                                fontFamily: "'Times New Roman', Georgia, serif",
-                                fontSize: `${18 * tScale}px`, lineHeight: '1.8',
-                                color: cs.text, backgroundColor: cs.bg
-                            }}
-                        />
-                        <div style={{ padding: '8px 16px 8px 0', textAlign: 'right', flexShrink: 0 }}>
-                            <span style={{ fontSize: '14px', color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text }}>
-                                Word Count: {wordCount}
-                            </span>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: cs.bg, padding: '16px 16px 16px 16px' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: `2px solid ${contrastMode === 'black-on-white' ? '#000' : '#555'}`, overflow: 'hidden' }}>
+                            <textarea
+                                value={currentAnswer}
+                                onChange={(e) => handleTextChange(e.target.value)}
+                                placeholder={`Enter your ${currentTaskData.title.toLowerCase()} answer...`}
+                                autoFocus
+                                style={{
+                                    flex: 1, padding: '20px 24px', resize: 'none', outline: 'none',
+                                    border: 'none',
+                                    fontFamily: "'Times New Roman', Georgia, serif",
+                                    fontSize: `${18 * tScale}px`, lineHeight: '1.8',
+                                    color: cs.text, backgroundColor: cs.bg
+                                }}
+                            />
+                            <div style={{ padding: '8px 16px', textAlign: 'right', flexShrink: 0, borderTop: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}` }}>
+                                <span style={{ fontSize: '14px', color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text }}>
+                                    Word Count: {wordCount}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -604,12 +605,12 @@ export default function WritingExamPage() {
                         onMouseEnter={e => e.currentTarget.style.background = '#c8c8c8'}
                         onMouseLeave={e => e.currentTarget.style.background = '#e5e7eb'}
                         style={{
-                            width: '48px', height: '44px', cursor: 'pointer',
+                            width: '72px', height: '44px', cursor: 'pointer',
                             background: '#e5e7eb', border: 'none',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             flexShrink: 0, borderRadius: 0
                         }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12" />
                         </svg>
                     </button>
@@ -620,120 +621,124 @@ export default function WritingExamPage() {
                 {/* ═══════════════════════════════════
                     SUBMIT MODAL
                 ═══════════════════════════════════ */}
-                {showSubmitPartModal && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
-                        <div style={{ background: 'white', padding: '24px', maxWidth: '360px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                <h3 style={{ fontWeight: 'bold', fontSize: '16px', color: '#1f2937' }}>Submit {currentTaskData.title}?</h3>
-                                <button onClick={() => setShowSubmitPartModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#6b7280' }}><FaTimes /></button>
-                            </div>
-
-                            <div style={{ background: meetsMinWords ? '#f0fdf4' : '#fffbeb', border: `1px solid ${meetsMinWords ? '#bbf7d0' : '#fcd34d'}`, padding: '16px', marginBottom: '16px', textAlign: 'center' }}>
-                                <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#1f2937' }}>{wordCount}<span style={{ fontSize: '18px', color: '#9ca3af' }}>/{currentTaskData.minWords}</span></p>
-                                <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '4px' }}>words written</p>
-                            </div>
-
-                            {!meetsMinWords && (
-                                <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '10px', marginBottom: '16px', textAlign: 'center' }}>
-                                    <p style={{ color: '#92400e', fontSize: '13px', fontWeight: '600' }}>⚠ Below minimum word count. This may affect your score.</p>
+                {
+                    showSubmitPartModal && (
+                        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
+                            <div style={{ background: 'white', padding: '24px', maxWidth: '360px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                    <h3 style={{ fontWeight: 'bold', fontSize: '16px', color: '#1f2937' }}>Submit {currentTaskData.title}?</h3>
+                                    <button onClick={() => setShowSubmitPartModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#6b7280' }}><FaTimes /></button>
                                 </div>
-                            )}
 
-                            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
-                                Time remaining: <strong>{formatTime(currentTime)}</strong>. You cannot return to this part after submitting.
-                            </p>
+                                <div style={{ background: meetsMinWords ? '#f0fdf4' : '#fffbeb', border: `1px solid ${meetsMinWords ? '#bbf7d0' : '#fcd34d'}`, padding: '16px', marginBottom: '16px', textAlign: 'center' }}>
+                                    <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#1f2937' }}>{wordCount}<span style={{ fontSize: '18px', color: '#9ca3af' }}>/{currentTaskData.minWords}</span></p>
+                                    <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '4px' }}>words written</p>
+                                </div>
 
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button onClick={() => setShowSubmitPartModal(false)} style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Cancel</button>
-                                <button onClick={() => { setShowSubmitPartModal(false); finishPart(activePart); }} style={{ flex: 1, padding: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}>Submit</button>
+                                {!meetsMinWords && (
+                                    <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '10px', marginBottom: '16px', textAlign: 'center' }}>
+                                        <p style={{ color: '#92400e', fontSize: '13px', fontWeight: '600' }}>⚠ Below minimum word count. This may affect your score.</p>
+                                    </div>
+                                )}
+
+                                <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+                                    Time remaining: <strong>{formatTime(currentTime)}</strong>. You cannot return to this part after submitting.
+                                </p>
+
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button onClick={() => setShowSubmitPartModal(false)} style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Cancel</button>
+                                    <button onClick={() => { setShowSubmitPartModal(false); finishPart(activePart); }} style={{ flex: 1, padding: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}>Submit</button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* ═══════════════════════════════════
                     OPTIONS MENU — Inspera Style
                 ═══════════════════════════════════ */}
-                {showOptionsMenu && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, paddingTop: '60px' }}>
-                        <div style={{ background: 'white', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', borderRadius: '4px', overflow: 'hidden' }}>
+                {
+                    showOptionsMenu && (
+                        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, paddingTop: '60px' }}>
+                            <div style={{ background: 'white', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', borderRadius: '4px', overflow: 'hidden' }}>
 
-                            {optionsView === 'main' && (
-                                <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
-                                        <div></div>
-                                        <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', fontFamily: 'Arial, sans-serif', margin: 0 }}>Options</h2>
-                                        <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}><FaTimes size={18} color="#000" /></button>
-                                    </div>
-                                    <div style={{ padding: '0 24px 20px' }}>
-                                        <button onClick={() => { setShowOptionsMenu(false); setShowSubmitPartModal(true); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: '#e41e2b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', fontWeight: '500', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}>
+                                {optionsView === 'main' && (
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
+                                            <div></div>
+                                            <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', fontFamily: 'Arial, sans-serif', margin: 0 }}>Options</h2>
+                                            <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}><FaTimes size={18} color="#000" /></button>
+                                        </div>
+                                        <div style={{ padding: '0 24px 20px' }}>
+                                            <button onClick={() => { setShowOptionsMenu(false); setShowSubmitPartModal(true); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: '#e41e2b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', fontWeight: '500', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+                                                    <span>Go to submission page</span>
+                                                </div>
+                                                <span style={{ fontSize: '20px' }}>{'>'}</span>
+                                            </button>
+                                        </div>
+                                        <div style={{ borderTop: '1px solid #e5e7eb', margin: '0 24px' }}></div>
+                                        <button onClick={() => setOptionsView('contrast')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
-                                                <span>Go to submission page</span>
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="#666"><circle cx="12" cy="12" r="10" fill="none" stroke="#666" strokeWidth="2" /><path d="M12 2a10 10 0 0 1 0 20z" fill="#666" /></svg>
+                                                <span style={{ fontSize: '16px', color: '#000' }}>Contrast</span>
                                             </div>
-                                            <span style={{ fontSize: '20px' }}>{'>'}</span>
+                                            <span style={{ fontSize: '20px', color: '#666' }}>{'>'}</span>
                                         </button>
+                                        <div style={{ borderTop: '1px solid #e5e7eb', margin: '0 24px' }}></div>
+                                        <button onClick={() => setOptionsView('textsize')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="#666"><circle cx="11" cy="11" r="7" fill="none" stroke="#666" strokeWidth="2" /><line x1="16" y1="16" x2="21" y2="21" stroke="#666" strokeWidth="2" /><text x="8" y="14" fontSize="10" fill="#666" fontWeight="bold">A</text></svg>
+                                                <span style={{ fontSize: '16px', color: '#000' }}>Text size</span>
+                                            </div>
+                                            <span style={{ fontSize: '20px', color: '#666' }}>{'>'}</span>
+                                        </button>
+                                        <div style={{ height: '16px' }}></div>
                                     </div>
-                                    <div style={{ borderTop: '1px solid #e5e7eb', margin: '0 24px' }}></div>
-                                    <button onClick={() => setOptionsView('contrast')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="#666"><circle cx="12" cy="12" r="10" fill="none" stroke="#666" strokeWidth="2" /><path d="M12 2a10 10 0 0 1 0 20z" fill="#666" /></svg>
-                                            <span style={{ fontSize: '16px', color: '#000' }}>Contrast</span>
+                                )}
+
+                                {optionsView === 'contrast' && (
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
+                                            <button onClick={() => setOptionsView('main')} style={{ background: 'none', border: 'none', fontSize: '15px', cursor: 'pointer', color: '#000' }}>Options</button>
+                                            <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', margin: 0 }}>Contrast</h2>
+                                            <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#000', padding: '4px' }}><FaTimes size={18} /></button>
                                         </div>
-                                        <span style={{ fontSize: '20px', color: '#666' }}>{'>'}</span>
-                                    </button>
-                                    <div style={{ borderTop: '1px solid #e5e7eb', margin: '0 24px' }}></div>
-                                    <button onClick={() => setOptionsView('textsize')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="#666"><circle cx="11" cy="11" r="7" fill="none" stroke="#666" strokeWidth="2" /><line x1="16" y1="16" x2="21" y2="21" stroke="#666" strokeWidth="2" /><text x="8" y="14" fontSize="10" fill="#666" fontWeight="bold">A</text></svg>
-                                            <span style={{ fontSize: '16px', color: '#000' }}>Text size</span>
+                                        <div style={{ margin: '8px 24px 24px', border: '1px solid #d1d5db', borderRadius: '6px' }}>
+                                            {[{ key: 'black-on-white', label: 'Black on white' }, { key: 'white-on-black', label: 'White on black' }, { key: 'yellow-on-black', label: 'Yellow on black' }].map((opt, idx) => (
+                                                <button key={opt.key} onClick={() => setContrastMode(opt.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', background: 'none', border: 'none', borderBottom: idx < 2 ? '1px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
+                                                    {contrastMode === opt.key ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#333"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" /></svg> : <span style={{ width: '20px' }}></span>}
+                                                    <span style={{ fontSize: '16px', color: '#000' }}>{opt.label}</span>
+                                                </button>
+                                            ))}
                                         </div>
-                                        <span style={{ fontSize: '20px', color: '#666' }}>{'>'}</span>
-                                    </button>
-                                    <div style={{ height: '16px' }}></div>
-                                </div>
-                            )}
+                                    </div>
+                                )}
 
-                            {optionsView === 'contrast' && (
-                                <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
-                                        <button onClick={() => setOptionsView('main')} style={{ background: 'none', border: 'none', fontSize: '15px', cursor: 'pointer', color: '#000' }}>Options</button>
-                                        <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', margin: 0 }}>Contrast</h2>
-                                        <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#000', padding: '4px' }}><FaTimes size={18} /></button>
+                                {optionsView === 'textsize' && (
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
+                                            <button onClick={() => setOptionsView('main')} style={{ background: 'none', border: 'none', fontSize: '15px', cursor: 'pointer', color: '#000' }}>Options</button>
+                                            <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', margin: 0 }}>Text size</h2>
+                                            <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#000', padding: '4px' }}><FaTimes size={18} /></button>
+                                        </div>
+                                        <div style={{ margin: '8px 24px 24px', border: '1px solid #d1d5db', borderRadius: '6px' }}>
+                                            {[{ key: 'regular', label: 'Regular' }, { key: 'large', label: 'Large' }, { key: 'extra-large', label: 'Extra large' }].map((opt, idx) => (
+                                                <button key={opt.key} onClick={() => setTextSizeMode(opt.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', background: 'none', border: 'none', borderBottom: idx < 2 ? '1px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
+                                                    {textSizeMode === opt.key ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#333"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" /></svg> : <span style={{ width: '20px' }}></span>}
+                                                    <span style={{ fontSize: '16px', color: '#000' }}>{opt.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div style={{ margin: '8px 24px 24px', border: '1px solid #d1d5db', borderRadius: '6px' }}>
-                                        {[{ key: 'black-on-white', label: 'Black on white' }, { key: 'white-on-black', label: 'White on black' }, { key: 'yellow-on-black', label: 'Yellow on black' }].map((opt, idx) => (
-                                            <button key={opt.key} onClick={() => setContrastMode(opt.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', background: 'none', border: 'none', borderBottom: idx < 2 ? '1px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
-                                                {contrastMode === opt.key ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#333"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" /></svg> : <span style={{ width: '20px' }}></span>}
-                                                <span style={{ fontSize: '16px', color: '#000' }}>{opt.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                                )}
 
-                            {optionsView === 'textsize' && (
-                                <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
-                                        <button onClick={() => setOptionsView('main')} style={{ background: 'none', border: 'none', fontSize: '15px', cursor: 'pointer', color: '#000' }}>Options</button>
-                                        <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', margin: 0 }}>Text size</h2>
-                                        <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#000', padding: '4px' }}><FaTimes size={18} /></button>
-                                    </div>
-                                    <div style={{ margin: '8px 24px 24px', border: '1px solid #d1d5db', borderRadius: '6px' }}>
-                                        {[{ key: 'regular', label: 'Regular' }, { key: 'large', label: 'Large' }, { key: 'extra-large', label: 'Extra large' }].map((opt, idx) => (
-                                            <button key={opt.key} onClick={() => setTextSizeMode(opt.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', background: 'none', border: 'none', borderBottom: idx < 2 ? '1px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
-                                                {textSizeMode === opt.key ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#333"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" /></svg> : <span style={{ width: '20px' }}></span>}
-                                                <span style={{ fontSize: '16px', color: '#000' }}>{opt.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
         );
     }
 

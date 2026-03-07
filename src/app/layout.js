@@ -43,7 +43,7 @@ const outfit = Outfit({
 });
 
 export const metadata = {
-  title: "IELTSPro - Online Examination System",
+  title: "Mizan's Care - Online Examination System",
   description:
     "Professional IELTS examination platform with Listening, Reading, and Writing tests. Practice and assess your English language skills.",
 };
