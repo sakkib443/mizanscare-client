@@ -103,6 +103,21 @@ function AdminLayoutContent({ children }) {
                 return;
             }
 
+            // 🔒 Check if token is expired
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.exp * 1000 < Date.now()) {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    localStorage.removeItem("adminAuth");
+                    router.replace("/login");
+                    return;
+                }
+            } catch (e) {
+                router.replace("/login");
+                return;
+            }
+
             const user = JSON.parse(userStr);
             if (user.role !== "admin" && user.role !== "super-admin") {
                 router.replace("/dashboard/student");

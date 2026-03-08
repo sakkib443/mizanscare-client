@@ -21,11 +21,36 @@ const getAuthToken = () => {
     }
     return null;
 };
+// Check if JWT token is expired
+const isTokenExpired = (token) => {
+    if (!token) return true;
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        // exp is in seconds, Date.now() is in milliseconds
+        return payload.exp * 1000 < Date.now();
+    } catch (e) {
+        return true; // If can't decode, treat as expired
+    }
+};
+
+// Clear auth data and redirect to login
+const handleUnauthorized = () => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('adminAuth');
+    window.location.href = '/login';
+};
 
 
-// API request helper
 const apiRequest = async (endpoint, options = {}) => {
     const token = getAuthToken();
+
+    // 🔒 Check token expiry BEFORE making request
+    if (token && isTokenExpired(token)) {
+        handleUnauthorized();
+        throw new Error('Session expired. Please login again.');
+    }
 
     const config = {
         headers: {
@@ -41,6 +66,11 @@ const apiRequest = async (endpoint, options = {}) => {
         const data = await response.json();
 
         if (!response.ok) {
+            // 🔒 Handle 401 Unauthorized — token expired on server side
+            if (response.status === 401) {
+                handleUnauthorized();
+                throw new Error('Session expired. Please login again.');
+            }
             // Check if it's a validation error with array of errors
             if (data.errors && Array.isArray(data.errors)) {
                 const error = new Error(JSON.stringify(data.errors));
