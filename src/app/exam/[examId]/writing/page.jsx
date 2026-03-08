@@ -489,7 +489,7 @@ export default function WritingExamPage() {
                 <div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', marginBottom: '44px' }}>
                     {/* LEFT: Task Prompt + Image */}
                     <div style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
-                        <TextHighlighter passageId={`writing_part_${activePart}`}>
+                        <TextHighlighter passageId={`writing_part_${activePart}`} contrastMode={contrastMode}>
                             {currentTaskData.prompt && (
                                 <div style={{ color: cs.text, fontSize: `${16 * tScale}px`, lineHeight: '1.8', whiteSpace: 'pre-line', marginBottom: '16px' }}>
                                     {currentTaskData.prompt}

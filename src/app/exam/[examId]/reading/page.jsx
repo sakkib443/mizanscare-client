@@ -594,7 +594,7 @@ export default function ReadingExamPage() {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Arial, sans-serif',  backgroundColor: cs.bg, color: cs.text }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text }}>
 
             {/* Exam Security */}
             {!showInstructions && (
@@ -655,7 +655,7 @@ export default function ReadingExamPage() {
                 < div style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
                     <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
                     {currentPass.source && <p style={{ fontSize: `${12 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text, marginBottom: '12px', fontStyle: 'italic' }}>{currentPass.source}</p>}
-                    <TextHighlighter passageId={`reading_passage_${currentPassage}`}>
+                    <TextHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
                         {currentPass.content.split('\n\n').map((para, index) => (
                             <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px` }}>{para}</p>
                         ))}
@@ -677,7 +677,7 @@ export default function ReadingExamPage() {
 
                 {/* RIGHT: Questions */}
                 < div style={{ flex: 1, overflowY: 'auto', padding: '20px 30px 250px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif' }}>
-                    <TextHighlighter passageId={`reading_questions_${currentPassage}`}>
+                    <TextHighlighter passageId={`reading_questions_${currentPassage}`} contrastMode={contrastMode}>
                         {currentPass.questionGroups && currentPass.questionGroups.length > 0 ? (
                             currentPass.questionGroups.map((group, gIdx) => (
                                 <div key={gIdx} style={{ marginBottom: '24px' }}>

@@ -8,7 +8,15 @@ import { FaHighlighter, FaEraser, FaStickyNote, FaTimes } from "react-icons/fa";
  * Allows users to highlight text in yellow and add notes
  * Persists highlights across page navigation
  */
-export default function TextHighlighter({ children, passageId = "default" }) {
+// Derive highlight colors based on contrast mode
+const getHighlightColors = (contrastMode) => {
+    if (contrastMode === 'white-on-black') return { color: '#00e5ff', hover: '#00bcd4' };
+    if (contrastMode === 'yellow-on-black') return { color: '#ff00ff', hover: '#cc00cc' };
+    return { color: '#FFFF00', hover: '#FFD700' }; // default: black-on-white
+};
+
+export default function TextHighlighter({ children, passageId = "default", contrastMode = 'black-on-white' }) {
+    const { color: highlightColor, hover: highlightHoverColor } = getHighlightColors(contrastMode);
     const containerRef = useRef(null);
     const [highlights, setHighlights] = useState([]);
     const [showToolbar, setShowToolbar] = useState(false);
@@ -168,7 +176,7 @@ export default function TextHighlighter({ children, passageId = "default" }) {
                 id: Date.now().toString(),
                 text: selectedText,
                 offset: selectionOffset,
-                color: "#FFFF00",
+                color: highlightColor,
                 note: withNote ? noteText.trim() : "",
                 createdAt: new Date().toISOString(),
             };
@@ -552,7 +560,7 @@ export default function TextHighlighter({ children, passageId = "default" }) {
                                 onClick={() => handleHighlight(false)}
                                 className="flex items-center justify-center w-8 h-8 rounded hover:brightness-90 transition-all"
                                 title="Highlight"
-                                style={{ backgroundColor: "#FFFF00" }}
+                                style={{ backgroundColor: highlightColor }}
                             >
                                 <FaHighlighter className="text-gray-800 text-sm" />
                             </button>
@@ -621,7 +629,7 @@ export default function TextHighlighter({ children, passageId = "default" }) {
 
             <style jsx global>{`
                 .text-highlight {
-                    background-color: #FFFF00 !important;
+                    background-color: ${highlightColor} !important;
                     padding: 1px 2px;
                     border-radius: 2px;
                     cursor: pointer;
@@ -629,7 +637,7 @@ export default function TextHighlighter({ children, passageId = "default" }) {
                     position: relative;
                 }
                 .text-highlight:hover {
-                    background-color: #FFD700 !important;
+                    background-color: ${highlightHoverColor} !important;
                 }
                 .text-highlight.has-note {
                 }

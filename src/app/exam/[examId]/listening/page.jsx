@@ -808,7 +808,7 @@ export default function ListeningExamPage() {
     const partCovered = new Set(pageBlocks.filter(b => !b._isInstruction).map(b => b._sectionIndex));
 
     return (
-        <div className="min-h-screen bg-white flex flex-col" style={{ fontFamily: "'Arial', sans-serif", fontSize: '14px' }}>
+        <div className="min-h-screen flex flex-col" style={{ fontFamily: "'Arial', sans-serif", fontSize: '14px', backgroundColor: cs.bg }}>
 
             <ExamSecurity examId={session?.examId} onViolationLimit={() => handleSubmit()} />
             <audio ref={audioRef} preload="auto" />
@@ -916,8 +916,7 @@ export default function ListeningExamPage() {
             {/* ══════════════════════════════════════
                 PART BANNER — Inspera Style
             ══════════════════════════════════════ */}
-            < div style={{ margin: '26px 15px 0', backgroundColor: cs.partBg, border: `1px solid ${cs.partBorder}`, padding: '12px 24px', flexShrink: 0, fontFamily: 'Arial, sans-serif', borderRadius: '4px' }
-            }>
+            <div style={{ margin: '26px 15px 0', backgroundColor: cs.partBg, border: `1px solid ${cs.partBorder}`, padding: '12px 24px', flexShrink: 0, fontFamily: 'Arial, sans-serif', borderRadius: '4px' }}>
                 <div style={{ fontWeight: 'bold', fontSize: `${16 * tScale}px`, color: cs.text, marginBottom: '2px' }}>
                     Part {currentSectionIndex + 1}
                 </div>
@@ -929,12 +928,12 @@ export default function ListeningExamPage() {
                         return (first && last ? `Listen and answer questions ${first}–${last}.` : '');
                     })()}
                 </div>
-            </div >
+            </div>
 
             {/* ══════════════════════════════════════
                 SCROLLABLE CONTENT
             ══════════════════════════════════════ */}
-            < div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px` }}>
+            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px` }}>
                 <div style={{ maxWidth: '1000px', padding: '20px 20px' }}>
 
                     {/* Section image if any */}

@@ -225,12 +225,12 @@ function AdminLayoutContent({ children }) {
                     } ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
             >
                 {/* Logo Area */}
-                <div className="h-16 flex items-center px-6 border-b border-gray-200">
+                <div className="h-16 flex items-center px-4 border-b border-gray-200">
                     {sidebarOpen ? (
-                        <Logo className="w-32" />
+                        <Logo size="large" className="w-44" />
                     ) : (
-                        <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                            IE
+                        <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                            MC
                         </div>
                     )}
                 </div>
