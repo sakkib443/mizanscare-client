@@ -8,11 +8,9 @@ import { FaHighlighter, FaEraser, FaStickyNote, FaTimes } from "react-icons/fa";
  * Allows users to highlight text in yellow and add notes
  * Persists highlights across page navigation
  */
-// Derive highlight colors based on contrast mode
+// Derive highlight colors - Using orange as requested
 const getHighlightColors = (contrastMode) => {
-    if (contrastMode === 'white-on-black') return { color: '#00e5ff', hover: '#00bcd4' };
-    if (contrastMode === 'yellow-on-black') return { color: '#ff00ff', hover: '#cc00cc' };
-    return { color: '#FFFF00', hover: '#FFD700' }; // default: black-on-white
+    return { color: '#FF9800', hover: '#F57C00' };
 };
 
 export default function TextHighlighter({ children, passageId = "default", contrastMode = 'black-on-white' }) {
@@ -630,8 +628,9 @@ export default function TextHighlighter({ children, passageId = "default", contr
             <style jsx global>{`
                 .text-highlight {
                     background-color: ${highlightColor} !important;
-                    padding: 1px 2px;
-                    border-radius: 2px;
+                    color: #000000 !important;
+                    padding: 2px 4px;
+                    border-radius: 3px;
                     cursor: pointer;
                     transition: background-color 0.2s;
                     position: relative;

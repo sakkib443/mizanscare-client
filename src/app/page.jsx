@@ -290,14 +290,13 @@ export default function HomePage() {
                                     <FaTimes />
                                 </button>
                             </div>
-                            <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                                <iframe
+                            <div className="relative w-full bg-black" style={{ paddingBottom: "56.25%" }}>
+                                <video
                                     className="absolute inset-0 w-full h-full"
-                                    src="https://www.youtube.com/embed/4_dCncUPBO4?autoplay=1&rel=0"
-                                    title="IELTS Exam Demo"
-                                    frameBorder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
+                                    src="/video/IELTS on computer - Quick Guide.mp4"
+                                    controls
+                                    autoPlay
+                                    playsInline
                                 />
                             </div>
                             <div className="px-5 py-3 bg-gray-50 flex items-center justify-between">

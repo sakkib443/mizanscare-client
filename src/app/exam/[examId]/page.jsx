@@ -139,11 +139,11 @@ export default function ExamSelectionPage() {
         return [];
     };
 
-    // Video timestamps for each module (from YouTube: 3SUAfSU0VNo)
-    const VIDEO_TIMESTAMPS = {
-        listening: { start: 173, end: 277, label: 'Listening' },
-        reading: { start: 277, end: 405, label: 'Reading' },
-        writing: { start: 405, end: 474, label: 'Writing' },
+    // Local video files for each module
+    const MODULE_VIDEOS = {
+        listening: { src: "/video/listeining test instruction.mp4", label: 'Listening' },
+        reading: { src: "/video/reading instruction.mp4", label: 'Reading' },
+        writing: { src: "/video/writing instruction.mp4", label: 'Writing' },
     };
 
     // Exam modules configuration
@@ -259,14 +259,13 @@ export default function ExamSelectionPage() {
                                 <FaTimes />
                             </button>
                         </div>
-                        <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                            <iframe
+                        <div className="relative w-full bg-black" style={{ paddingBottom: "56.25%" }}>
+                            <video
                                 className="absolute inset-0 w-full h-full"
-                                src="https://www.youtube.com/embed/4_dCncUPBO4?autoplay=1&rel=0"
-                                title="IELTS Exam Demo"
-                                frameBorder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
+                                src="/video/IELTS on computer - Quick Guide.mp4"
+                                controls
+                                autoPlay
+                                playsInline
                             />
                         </div>
                         <div className="px-5 py-3 bg-gray-50 flex items-center justify-between">
@@ -292,15 +291,14 @@ export default function ExamSelectionPage() {
 
             {/* Module-specific Instruction Video Modal */}
             {showModuleVideo && (() => {
-                const ts = VIDEO_TIMESTAMPS[showModuleVideo.moduleId];
-                const videoUrl = `https://www.youtube.com/embed/3SUAfSU0VNo?autoplay=1&rel=0&start=${ts.start}&end=${ts.end}`;
+                const videoInfo = MODULE_VIDEOS[showModuleVideo.moduleId];
                 return (
                     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
                         <div className="bg-white rounded-xl w-full max-w-3xl shadow-2xl overflow-hidden">
                             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
                                 <div className="flex items-center gap-2">
                                     <FaVideo className="text-red-500" />
-                                    <h3 className="font-semibold text-gray-800 text-sm">{ts.label} Instruction</h3>
+                                    <h3 className="font-semibold text-gray-800 text-sm">{videoInfo.label} Instruction</h3>
                                 </div>
                                 <button
                                     onClick={() => setShowModuleVideo(null)}
@@ -309,18 +307,17 @@ export default function ExamSelectionPage() {
                                     <FaTimes />
                                 </button>
                             </div>
-                            <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                                <iframe
+                            <div className="relative w-full bg-black" style={{ paddingBottom: "56.25%" }}>
+                                <video
                                     className="absolute inset-0 w-full h-full"
-                                    src={videoUrl}
-                                    title={`${ts.label} Instruction`}
-                                    frameBorder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
+                                    src={videoInfo.src}
+                                    controls
+                                    autoPlay
+                                    playsInline
                                 />
                             </div>
                             <div className="px-5 py-3 bg-gray-50 flex items-center justify-between">
-                                <p className="text-gray-500 text-xs">Watch the {ts.label.toLowerCase()} instruction before starting</p>
+                                <p className="text-gray-500 text-xs">Watch the {videoInfo.label.toLowerCase()} instruction before starting</p>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={proceedToModule}
