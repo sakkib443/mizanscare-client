@@ -187,7 +187,7 @@ function CreateListeningPageContent() {
     // Form
     const [formData, setFormData] = useState({
         title: "", description: "", source: "",
-        difficulty: "medium", duration: 40,
+        difficulty: "medium", testType: "academic", duration: 40,
         mainAudioUrl: "", audioDuration: 0,
     });
 
@@ -220,6 +220,7 @@ function CreateListeningPageContent() {
                     setFormData({
                         title: data.title || "", description: data.description || "",
                         source: data.source || "", difficulty: data.difficulty || "medium",
+                        testType: data.testType || "academic",
                         duration: data.duration || 40,
                         mainAudioUrl: data.mainAudioUrl || "", audioDuration: data.audioDuration || 0,
                     });
@@ -476,6 +477,14 @@ function CreateListeningPageContent() {
                         <textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
                             rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
                             placeholder="Optional" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 block mb-1">Test Type</label>
+                        <select value={formData.testType} onChange={e => setFormData(p => ({ ...p, testType: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none bg-white">
+                            <option value="academic">Academic</option>
+                            <option value="general-training">General Training</option>
+                        </select>
                     </div>
                     <div>
                         <label className="text-xs font-semibold text-gray-600 block mb-1">Difficulty</label>

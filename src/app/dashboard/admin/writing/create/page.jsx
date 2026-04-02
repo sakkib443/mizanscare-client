@@ -376,7 +376,18 @@ export default function CreateWritingPage() {
                                         className="w-full border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-200 resize-none"
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Test Type</label>
+                                        <select
+                                            value={formData.testType}
+                                            onChange={(e) => setFormData(p => ({ ...p, testType: e.target.value }))}
+                                            className="w-full border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-orange-400"
+                                        >
+                                            <option value="academic">Academic</option>
+                                            <option value="general-training">General Training</option>
+                                        </select>
+                                    </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Duration (min)</label>
                                         <input
