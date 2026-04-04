@@ -229,6 +229,29 @@ export default function LivePreview({ sections, title }) {
                                 </div>
                             )}
 
+                            {/* ═══ SHORT ANSWER ═══ */}
+                            {group.groupType === "short-answer" && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}-{group.endQuestion}</h3>
+                                    <p className="text-gray-800 italic mb-1">{group.mainInstruction}</p>
+                                    <p className="text-gray-800 mb-4">{group.subInstruction}</p>
+                                    <div className="space-y-4">
+                                        {(group.questions || []).map(q => (
+                                            <div key={q.questionNumber} className="flex flex-col gap-2 border-b border-gray-100 pb-3 last:border-0">
+                                                <div className="flex items-start gap-2">
+                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5 mt-0.5">{q.questionNumber}</span>
+                                                    <span className="text-gray-800 font-medium">{q.questionText}</span>
+                                                </div>
+                                                <div className="ml-8">
+                                                    <input disabled type="text" placeholder="Type answer here..." className="border-b-2 border-blue-300 outline-none w-full max-w-sm px-2 py-1 text-sm bg-gray-50" />
+                                                    {q.correctAnswer && <span className="ml-3 text-xs bg-green-100 text-green-700 font-bold px-2 py-1 rounded">Ans: {q.correctAnswer}</span>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* ═══ MULTIPLE CHOICE FULL ═══ */}
                             {group.groupType === "multiple-choice-full" && (
                                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">

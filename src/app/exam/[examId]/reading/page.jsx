@@ -873,6 +873,27 @@ export default function ReadingExamPage() {
                                         </div>
                                     )}
 
+                                    {/* ── SHORT ANSWER ── */}
+                                    {group.groupType === "short-answer" && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, marginBottom: '4px' }}>{group.mainInstruction}</p>
+                                            <p style={{ color: cs.text, marginBottom: '12px' }}>{group.subInstruction}</p>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                {(group.questions || []).map(q => (
+                                                    <div key={q.questionNumber} id={`q-${q.questionNumber}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                                            <span style={{ border: focusedQuestion === q.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === q.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', flexShrink: 0, borderRadius: '2px', marginTop: '2px' }}>{q.questionNumber}</span>
+                                                            <span style={{ color: cs.text, fontSize: '15px', lineHeight: '1.5' }}>{q.questionText}</span>
+                                                        </div>
+                                                        <div style={{ paddingLeft: '32px' }}>
+                                                            <input type="text" value={answers[q.questionNumber] || ""} onChange={e => handleAnswer(q.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', borderBottom: `2px solid ${focusedQuestion === q.questionNumber ? '#2563eb' : cs.text}`, width: '250px', background: 'transparent', outline: 'none', color: cs.text, fontSize: '15px', padding: '4px 8px' }} />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* â”€â”€ SUMMARY COMPLETION â”€â”€ */}
                                     {group.groupType === "summary-completion" && (
                                         <div style={{ marginBottom: '20px' }}>
