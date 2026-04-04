@@ -34,10 +34,14 @@ export default function LivePreview({ sections, title }) {
                 <div className="p-5 border-b border-gray-200 bg-amber-50/30">
                     <h2 className="text-lg font-bold text-gray-900 mb-3">{currentSection.title || "Section Title"}</h2>
                     {currentSection.passage ? (
-                        <div className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto pr-2">
-                            {currentSection.passage.substring(0, 1500)}
-                            {currentSection.passage.length > 1500 && <span className="text-gray-400">... (passage truncated in preview)</span>}
-                        </div>
+                        <div 
+                            className="text-gray-700 text-sm leading-relaxed max-h-60 overflow-y-auto pr-2 prose prose-sm max-w-none"
+                            dangerouslySetInnerHTML={{ 
+                                __html: currentSection.passage.length > 2000 
+                                    ? currentSection.passage.substring(0, 2000) + '... <span class="text-gray-400 italic">(passage truncated in preview)</span>'
+                                    : currentSection.passage 
+                            }}
+                        />
                     ) : (
                         <p className="text-gray-400 text-sm italic">No passage yet</p>
                     )}

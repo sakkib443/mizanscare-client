@@ -658,9 +658,11 @@ export default function ReadingExamPage() {
                     <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
                     {currentPass.source && <p style={{ fontSize: `${12 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text, marginBottom: '12px', fontStyle: 'italic' }}>{currentPass.source}</p>}
                     <TextHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
-                        {currentPass.content.split('\n\n').map((para, index) => (
-                            <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px` }}>{para}</p>
-                        ))}
+                        <div 
+                            className="reading-passage-content"
+                            style={{ color: cs.text, lineHeight: '1.8', fontSize: `${16 * tScale}px` }}
+                            dangerouslySetInnerHTML={{ __html: currentPass.content }} 
+                        />
                     </TextHighlighter>
                 </div >
 
