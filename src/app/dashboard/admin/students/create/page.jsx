@@ -192,6 +192,7 @@ export default function CreateStudentPage() {
 
     // Form data - now with arrays for multi-set
     const [formData, setFormData] = useState({
+        testType: "academic",
         nameEnglish: "",
         nameBengali: "",
         email: "",
@@ -426,6 +427,21 @@ export default function CreateStudentPage() {
                     <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                         <FaUserGraduate className="text-cyan-600" /> Personal Information
                     </h3>
+
+                    <div className="mb-5 bg-cyan-50 border border-cyan-100 p-4 rounded-lg">
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Test Type *</label>
+                        <div className="flex gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="testType" value="academic" checked={formData.testType === "academic"} onChange={handleInputChange} className="w-4 h-4 text-cyan-600 focus:ring-cyan-500" />
+                                <span className="text-sm font-medium text-gray-800">Academic</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="testType" value="general-training" checked={formData.testType === "general-training"} onChange={handleInputChange} className="w-4 h-4 text-cyan-600 focus:ring-cyan-500" />
+                                <span className="text-sm font-medium text-gray-800">General Training (GT)</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Full Name (English) *</label>
@@ -549,7 +565,7 @@ export default function CreateStudentPage() {
                                             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
                                         >
                                             <option value="">Select...</option>
-                                            {listeningSets.map(s => (
+                                            {listeningSets.filter(s => !s.testType || s.testType === formData.testType).map(s => (
                                                 <option key={s._id} value={s.testNumber}>#{s.testNumber} - {s.title}</option>
                                             ))}
                                         </select>
@@ -566,7 +582,7 @@ export default function CreateStudentPage() {
                                             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
                                         >
                                             <option value="">Select...</option>
-                                            {readingSets.map(s => (
+                                            {readingSets.filter(s => !s.testType || s.testType === formData.testType).map(s => (
                                                 <option key={s._id} value={s.testNumber}>#{s.testNumber} - {s.title}</option>
                                             ))}
                                         </select>
@@ -583,7 +599,7 @@ export default function CreateStudentPage() {
                                             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
                                         >
                                             <option value="">Select...</option>
-                                            {writingSets.map(s => (
+                                            {writingSets.filter(s => !s.testType || s.testType === formData.testType).map(s => (
                                                 <option key={s._id} value={s.testNumber}>#{s.testNumber} - {s.title}</option>
                                             ))}
                                         </select>
@@ -632,7 +648,7 @@ export default function CreateStudentPage() {
                                             className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
                                         >
                                             <option value="">Select set...</option>
-                                            {(es.module === 'listening' ? listeningSets : es.module === 'reading' ? readingSets : es.module === 'writing' ? writingSets : []).map(s => (
+                                            {(es.module === 'listening' ? listeningSets : es.module === 'reading' ? readingSets : es.module === 'writing' ? writingSets : speakingSets).filter(s => !s.testType || s.testType === formData.testType).map(s => (
                                                 <option key={s._id} value={s.testNumber}>#{s.testNumber} - {s.title}</option>
                                             ))}
                                         </select>

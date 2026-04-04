@@ -29,6 +29,7 @@ export default function ListeningListPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [difficultyFilter, setDifficultyFilter] = useState("");
     const [testTypeFilter, setTestTypeFilter] = useState("");
+    const [sortBy, setSortBy] = useState("");
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [error, setError] = useState("");
 
@@ -42,6 +43,7 @@ export default function ListeningListPage() {
             if (searchTerm) params.searchTerm = searchTerm;
             if (difficultyFilter) params.difficulty = difficultyFilter;
             if (testTypeFilter) params.testType = testTypeFilter;
+            if (sortBy) params.sort = sortBy;
 
             const response = await listeningAPI.getAll(params);
             if (response.success && response.data) {
@@ -58,7 +60,7 @@ export default function ListeningListPage() {
         } finally {
             setLoading(false);
         }
-    }, [pagination.page, pagination.limit, searchTerm, difficultyFilter, testTypeFilter]);
+    }, [pagination.page, pagination.limit, searchTerm, difficultyFilter, testTypeFilter, sortBy]);
 
     useEffect(() => {
         fetchTests();
@@ -177,6 +179,20 @@ export default function ListeningListPage() {
                     <option value="">All Types</option>
                     <option value="academic">Academic</option>
                     <option value="general-training">General Training</option>
+                </select>
+                <select
+                    value={sortBy}
+                    onChange={(e) => {
+                        setSortBy(e.target.value);
+                        setPagination(p => ({ ...p, page: 1 }));
+                    }}
+                    className="px-3 py-2.5 border border-gray-200 rounded-md outline-none focus:border-indigo-500 text-sm"
+                >
+                    <option value="">Sort By...</option>
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="name_asc">Name (A-Z)</option>
+                    <option value="name_desc">Name (Z-A)</option>
                 </select>
             </div>
 
