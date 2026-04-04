@@ -251,7 +251,7 @@ export default function ReadingExamPage() {
 
                 if (group.questionSets) {
                     group.questionSets.forEach(qs => {
-                        qs.questionNumbers?.forEach(num => {
+                        qs.questionNumbers?.forEach((num, index) => {
                             const existing = questionMap.get(num) || {};
                             questionMap.set(num, {
                                 ...existing,
@@ -259,6 +259,7 @@ export default function ReadingExamPage() {
                                 questionNumber: num,
                                 type: existing.type || qType,
                                 text: existing.text || `Multiple Question ${num}`,
+                                correctAnswer: qs.correctAnswers ? qs.correctAnswers[index] : existing.correctAnswer,
                                 marks: 1
                             });
                         });
@@ -695,9 +696,10 @@ export default function ReadingExamPage() {
                                             {group.mainHeading && <h3 style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginBottom: '12px', borderBottom: `2px solid ${contrastMode === 'black-on-white' ? '#dbeafe' : cs.text}`, paddingBottom: '6px' }}>{group.mainHeading}</h3>}
 
                                             {(group.passage || "").split('\n').map((line, lineIdx) => {
+                                                const rawLine = line;
                                                 const trimmedLine = line.trim();
                                                 if (!trimmedLine) return <div key={lineIdx} style={{ height: '8px' }} />;
-                                                const isBullet = trimmedLine.startsWith('â€¢') || trimmedLine.startsWith('-');
+                                                const isBullet = trimmedLine.startsWith('•') || trimmedLine.startsWith('-');
                                                 const hasBlank = trimmedLine.includes('__________');
                                                 const isHeading = !isBullet && !hasBlank && trimmedLine.length < 100;
 
@@ -721,10 +723,10 @@ export default function ReadingExamPage() {
 
                                                 if (isHeading) return <h4 key={lineIdx} style={{ fontWeight: 'bold', color: cs.text, fontSize: `${15 * tScale}px`, marginTop: '16px', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{trimmedLine}</h4>;
                                                 if (isBullet) {
-                                                    const bulletText = trimmedLine.replace(/^[â€¢\-]\s*/, '');
-                                                    return <div key={lineIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginLeft: '20px', marginBottom: '4px' }}><span style={{ color: cs.text, marginTop: '4px', fontSize: '10px' }}>â€¢</span><span style={{ flex: 1, color: cs.text, lineHeight: '1.6', fontWeight: '500' }}>{renderLine(bulletText)}</span></div>;
+                                                    const bulletText = rawLine.replace(/^\s*[•\-]\s*/, '');
+                                                    return <div key={lineIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginLeft: '20px', marginBottom: '4px' }}><span style={{ color: cs.text, marginTop: '4px', fontSize: '10px' }}>•</span><span style={{ flex: 1, color: cs.text, lineHeight: '1.6', fontWeight: '500', whiteSpace: 'pre-wrap' }}>{renderLine(bulletText)}</span></div>;
                                                 }
-                                                return <p key={lineIdx} style={{ color: cs.text, lineHeight: '1.6', marginBottom: '4px', marginLeft: '8px' }}>{renderLine(trimmedLine)}</p>;
+                                                return <p key={lineIdx} style={{ color: cs.text, lineHeight: '1.6', marginBottom: '4px', marginLeft: '8px', whiteSpace: 'pre-wrap', fontFamily: rawLine.startsWith(' ') ? 'monospace' : 'inherit' }}>{renderLine(rawLine)}</p>;
                                             })}
 
                                             {!group.passage && group.notesSections?.map((section, sIdx) => (
@@ -758,7 +760,8 @@ export default function ReadingExamPage() {
                                     {(group.questionType === "true-false-not-given" || group.groupType === "true-false-not-given" || group.questionType === "true-false-ng") && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <div style={{ marginBottom: '12px' }}>
-                                                <p style={{ color: cs.text, fontWeight: '500', marginBottom: '8px' }}>{group.instructions || group.mainInstruction}</p>
+                                                <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px' }}>{group.instructions || group.mainInstruction}</p>
+                                                {group.subInstruction && <p style={{ color: cs.text, fontSize: `${15 * tScale}px`, marginBottom: '8px', color: '#4b5563' }}>{group.subInstruction}</p>}
                                                 <div style={{ padding: '12px', borderLeft: `4px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : cs.text}`, fontSize: `${13 * tScale}px` }}>
                                                     <p><b>TRUE</b> if the statement agrees with the information</p>
                                                     <p><b>FALSE</b> if the statement contradicts the information</p>
@@ -774,6 +777,46 @@ export default function ReadingExamPage() {
                                                         </div>
                                                         <div style={{ paddingLeft: '34px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                                             {["TRUE", "FALSE", "NOT GIVEN"].map((opt, oIdx) => {
+                                                                const letter = String.fromCharCode(65 + oIdx);
+                                                                const isSel = answers[stmt.questionNumber] === opt;
+                                                                return (
+                                                                    <div key={opt} onClick={() => handleAnswer(stmt.questionNumber, opt)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                                                        <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '14px', color: cs.text }}>{letter}</span>
+                                                                        <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                                                                            {isSel && <div style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%' }} />}
+                                                                        </div>
+                                                                        <span style={{ color: cs.text, fontWeight: isSel ? '600' : '400', fontSize: '14px', textTransform: 'uppercase' }}>{opt}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* ── YES/NO/NOT GIVEN ── */}
+                                    {(group.groupType === "yes-no-not-given") && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <div style={{ marginBottom: '12px' }}>
+                                                <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px' }}>{group.instructions || group.mainInstruction}</p>
+                                                {group.subInstruction && <p style={{ color: cs.text, fontSize: `${15 * tScale}px`, marginBottom: '8px', color: '#4b5563' }}>{group.subInstruction}</p>}
+                                                <div style={{ padding: '12px', borderLeft: `4px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : cs.text}`, fontSize: `${13 * tScale}px` }}>
+                                                    <p><b>YES</b> if the statement agrees with the views of the writer</p>
+                                                    <p><b>NO</b> if the statement contradicts the views of the writer</p>
+                                                    <p><b>NOT GIVEN</b> if it is impossible to say what the writer thinks about this</p>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                {(group.statements || group.questions)?.map(stmt => (
+                                                    <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ paddingBottom: '12px', borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#f3f4f6' : '#333'}` }}>
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '10px' }}>
+                                                            <span style={{ border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === stmt.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', flexShrink: 0, borderRadius: '2px' }}>{stmt.questionNumber}</span>
+                                                            <p style={{ color: cs.text, fontWeight: '500', lineHeight: '1.5' }}>{stmt.text || stmt.questionText}</p>
+                                                        </div>
+                                                        <div style={{ paddingLeft: '34px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                            {["YES", "NO", "NOT GIVEN"].map((opt, oIdx) => {
                                                                 const letter = String.fromCharCode(65 + oIdx);
                                                                 const isSel = answers[stmt.questionNumber] === opt;
                                                                 return (
@@ -874,6 +917,155 @@ export default function ReadingExamPage() {
                                                     </div>
                                                 </div>
                                             ))}
+                                        </div>
+                                    )}
+
+                                    {/* ── CUSTOM PURE CSS FLOWCHART FOR MOCK 01 ── */}
+                                    {(group.groupType === "custom-flowchart-1" || group.groupType === "diagram-labeling") && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <div style={{ marginBottom: '16px' }}>
+                                                <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px', fontSize: `${16 * tScale}px` }}>{group.instructions || group.mainInstruction}</p>
+                                                {group.subInstruction && <p style={{ color: cs.text, fontSize: `${14 * tScale}px`, marginBottom: '16px', opacity: 0.9 }}>{group.subInstruction}</p>}
+                                            </div>
+
+                                            {/* CSS Flowchart Container */}
+                                            <div style={{ display: 'flex', justifyContent: 'center', width: '100%', padding: '20px', background: contrastMode === 'black-on-white' ? '#f8fafc' : '#1e293b', borderRadius: '8px', border: `1px solid ${contrastMode === 'black-on-white' ? '#e2e8f0' : '#334155'}` }}>
+                                                <div style={{ position: 'relative', width: '600px', fontFamily: '"Arial", sans-serif' }}>
+                                                    
+                                                    {/* ROW 1 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '8px 40px', fontWeight: 'bold', fontSize: '15px', color: cs.text, background: cs.bg }}>
+                                                            productive land
+                                                        </div>
+                                                        {/* Arrow connecting multiple causes */}
+                                                        <svg style={{ position: 'absolute', right: '40px', top: '10px', width: '50px', height: '40px' }} viewBox="0 0 50 40">
+                                                            <path d="M 50 40 Q 20 40 5 15" fill="none" stroke={cs.text} strokeWidth="2" />
+                                                            <polygon points="5,15 12,20 0,25" fill={cs.text} transform="rotate(25 5 15) translate(-2, -8)" />
+                                                        </svg>
+                                                        <div style={{ position: 'absolute', right: '-10px', top: '40px', border: `2px solid ${cs.text}`, padding: '4px 16px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: cs.text }}>
+                                                            multiple<br/>causes
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 1 TO 2 ARROW */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', height: '30px' }}>
+                                                        <div style={{ width: '4px', background: cs.text, height: '100%', position: 'relative' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 2 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px dashed ${cs.text}`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', background: contrastMode === 'black-on-white' ? '#ffffff' : '#0f172a' }}>
+                                                            <span style={{ fontWeight: 'bold', fontSize: '14px', color: cs.text }}>degradation proceeds at</span>
+                                                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                                                                <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[27] ? '27' : ''}</span>
+                                                                <input id="q-27" type="text" value={answers[27] || ''} onChange={e => handleAnswer(27, e.target.value)} onFocus={() => { setFocusedQuestion(27); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '120px', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 2 TO 3 ARROW */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', height: '30px' }}>
+                                                        <div style={{ width: '4px', background: cs.text, height: '100%', position: 'relative' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 3 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '15px 120px', fontWeight: 'bold', fontSize: '20px', color: cs.text, background: cs.bg }}>
+                                                            DESERTIFICATION
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 3 TO 4 ARROWS (SPLIT) */}
+                                                    <div style={{ position: 'relative', height: '50px', width: '100%', marginTop: '5px' }}>
+                                                        <div style={{ position: 'absolute', left: '20%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                        <div style={{ position: 'absolute', right: '20%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 4 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 40px', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px dashed ${cs.text}`, padding: '12px', width: '220px', background: contrastMode === 'black-on-white' ? '#ffffff' : '#0f172a' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                                <div style={{ position: 'relative', width: '100%' }}>
+                                                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[28] ? '28' : ''}</span>
+                                                                    <input id="q-28" type="text" value={answers[28] || ''} onChange={e => handleAnswer(28, e.target.value)} onFocus={() => { setFocusedQuestion(28); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '100%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '14px', textAlign: 'center', color: cs.text }}>a climate trend</div>
+                                                        </div>
+                                                        <div style={{ border: `2px dashed ${cs.text}`, padding: '12px', width: '220px', background: contrastMode === 'black-on-white' ? '#ffffff' : '#0f172a' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                                <div style={{ position: 'relative', width: '100%' }}>
+                                                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[29] ? '29' : ''}</span>
+                                                                    <input id="q-29" type="text" value={answers[29] || ''} onChange={e => handleAnswer(29, e.target.value)} onFocus={() => { setFocusedQuestion(29); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '100%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '14px', textAlign: 'center', color: cs.text }}>a change in climate</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 4 TO 5 ARROWS */}
+                                                    <div style={{ position: 'relative', height: '40px', width: '100%', marginTop: '5px' }}>
+                                                        <div style={{ position: 'absolute', left: '20%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                        <div style={{ position: 'absolute', right: '20%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 5 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '12px 20px', width: '480px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px', background: cs.bg }}>
+                                                            <span style={{ fontWeight: 'bold', fontSize: '14px', color: cs.text, paddingLeft: '10px' }}>resulting in greater</span>
+                                                            <div style={{ position: 'relative', display: 'inline-block', flex: 1 }}>
+                                                                <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[30] ? '30' : ''}</span>
+                                                                <input id="q-30" type="text" value={answers[30] || ''} onChange={e => handleAnswer(30, e.target.value)} onFocus={() => { setFocusedQuestion(30); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '80%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 5 TO 6 ARROWS */}
+                                                    <div style={{ position: 'relative', height: '30px', width: '100%', marginTop: '5px' }}>
+                                                        <div style={{ position: 'absolute', left: '30%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                        <div style={{ position: 'absolute', right: '30%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 6 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 80px', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '10px', width: '200px', background: cs.bg }}>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '13px', textAlign: 'center', color: cs.text, marginBottom: '6px' }}>depletion of</div>
+                                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                                <div style={{ position: 'relative', width: '80%' }}>
+                                                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[31] ? '31' : ''}</span>
+                                                                    <input id="q-31" type="text" value={answers[31] || ''} onChange={e => handleAnswer(31, e.target.value)} onFocus={() => { setFocusedQuestion(31); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '100%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '10px', width: '200px', background: cs.bg }}>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '13px', textAlign: 'center', color: cs.text, marginBottom: '6px' }}>depletion of</div>
+                                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                                <div style={{ position: 'relative', width: '80%' }}>
+                                                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[32] ? '32' : ''}</span>
+                                                                    <input id="q-32" type="text" value={answers[32] || ''} onChange={e => handleAnswer(32, e.target.value)} onFocus={() => { setFocusedQuestion(32); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '100%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
 

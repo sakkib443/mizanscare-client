@@ -14,6 +14,8 @@ export const QUESTION_TYPES = [
     { value: "multiple-choice-full", label: "Multiple Choice (A/B/C/D)", icon: "🔤" },
     { value: "summary-with-options", label: "Summary with Word List", icon: "📋" },
     { value: "choose-two-letters", label: "Choose Two Letters", icon: "✌️" },
+    { value: "diagram-labeling", label: "Diagram / Flowchart Labeling", icon: "🗺️" },
+    { value: "custom-flowchart-1", label: "Custom Flowchart (Mock 01)", icon: "🔄" },
 ];
 
 // Get next available question number from existing groups
@@ -234,6 +236,18 @@ export function createGroupTemplate(type, startQ) {
                 }]
             };
 
+        case "diagram-labeling":
+            return {
+                groupType: "diagram-labeling", ...base,
+                endQuestion: startQ,
+                mainInstruction: "Questions " + startQ,
+                subInstruction: "Complete the flow-chart below.",
+                imageUrl: "",
+                markers: [
+                    { questionNumber: startQ, x: 50, y: 50, correctAnswer: "" }
+                ]
+            };
+
         default:
             return { groupType: type, ...base, endQuestion: startQ };
     }
@@ -378,14 +392,29 @@ export function generateQuestionsFromGroups(groups) {
             }
             case "choose-two-letters": {
                 for (const set of (group.questionSets || [])) {
-                    for (let i = 0; i < set.questionNumbers.length; i++) {
+                    for (const num of (set.questionNumbers || [])) {
                         questions.push({
-                            questionNumber: set.questionNumbers[i],
-                            questionType: "choose-two-letters",
+                            questionNumber: num,
+                            questionType: group.groupType,
                             questionText: set.questionText,
-                            correctAnswer: set.correctAnswers[i], marks: 1
+                            options: set.options ? set.options.map(o => o.text) : [],
+                            correctAnswer: Array.isArray(set.correctAnswers) ? set.correctAnswers.join(",") : set.correctAnswers,
+                            questionGroup: String(group._id || "")
                         });
                     }
+                }
+                break;
+            }
+
+            case "diagram-labeling": {
+                for (const m of (group.markers || [])) {
+                    questions.push({
+                        questionNumber: m.questionNumber,
+                        questionType: group.groupType,
+                        questionText: `Marker at [${m.x}%, ${m.y}%]`,
+                        correctAnswer: m.correctAnswer,
+                        questionGroup: String(group._id || "")
+                    });
                 }
                 break;
             }
@@ -484,6 +513,19 @@ export function renumberGroups(groups) {
                 updated.endQuestion = qNum - 1;
                 break;
             }
+            case "diagram-labeling":
+                return {
+                    groupType,
+                    startQuestion,
+                    endQuestion: startQuestion,
+                    mainInstruction: "Questions " + startQuestion,
+                    subInstruction: "Complete the flow-chart below.",
+                    imageUrl: "",
+                    markers: [
+                        { questionNumber: startQuestion, x: 50, y: 50, correctAnswer: "" }
+                    ]
+                };
+
             default:
                 updated.endQuestion = qNum - 1;
         }
