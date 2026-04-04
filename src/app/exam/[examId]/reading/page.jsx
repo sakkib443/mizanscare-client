@@ -225,6 +225,7 @@ export default function ReadingExamPage() {
                 };
 
                 group.questions?.forEach(processItem);
+                group.markers?.forEach(processItem);
                 group.mcQuestions?.forEach(processItem);
                 group.statements?.forEach(processItem);
                 group.matchingItems?.forEach(processItem);
