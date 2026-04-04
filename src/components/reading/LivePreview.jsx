@@ -427,30 +427,7 @@ export default function LivePreview({ sections, title }) {
                             )}
 
                             {/* ═══ SHORT ANSWER QUESTIONS ═══ */}
-                            {group.groupType === "short-answer" && (
-                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}–{group.endQuestion}</h3>
-                                    <p className="text-gray-800 font-medium mb-1">{group.mainInstruction || "Answer the questions below."}</p>
-                                    {group.subInstruction && (
-                                        <p className="text-blue-700 font-semibold mb-4 text-sm">
-                                            Choose <strong>{group.subInstruction.match(/ONE \w+ ONLY/)?.[0] || "ONE WORD ONLY"}</strong> from the passage for each answer.
-                                        </p>
-                                    )}
-                                    <div className="space-y-3 mt-3">
-                                        {(group.questions || []).map((q, idx) => (
-                                            <div key={idx} className="flex items-start gap-3">
-                                                <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5 flex-shrink-0 mt-0.5">{q.questionNumber}</span>
-                                                <div className="flex-1">
-                                                    <span className="text-gray-800">{q.questionText || <span className="text-gray-400 italic">Question text...</span>}</span>
-                                                    {q.correctAnswer && (
-                                                        <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">✓ {q.correctAnswer}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+
 
                             {/* ═══ SUMMARY COMPLETION (legacy) ═══ */}
                             {group.groupType === "summary-completion" && (
