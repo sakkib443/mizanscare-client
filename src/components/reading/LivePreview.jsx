@@ -135,7 +135,8 @@ export default function LivePreview({ sections, title }) {
                                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                                     <div className="mb-4">
                                         <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}-{group.endQuestion}</h3>
-                                        <p className="text-gray-800 font-medium mb-3">{group.mainInstruction}</p>
+                                        <p className="text-gray-800 font-medium mb-1">{group.mainInstruction}</p>
+                                        {group.subInstruction && <p className="text-gray-600 text-sm mb-3">{group.subInstruction}</p>}
                                         <div className="bg-gray-50 p-4 rounded-md space-y-2 text-sm border-l-4 border-gray-300">
                                             <p><span className="font-bold w-24 inline-block">TRUE</span> if the statement agrees with the information</p>
                                             <p><span className="font-bold w-24 inline-block">FALSE</span> if the statement contradicts the information</p>
@@ -170,7 +171,13 @@ export default function LivePreview({ sections, title }) {
                                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                                     <div className="mb-4">
                                         <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}-{group.endQuestion}</h3>
-                                        <p className="text-gray-800 font-medium">{group.mainInstruction}</p>
+                                        <p className="text-gray-800 font-medium mb-1">{group.mainInstruction}</p>
+                                        {group.subInstruction && <p className="text-gray-600 text-sm mb-3">{group.subInstruction}</p>}
+                                        <div className="bg-gray-50 p-4 rounded-md space-y-2 text-sm border-l-4 border-gray-300">
+                                            <p><span className="font-bold w-24 inline-block">YES</span> if the statement agrees with the views of the writer</p>
+                                            <p><span className="font-bold w-24 inline-block">NO</span> if the statement contradicts the views of the writer</p>
+                                            <p><span className="font-bold w-24 inline-block">NOT GIVEN</span> if it is impossible to say what the writer thinks about this</p>
+                                        </div>
                                     </div>
                                     <div className="space-y-4 mt-3">
                                         {(group.statements || []).map(stmt => (
