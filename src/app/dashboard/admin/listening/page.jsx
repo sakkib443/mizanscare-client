@@ -28,6 +28,8 @@ export default function ListeningListPage() {
     const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
     const [searchTerm, setSearchTerm] = useState("");
     const [difficultyFilter, setDifficultyFilter] = useState("");
+    const [testTypeFilter, setTestTypeFilter] = useState("");
+    const [sortBy, setSortBy] = useState("");
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [error, setError] = useState("");
 
@@ -40,6 +42,8 @@ export default function ListeningListPage() {
             };
             if (searchTerm) params.searchTerm = searchTerm;
             if (difficultyFilter) params.difficulty = difficultyFilter;
+            if (testTypeFilter) params.testType = testTypeFilter;
+            if (sortBy) params.sort = sortBy;
 
             const response = await listeningAPI.getAll(params);
             if (response.success && response.data) {
@@ -56,7 +60,7 @@ export default function ListeningListPage() {
         } finally {
             setLoading(false);
         }
-    }, [pagination.page, pagination.limit, searchTerm, difficultyFilter]);
+    }, [pagination.page, pagination.limit, searchTerm, difficultyFilter, testTypeFilter, sortBy]);
 
     useEffect(() => {
         fetchTests();
@@ -164,6 +168,32 @@ export default function ListeningListPage() {
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
                 </select>
+                <select
+                    value={testTypeFilter}
+                    onChange={(e) => {
+                        setTestTypeFilter(e.target.value);
+                        setPagination(p => ({ ...p, page: 1 }));
+                    }}
+                    className="px-3 py-2.5 border border-gray-200 rounded-md outline-none focus:border-indigo-500 text-sm"
+                >
+                    <option value="">All Types</option>
+                    <option value="academic">Academic</option>
+                    <option value="general-training">General Training</option>
+                </select>
+                <select
+                    value={sortBy}
+                    onChange={(e) => {
+                        setSortBy(e.target.value);
+                        setPagination(p => ({ ...p, page: 1 }));
+                    }}
+                    className="px-3 py-2.5 border border-gray-200 rounded-md outline-none focus:border-indigo-500 text-sm"
+                >
+                    <option value="">Sort By...</option>
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="name_asc">Name (A-Z)</option>
+                    <option value="name_desc">Name (Z-A)</option>
+                </select>
             </div>
 
             {error && (
@@ -208,6 +238,7 @@ export default function ListeningListPage() {
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Title</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Source</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Parts</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Questions</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Audio</th>
@@ -228,6 +259,11 @@ export default function ListeningListPage() {
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-600 max-w-[160px] truncate">
                                                 {test.source || <span className="text-gray-300">—</span>}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${test.testType === "general-training" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
+                                                    {test.testType === "general-training" ? "GT" : "Academic"}
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-600">
                                                 {test.sections?.length || 4} parts

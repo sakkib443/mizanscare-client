@@ -12,6 +12,7 @@ import {
     FaSpinner,
     FaPlay,
     FaArrowRight,
+    FaArrowLeft,
     FaSearchPlus,
     FaSearchMinus,
     FaBars,
@@ -19,66 +20,11 @@ import {
     FaImage,
     FaLock,
     FaCheckCircle,
-    FaExpand,
 } from "react-icons/fa";
 import { writingAPI, studentsAPI } from "@/lib/api";
 import ExamSecurity from "@/components/ExamSecurity";
 import TextHighlighter from "@/components/TextHighlighter";
 
-// ==================== Resizable Divider ====================
-const ResizableDivider = ({ onMouseDown }) => (
-    <div
-        onMouseDown={onMouseDown}
-        className="cursor-col-resize flex-shrink-0 relative group flex items-center justify-center"
-        style={{ touchAction: "none", width: '12px' }}
-    >
-        <div className="absolute inset-0 bg-gray-200 group-hover:bg-gray-300 transition-colors" />
-        <div className="relative z-10 flex flex-col items-center gap-0.5 pointer-events-none">
-            <span className="text-[8px] text-gray-400 group-hover:text-gray-600 transition-colors select-none" style={{ lineHeight: 1 }}>◀</span>
-            <div className="w-[3px] h-6 rounded-full bg-gray-400 group-hover:bg-gray-600 transition-colors" />
-            <span className="text-[8px] text-gray-400 group-hover:text-gray-600 transition-colors select-none" style={{ lineHeight: 1 }}>▶</span>
-        </div>
-    </div>
-);
-
-// ==================== Image Viewer ====================
-const ImageZoomViewer = ({ imageUrl }) => {
-    const [showFullscreen, setShowFullscreen] = useState(false);
-
-    return (
-        <>
-            <div className="relative bg-white border border-gray-300 mt-3">
-                <img
-                    src={imageUrl}
-                    alt="Reference"
-                    draggable={false}
-                    style={{
-                        width: '100%',
-                        height: 'auto',
-                        display: 'block',
-                    }}
-                />
-                <button
-                    onClick={() => setShowFullscreen(true)}
-                    className="absolute bottom-2 right-2 w-7 h-7 flex items-center justify-center bg-white/90 border border-gray-300 text-gray-600 hover:text-black hover:bg-white rounded cursor-pointer"
-                    title="View fullscreen"
-                >
-                    <FaExpand className="text-xs" />
-                </button>
-            </div>
-
-            {showFullscreen && (
-                <div className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-8"
-                    onClick={() => setShowFullscreen(false)}>
-                    <img src={imageUrl} alt="Reference" className="max-w-full max-h-full object-contain" />
-                    <button className="absolute top-4 right-4 text-white bg-black/50 w-8 h-8 flex items-center justify-center hover:bg-black/70 cursor-pointer">
-                        <FaTimes />
-                    </button>
-                </div>
-            )}
-        </>
-    );
-};
 
 
 export default function WritingExamPage() {
@@ -87,7 +33,7 @@ export default function WritingExamPage() {
 
     const [answers, setAnswers] = useState({ task1: "", task2: "" });
     const [showInstructions, setShowInstructions] = useState(true);
-    const [leftPanelWidth, setLeftPanelWidth] = useState(50);
+    const [splitPercent, setSplitPercent] = useState(50);
 
     const [phase, setPhase] = useState("select");
     const [activePart, setActivePart] = useState(null);
@@ -104,28 +50,54 @@ export default function WritingExamPage() {
     const [questionSet, setQuestionSet] = useState(null);
     const [session, setSession] = useState(null);
 
-    const isDraggingRef = useRef(false);
+    // Options menu
+    const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+    const [optionsView, setOptionsView] = useState('main');
+    const [contrastMode, setContrastMode] = useState('black-on-white');
+    const [textSizeMode, setTextSizeMode] = useState('regular');
 
-    const handleDividerMouseDown = useCallback((e) => {
+    // Splitter
+    const isDraggingRef = useRef(false);
+    const containerRef = useRef(null);
+
+    const onSplitterMouseDown = useCallback((e) => {
         e.preventDefault();
         isDraggingRef.current = true;
-        const startX = e.clientX;
-        const startWidth = leftPanelWidth;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    }, []);
+
+    useEffect(() => {
         const onMouseMove = (e) => {
-            if (!isDraggingRef.current) return;
-            const diff = e.clientX - startX;
-            const containerWidth = window.innerWidth;
-            const newWidth = startWidth + (diff / containerWidth) * 100;
-            setLeftPanelWidth(Math.max(25, Math.min(75, newWidth)));
+            if (!isDraggingRef.current || !containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const pct = Math.min(Math.max((x / rect.width) * 100, 20), 80);
+            setSplitPercent(pct);
         };
         const onMouseUp = () => {
-            isDraggingRef.current = false;
-            document.removeEventListener("mousemove", onMouseMove);
-            document.removeEventListener("mouseup", onMouseUp);
+            if (isDraggingRef.current) {
+                isDraggingRef.current = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
         };
-        document.addEventListener("mousemove", onMouseMove);
-        document.addEventListener("mouseup", onMouseUp);
-    }, [leftPanelWidth]);
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        return () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+    }, []);
+
+    // Contrast schemes
+    const contrastSchemes = {
+        'black-on-white': { bg: '#ffffff', text: '#000000', partBg: '#f0f0f0', partBorder: '#d1d5db' },
+        'white-on-black': { bg: '#1a1a1a', text: '#ffffff', partBg: '#2a2a2a', partBorder: '#555' },
+        'yellow-on-black': { bg: '#1a1a1a', text: '#ffff00', partBg: '#2a2a2a', partBorder: '#555' }
+    };
+    const cs = contrastSchemes[contrastMode];
+    const tScale = textSizeMode === 'large' ? 1.15 : textSizeMode === 'extra-large' ? 1.3 : 1;
 
     // ===== LOAD DATA =====
     useEffect(() => {
@@ -144,7 +116,11 @@ export default function WritingExamPage() {
                     const verifyResponse = await studentsAPI.verifyExamId(parsed.examId);
                     if (verifyResponse.success && verifyResponse.data) {
                         const dbCompletedModules = verifyResponse.data.completedModules || [];
-                        if (dbCompletedModules.includes("writing") || dbCompletedModules.length >= 3) {
+                        const setNum = parsed.currentSetNumber;
+                        const isThisSetDone = setNum
+                            ? (dbCompletedModules.includes(`writing:${setNum}`) || dbCompletedModules.includes("writing"))
+                            : dbCompletedModules.includes("writing");
+                        if (isThisSetDone) {
                             parsed.completedModules = dbCompletedModules;
                             localStorage.setItem("examSession", JSON.stringify(parsed));
                             router.push(`/exam/${params.examId}`);
@@ -152,13 +128,18 @@ export default function WritingExamPage() {
                         }
                     }
                 } catch (apiError) {
-                    if (parsed.completedModules && (parsed.completedModules.includes("writing") || parsed.completedModules.length >= 3)) {
+                    const setNum = parsed.currentSetNumber;
+                    const isThisSetDone = setNum
+                        ? (parsed.completedModules?.includes(`writing:${setNum}`) || parsed.completedModules?.includes("writing"))
+                        : parsed.completedModules?.includes("writing");
+                    if (isThisSetDone) {
                         router.push(`/exam/${params.examId}`);
                         return;
                     }
                 }
 
-                const writingSetNumber = parsed.assignedSets?.writingSetNumber;
+                // Use currentSetNumber (set on exam card click) or fallback to single set
+                const writingSetNumber = parsed.currentSetNumber || parsed.assignedSets?.writingSetNumber;
                 if (!writingSetNumber) {
                     setLoadError("No writing test assigned for this exam.");
                     setIsLoading(false);
@@ -271,18 +252,21 @@ export default function WritingExamPage() {
         const examId = sessionData?.examId;
 
         try {
+            const currentSetNumber = sessionData?.currentSetNumber;
             const response = await studentsAPI.saveModuleScore(examId, "writing", {
                 band: bandScore, task1Words, task2Words,
-                answers: { task1: answers.task1, task2: answers.task2 }
+                answers: { task1: answers.task1, task2: answers.task2 },
+                setNumber: currentSetNumber
             });
             if (response.success && sessionData) {
-                sessionData.completedModules = response.data?.completedModules || [...(sessionData.completedModules || []), "writing"];
+                sessionData.completedModules = response.data?.completedModules || [...(sessionData.completedModules || []), currentSetNumber ? `writing:${currentSetNumber}` : "writing"];
                 sessionData.scores = response.data?.scores || { ...(sessionData.scores || {}), writing: { overallBand: bandScore, task1Band: bandScore, task2Band: bandScore } };
                 localStorage.setItem("examSession", JSON.stringify(sessionData));
             }
         } catch (error) {
             if (sessionData) {
-                sessionData.completedModules = [...(sessionData.completedModules || []), "writing"];
+                const currentSetNumber = sessionData?.currentSetNumber;
+                sessionData.completedModules = [...(sessionData.completedModules || []), currentSetNumber ? `writing:${currentSetNumber}` : "writing"];
                 sessionData.scores = { ...(sessionData.scores || {}), writing: { overallBand: bandScore, task1Band: bandScore, task2Band: bandScore } };
                 localStorage.setItem("examSession", JSON.stringify(sessionData));
             }
@@ -293,10 +277,11 @@ export default function WritingExamPage() {
     // ==================== LOADING ====================
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
-                <div className="text-center">
-                    <FaSpinner className="animate-spin text-3xl text-gray-500 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">Loading writing test...</p>
+            <div style={{ minHeight: '100vh', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Arial, sans-serif' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <FaSpinner style={{ fontSize: '24px', color: '#9ca3af', margin: '0 auto 12px', animation: 'spin 1s linear infinite' }} />
+                    <p style={{ color: '#9ca3af', fontSize: '14px' }}>Loading writing test...</p>
+                    <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
                 </div>
             </div>
         );
@@ -305,12 +290,12 @@ export default function WritingExamPage() {
     // ==================== ERROR ====================
     if (loadError) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center p-4">
-                <div className="text-center max-w-sm">
-                    <FaTimes className="text-2xl text-red-500 mx-auto mb-3" />
-                    <h2 className="text-lg font-bold text-gray-800 mb-2">Cannot Load Test</h2>
-                    <p className="text-gray-500 text-sm mb-4">{loadError}</p>
-                    <button onClick={() => router.push("/")} className="bg-gray-800 text-white px-5 py-2 rounded-md text-sm hover:bg-gray-900 cursor-pointer">
+            <div style={{ minHeight: '100vh', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Arial, sans-serif' }}>
+                <div style={{ textAlign: 'center', maxWidth: '360px' }}>
+                    <FaTimes style={{ fontSize: '24px', color: '#ef4444', margin: '0 auto 12px' }} />
+                    <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Cannot Load Test</h2>
+                    <p style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '16px' }}>{loadError}</p>
+                    <button onClick={() => router.push("/")} style={{ backgroundColor: '#1f2937', color: '#fff', padding: '8px 20px', border: 'none', borderRadius: '4px', fontSize: '14px', cursor: 'pointer' }}>
                         Go to Home
                     </button>
                 </div>
@@ -321,66 +306,52 @@ export default function WritingExamPage() {
     // ==================== INSTRUCTIONS ====================
     if (showInstructions) {
         return (
-            <div className="min-h-screen bg-[#f8f8f8] flex items-center justify-center p-4">
-                <div className="max-w-xl w-full bg-white rounded-md shadow border border-gray-200">
-                    {/* Header */}
-                    <div className="bg-[#333] text-white px-6 py-5">
-                        <h1 className="text-xl font-bold">IELTS Writing Test</h1>
-                        <p className="text-gray-300 text-sm mt-1">{questionSet?.title || `Writing Set #${questionSet?.setNumber}`}</p>
+            <div style={{ minHeight: '100vh', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Arial, sans-serif' }}>
+                <div style={{ maxWidth: '640px', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '2px solid #2563eb' }}>
+                        <span style={{ color: '#dc2626', fontWeight: '900', fontSize: '28px' }}>IELTS</span>
+                        <span style={{ color: '#6b7280', fontSize: '16px' }}>| Writing Test</span>
                     </div>
 
-                    <div className="p-6">
-                        {/* How it works */}
-                        <div className="border border-gray-200 rounded-md p-4 mb-5">
-                            <h3 className="font-semibold text-gray-800 text-sm mb-3">How This Test Works</h3>
-                            <ul className="text-gray-600 text-sm space-y-1.5 leading-relaxed">
-                                <li>• This test has <strong>2 separate parts</strong>, each with its own timer.</li>
-                                <li>• <strong>Part 1:</strong> 20 minutes — Academic Report (min. 150 words)</li>
-                                <li>• <strong>Part 2:</strong> 40 minutes — Essay (min. 250 words)</li>
-                                <li>• You choose which part to start first.</li>
-                                <li>• When a part's time ends, it <strong>auto-submits</strong>.</li>
-                                <li>• After both parts are done, your test is complete.</li>
-                            </ul>
-                        </div>
+                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>Writing Test Instructions</h1>
 
-                        {/* Parts */}
-                        <div className="space-y-3 mb-5">
-                            {displayTasks.map((task) => (
-                                <div key={task.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-md">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center text-sm font-bold">
-                                            {task.partNumber}
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-gray-800 text-sm">{task.title}</p>
-                                            <p className="text-xs text-gray-400">Min. {task.minWords} words</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-bold text-gray-800">{task.timeMinutes} min</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Notes */}
-                        <div className="bg-[#fffbeb] border border-[#fde68a] rounded-md p-3 mb-5">
-                            <p className="text-xs font-semibold text-[#92400e] mb-1">Important:</p>
-                            <ul className="text-xs text-[#92400e] space-y-0.5">
-                                <li>• Task 2 contributes <strong>twice as much</strong> as Task 1 to your score.</li>
-                                <li>• Writing below the minimum word count will lose marks.</li>
-                                <li>• Once a part's timer runs out, you <strong>cannot go back</strong>.</li>
-                            </ul>
-                        </div>
-
-                        <button
-                            onClick={() => { setShowInstructions(false); setPhase("select"); }}
-                            className="w-full bg-gray-800 text-white py-3 rounded-md font-medium text-sm hover:bg-gray-900 transition-colors cursor-pointer flex items-center justify-center gap-2"
-                        >
-                            Continue to Part Selection
-                            <FaArrowRight className="text-xs" />
-                        </button>
+                    <div style={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                        <p style={{ color: '#374151', marginBottom: '12px' }}>
+                            <strong>Set:</strong> {questionSet?.title || `Writing Set #${questionSet?.setNumber}`}
+                        </p>
+                        <p style={{ color: '#374151', marginBottom: '12px' }}>
+                            <strong>Parts:</strong> 2 writing tasks
+                        </p>
+                        <p style={{ color: '#374151', marginBottom: '12px' }}>
+                            <strong>Part 1:</strong> 20 minutes — Academic Report (min. 150 words)
+                        </p>
+                        <p style={{ color: '#374151', marginBottom: '12px' }}>
+                            <strong>Part 2:</strong> 40 minutes — Essay (min. 250 words)
+                        </p>
+                        <p style={{ color: '#374151' }}>
+                            <strong>Instructions:</strong> You choose which part to start first. Each part has its own timer.
+                        </p>
                     </div>
+
+                    <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '16px', marginBottom: '24px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#92400e', marginBottom: '4px' }}>Important:</p>
+                        <ul style={{ color: '#92400e', fontSize: '13px', listStyle: 'none', padding: 0, margin: 0 }}>
+                            <li style={{ marginBottom: '4px' }}>• Task 2 contributes <strong>twice as much</strong> as Task 1 to your score.</li>
+                            <li style={{ marginBottom: '4px' }}>• Writing below the minimum word count will lose marks.</li>
+                            <li>• Once a part's timer runs out, you <strong>cannot go back</strong>.</li>
+                        </ul>
+                    </div>
+
+                    <button
+                        onClick={() => { setShowInstructions(false); setPhase("select"); }}
+                        style={{ width: '100%', backgroundColor: '#2563eb', color: 'white', padding: '16px', borderRadius: '12px', fontWeight: 'bold', fontSize: '18px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563eb'}
+                    >
+                        <FaPlay style={{ fontSize: '14px' }} />
+                        <span>Continue to Part Selection</span>
+                        <FaArrowRight style={{ fontSize: '14px' }} />
+                    </button>
                 </div>
             </div>
         );
@@ -392,25 +363,24 @@ export default function WritingExamPage() {
         const part2Done = completedParts.includes(2);
 
         return (
-            <div className="min-h-screen bg-[#f8f8f8] flex items-center justify-center p-4">
+            <div style={{ minHeight: '100vh', backgroundColor: '#f8f8f8', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Arial, sans-serif' }}>
                 <ExamSecurity examId={session?.examId} onViolationLimit={() => handleFinalSubmit()} />
 
-                <div className="max-w-lg w-full">
-                    {/* Top */}
-                    <div className="mb-6">
-                        <h1 className="text-lg font-bold text-gray-800">IELTS Writing Test</h1>
-                        <p className="text-sm text-gray-500">Select a part to begin writing.</p>
+                <div style={{ maxWidth: '480px', width: '100%' }}>
+                    <div style={{ marginBottom: '24px' }}>
+                        <h1 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>IELTS Writing Test</h1>
+                        <p style={{ fontSize: '14px', color: '#9ca3af' }}>Select a part to begin writing.</p>
                     </div>
 
                     {/* Progress */}
-                    <div className="flex items-center gap-2 mb-5">
-                        <div className={`h-1.5 flex-1 rounded-full ${part1Done ? "bg-gray-800" : "bg-gray-200"}`} />
-                        <div className={`h-1.5 flex-1 rounded-full ${part2Done ? "bg-gray-800" : "bg-gray-200"}`} />
-                        <span className="text-xs text-gray-500 ml-2">{completedParts.length}/2</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+                        <div style={{ height: '6px', flex: 1, borderRadius: '999px', backgroundColor: part1Done ? '#1f2937' : '#e5e7eb' }} />
+                        <div style={{ height: '6px', flex: 1, borderRadius: '999px', backgroundColor: part2Done ? '#1f2937' : '#e5e7eb' }} />
+                        <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '8px' }}>{completedParts.length}/2</span>
                     </div>
 
                     {/* Part Cards */}
-                    <div className="space-y-3">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {displayTasks.map((task) => {
                             const isDone = completedParts.includes(task.partNumber);
                             const taskAnswer = task.partNumber === 1 ? answers.task1 : answers.task2;
@@ -418,42 +388,41 @@ export default function WritingExamPage() {
                             const remainingTime = task.partNumber === 1 ? part1Time : part2Time;
 
                             return (
-                                <div
-                                    key={task.id}
-                                    className={`bg-white border rounded-md overflow-hidden ${isDone ? "border-gray-200 opacity-70" : "border-gray-200 hover:border-gray-400"} transition-colors`}
-                                >
-                                    <div className="p-4">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isDone ? "bg-green-600 text-white" : "bg-gray-800 text-white"}`}>
-                                                    {isDone ? <FaCheck className="text-xs" /> : task.partNumber}
+                                <div key={task.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden', opacity: isDone ? 0.7 : 1 }}>
+                                    <div style={{ padding: '16px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: isDone ? '#16a34a' : '#1f2937', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>
+                                                    {isDone ? <FaCheck style={{ fontSize: '12px' }} /> : task.partNumber}
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-gray-800 text-sm">{task.title}</p>
-                                                    <p className="text-xs text-gray-400">Min. {task.minWords} words</p>
+                                                    <p style={{ fontWeight: '500', color: '#1f2937', fontSize: '14px' }}>{task.title}</p>
+                                                    <p style={{ fontSize: '12px', color: '#9ca3af' }}>Min. {task.minWords} words</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
+                                            <div style={{ textAlign: 'right' }}>
                                                 {isDone ? (
-                                                    <span className="text-xs font-medium text-green-600">Completed</span>
+                                                    <span style={{ fontSize: '12px', fontWeight: '500', color: '#16a34a' }}>Completed</span>
                                                 ) : (
-                                                    <span className="text-sm font-mono text-gray-600">{formatTime(remainingTime)}</span>
+                                                    <span style={{ fontSize: '14px', fontFamily: 'monospace', color: '#4b5563' }}>{formatTime(remainingTime)}</span>
                                                 )}
                                             </div>
                                         </div>
 
                                         {isDone ? (
-                                            <div className="bg-gray-50 rounded-md p-2.5 text-center">
-                                                <p className="text-sm text-gray-600">{taskWords} words written</p>
+                                            <div style={{ background: '#f9fafb', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                                                <p style={{ fontSize: '14px', color: '#4b5563' }}>{taskWords} words written</p>
                                             </div>
                                         ) : (
                                             <button
                                                 onClick={() => handleStartPart(task.partNumber)}
-                                                className="w-full bg-gray-800 text-white py-2.5 rounded-md text-sm font-medium hover:bg-gray-900 cursor-pointer flex items-center justify-center gap-2 transition-colors"
+                                                style={{ width: '100%', backgroundColor: '#1f2937', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#111827'}
+                                                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#1f2937'}
                                             >
-                                                <FaPlay className="text-[10px]" />
+                                                <FaPlay style={{ fontSize: '10px' }} />
                                                 Start {task.title}
-                                                <span className="text-gray-400 text-xs">({task.timeMinutes} min)</span>
+                                                <span style={{ color: '#9ca3af', fontSize: '12px' }}>({task.timeMinutes} min)</span>
                                             </button>
                                         )}
                                     </div>
@@ -466,181 +435,318 @@ export default function WritingExamPage() {
         );
     }
 
-    // ==================== WRITING PHASE ====================
+    // ==================== WRITING PHASE — Inspera Style ====================
     if (phase === "writing" && currentTaskData) {
         return (
-            <div className="h-screen flex flex-col bg-white overflow-hidden" style={{ userSelect: "text" }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, userSelect: 'text' }}>
                 <ExamSecurity examId={session?.examId} onViolationLimit={() => { finishPart(activePart); }} />
 
-                {/* ===== HEADER ===== */}
-                <header className="bg-white border-b border-gray-300 flex items-center justify-between px-4 py-1.5 flex-shrink-0 z-50">
-                    <div className="flex items-center gap-3">
-                        <span className="text-gray-700 font-bold text-sm">IELTS Writing</span>
-                    </div>
-
-                    {/* Timer */}
-                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-md font-mono text-sm font-bold ${currentTime < 120
-                        ? "bg-red-50 text-red-700"
-                        : currentTime < 300
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}>
-                        <FaClock className="text-[10px]" />
-                        <span>{formatTime(currentTime)}</span>
+                {/* ═══════════════════════════════════
+                    TOP HEADER — Inspera Style
+                ═══════════════════════════════════ */}
+                <header style={{ backgroundColor: cs.bg, borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}`, height: '56px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '0 16px' }}>
+                        {/* Left */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                            <span style={{ fontWeight: '900', color: '#cc0000', fontSize: '32px', letterSpacing: '-0.5px', fontFamily: 'Arial, sans-serif' }}>IELTS</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
+                                <span style={{ fontSize: '16px', fontWeight: '600', color: cs.text }}>Test taker ID</span>
+                            </div>
+                        </div>
+                        {/* Right */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                            {/* WiFi */}
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" />
+                            </svg>
+                            {/* Bell */}
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                            </svg>
+                            {/* Hamburger → Options */}
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: 'pointer' }} onClick={() => { setShowOptionsMenu(true); setOptionsView('main'); }}>
+                                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+                            </svg>
+                        </div>
                     </div>
                 </header>
 
-                {/* ===== SPLIT PANE ===== */}
-                <div className="flex-1 flex overflow-hidden">
+                {/* ═══════════════════════════════════
+                    PART BANNER
+                ═══════════════════════════════════ */}
+                <div style={{ backgroundColor: cs.partBg, borderBottom: `1px solid ${cs.partBorder}`, padding: '8px 40px', flexShrink: 0, fontFamily: 'Arial, sans-serif' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: `${15 * tScale}px`, color: cs.text, marginBottom: '2px' }}>
+                        Academic Writing {currentTaskData.title}
+                    </div>
+                    <div style={{ fontSize: `${13 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text }}>
+                        You should spend about {currentTaskData.timeMinutes} minutes on this task. Write at least {currentTaskData.minWords} words.
+                    </div>
+                </div>
 
-                    {/* LEFT */}
-                    <div className="overflow-y-auto bg-white" style={{ width: `${leftPanelWidth}%`, flexShrink: 0 }}>
-                        <div className="p-5">
-                            <TextHighlighter passageId={`writing_part_${activePart}`}>
-                                {/* Part Title + Instructions in one block */}
-                                <div className="border border-gray-200 rounded-md p-4 mb-4">
-                                    <h2 className="text-[20px] font-bold text-gray-800 mb-3">{currentTaskData.title}</h2>
-                                    {currentTaskData.instruction && (
-                                        <p className="text-[18px] leading-relaxed whitespace-pre-line text-gray-600">
-                                            {currentTaskData.instruction}
-                                        </p>
-                                    )}
+                {/* ═══════════════════════════════════
+                    MAIN CONTENT — Two Column Layout
+                ═══════════════════════════════════ */}
+                <div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', marginBottom: '44px' }}>
+                    {/* LEFT: Task Prompt + Image */}
+                    <div style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
+                        <TextHighlighter passageId={`writing_part_${activePart}`} contrastMode={contrastMode}>
+                            {currentTaskData.prompt && (
+                                <div style={{ color: cs.text, fontSize: `${16 * tScale}px`, lineHeight: '1.8', whiteSpace: 'pre-line', marginBottom: '16px' }}>
+                                    {currentTaskData.prompt}
                                 </div>
-
-                                {currentTaskData.prompt && (
-                                    <div className="text-gray-800 text-[18px] leading-relaxed whitespace-pre-line mb-4">
-                                        {currentTaskData.prompt}
-                                    </div>
-                                )}
-                            </TextHighlighter>
-
-                            {currentTaskData.imageUrl && (
-                                <ImageZoomViewer imageUrl={currentTaskData.imageUrl} />
                             )}
-                        </div>
+                            {currentTaskData.instruction && (
+                                <p style={{ color: cs.text, fontSize: `${15 * tScale}px`, lineHeight: '1.6', whiteSpace: 'pre-line', fontStyle: 'italic', marginBottom: '16px' }}>
+                                    {currentTaskData.instruction}
+                                </p>
+                            )}
+                        </TextHighlighter>
+
+                        {currentTaskData.imageUrl && (
+                            <img src={currentTaskData.imageUrl} alt="Task reference" style={{ width: '100%', objectFit: 'contain', marginTop: '12px' }} />
+                        )}
                     </div>
 
-                    <ResizableDivider onMouseDown={handleDividerMouseDown} />
+                    {/* SPLITTER — draggable resize handle */}
+                    <div
+                        onMouseDown={onSplitterMouseDown}
+                        style={{
+                            width: '18px', cursor: 'col-resize', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backgroundColor: contrastMode === 'black-on-white' ? '#e5e7eb' : '#444', flexShrink: 0, zIndex: 10,
+                            borderLeft: `1px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : '#555'}`,
+                            borderRight: `1px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : '#555'}`
+                        }}
+                    >
+                        <span style={{ fontSize: '22px', color: contrastMode === 'black-on-white' ? '#6b7280' : '#ccc', userSelect: 'none', fontWeight: 'bold', border: `1.5px solid ${contrastMode === 'black-on-white' ? '#9ca3af' : '#888'}`, borderRadius: '4px', padding: '2px 4px', lineHeight: '1', background: contrastMode === 'black-on-white' ? '#fff' : '#333' }}>↔</span>
+                    </div>
 
-                    {/* RIGHT */}
-                    <div className="flex-1 flex flex-col overflow-hidden bg-white">
-                        {/* Answer Header */}
-                        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-                            <span className="text-gray-500 text-xs font-medium">
-                                {currentTaskData.title} Answer
-                            </span>
-                            <span className={`text-xs ${meetsMinWords ? "text-green-600 font-medium" : "text-gray-400"}`}>
-                                Word Count: {wordCount}
-                            </span>
-                        </div>
-
-                        <textarea
-                            value={currentAnswer}
-                            onChange={(e) => handleTextChange(e.target.value)}
-                            placeholder={`Enter your ${currentTaskData.title.toLowerCase()} answer...`}
-                            className="flex-1 p-5 resize-none focus:outline-none text-gray-800 bg-white"
-                            style={{
-                                fontFamily: "'Times New Roman', Georgia, serif",
-                                fontSize: "18px",
-                                lineHeight: "1.8",
-                            }}
-                            autoFocus
-                        />
-
-                        {/* Progress */}
-                        <div className="h-1 bg-gray-100 flex-shrink-0">
-                            <div
-                                className={`h-full transition-all duration-300 ${meetsMinWords ? "bg-green-500" : wordCount > 0 ? "bg-gray-400" : "bg-gray-200"}`}
-                                style={{ width: `${Math.min((wordCount / (currentTaskData.minWords || 150)) * 100, 100)}%` }}
+                    {/* RIGHT: Writing Area */}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: cs.bg, padding: '16px 16px 16px 16px' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: `2px solid ${contrastMode === 'black-on-white' ? '#000' : '#555'}`, overflow: 'hidden' }}>
+                            <textarea
+                                value={currentAnswer}
+                                onChange={(e) => handleTextChange(e.target.value)}
+                                placeholder={`Enter your ${currentTaskData.title.toLowerCase()} answer...`}
+                                autoFocus
+                                style={{
+                                    flex: 1, padding: '20px 24px', resize: 'none', outline: 'none',
+                                    border: 'none',
+                                    fontFamily: "'Times New Roman', Georgia, serif",
+                                    fontSize: `${18 * tScale}px`, lineHeight: '1.8',
+                                    color: cs.text, backgroundColor: cs.bg
+                                }}
                             />
-                        </div>
-
-                        <div className="flex items-center justify-between px-4 py-1.5 border-t border-gray-100 bg-gray-50 flex-shrink-0">
-                            <span className="text-[10px] text-gray-400">{formatTime(currentTime)} remaining</span>
-                            <span className="text-[10px] text-gray-400">
-                                {meetsMinWords ? `✓ Min. reached (${currentTaskData.minWords})` : `${currentTaskData.minWords - wordCount} more words needed`}
-                            </span>
+                            <div style={{ padding: '8px 16px', textAlign: 'right', flexShrink: 0, borderTop: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}` }}>
+                                <span style={{ fontSize: '14px', color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text }}>
+                                    Word Count: {wordCount}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* ===== BOTTOM ===== */}
-                <div className="bg-gray-50 border-t border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                        {displayTasks.map(t => {
-                            const done = completedParts.includes(t.partNumber);
-                            const active = t.partNumber === activePart;
+                {/* ═══════════════════════════════════
+                    BOTTOM NAV — Inspera Style
+                ═══════════════════════════════════ */}
+                <div style={{
+                    position: 'fixed', bottom: 0, left: 0, right: 0,
+                    background: cs.bg,
+                    display: 'flex', alignItems: 'center',
+                    height: '44px', padding: '0', zIndex: 100
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', flex: 1, height: '100%' }}>
+                        {/* Review checkbox */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px', height: '100%', flexShrink: 0 }}>
+                            <span style={{ fontSize: '13px', color: cs.text }}>Review</span>
+                        </div>
+
+                        {/* Part tabs */}
+                        {displayTasks.map((task, idx) => {
+                            const isActive = task.partNumber === activePart;
+                            const isDone = completedParts.includes(task.partNumber);
                             return (
-                                <span key={t.id} className={`px-3 py-1 rounded-md text-xs font-medium ${done
-                                    ? "bg-green-100 text-green-700"
-                                    : active
-                                        ? "bg-gray-800 text-white"
-                                        : "bg-gray-200 text-gray-500"
-                                    }`}>
-                                    {done ? "✓" : ""} {t.title}
-                                </span>
+                                <div key={task.id}
+                                    onClick={() => {
+                                        if (!isDone && task.partNumber !== activePart) return;
+                                    }}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '4px', padding: '0 12px', height: '100%',
+                                        cursor: 'default', borderRadius: '4px'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                >
+                                    <div style={{
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer'
+                                    }}>
+                                        <div style={{ width: '18px', height: '3px', background: isDone || isActive ? '#2563eb' : '#c0c0c0', marginBottom: '3px', borderRadius: '1px' }}></div>
+                                        <span style={{
+                                            fontSize: '14px', fontWeight: isActive ? 'bold' : '400',
+                                            color: isActive ? cs.text : '#888',
+                                            fontFamily: 'Arial, sans-serif',
+                                            padding: '2px 3px',
+                                            border: isActive ? '1.5px solid #2563eb' : '1.5px solid transparent',
+                                            borderRadius: '3px',
+                                            lineHeight: '1'
+                                        }}>
+                                            {task.partNumber}
+                                        </span>
+                                    </div>
+                                </div>
                             );
                         })}
                     </div>
 
+
+
+                    {/* Submit checkmark button */}
                     <button
                         onClick={() => setShowSubmitPartModal(true)}
-                        className="bg-red-600 text-white px-4 py-1.5 rounded-md text-xs font-medium cursor-pointer hover:bg-red-700 flex items-center gap-1.5 transition-colors"
-                    >
-                        Submit {currentTaskData.title} <FaCheck className="text-[10px]" />
+                        onMouseEnter={e => e.currentTarget.style.background = '#c8c8c8'}
+                        onMouseLeave={e => e.currentTarget.style.background = '#e5e7eb'}
+                        style={{
+                            width: '72px', height: '44px', cursor: 'pointer',
+                            background: '#e5e7eb', border: 'none',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0, borderRadius: 0
+                        }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
                     </button>
                 </div>
 
-                {/* ===== SUBMIT MODAL ===== */}
-                {showSubmitPartModal && (
-                    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4">
-                        <div className="bg-white rounded-md p-5 max-w-sm w-full shadow-lg border border-gray-200">
-                            <h3 className="text-base font-bold text-gray-800 mb-3">Submit {currentTaskData.title}?</h3>
 
-                            <div className={`p-3 rounded-md border mb-3 ${meetsMinWords ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-700">{currentTaskData.title}</span>
-                                    <span className={`text-sm font-bold ${meetsMinWords ? "text-green-700" : "text-amber-700"}`}>
-                                        {wordCount} / {currentTaskData.minWords} words
-                                    </span>
+
+                {/* ═══════════════════════════════════
+                    SUBMIT MODAL
+                ═══════════════════════════════════ */}
+                {
+                    showSubmitPartModal && (
+                        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
+                            <div style={{ background: 'white', padding: '24px', maxWidth: '360px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                    <h3 style={{ fontWeight: 'bold', fontSize: '16px', color: '#1f2937' }}>Submit {currentTaskData.title}?</h3>
+                                    <button onClick={() => setShowSubmitPartModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#6b7280' }}><FaTimes /></button>
+                                </div>
+
+                                <div style={{ background: meetsMinWords ? '#f0fdf4' : '#fffbeb', border: `1px solid ${meetsMinWords ? '#bbf7d0' : '#fcd34d'}`, padding: '16px', marginBottom: '16px', textAlign: 'center' }}>
+                                    <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#1f2937' }}>{wordCount}<span style={{ fontSize: '18px', color: '#9ca3af' }}>/{currentTaskData.minWords}</span></p>
+                                    <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '4px' }}>words written</p>
+                                </div>
+
+                                {!meetsMinWords && (
+                                    <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '10px', marginBottom: '16px', textAlign: 'center' }}>
+                                        <p style={{ color: '#92400e', fontSize: '13px', fontWeight: '600' }}>⚠ Below minimum word count. This may affect your score.</p>
+                                    </div>
+                                )}
+
+                                <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+                                    Time remaining: <strong>{formatTime(currentTime)}</strong>. You cannot return to this part after submitting.
+                                </p>
+
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button onClick={() => setShowSubmitPartModal(false)} style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Cancel</button>
+                                    <button onClick={() => { setShowSubmitPartModal(false); finishPart(activePart); }} style={{ flex: 1, padding: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}>Submit</button>
                                 </div>
                             </div>
+                        </div>
+                    )
+                }
 
-                            {!meetsMinWords && (
-                                <p className="text-xs text-red-600 mb-3">
-                                    ⚠ You haven't met the minimum word count. This may affect your score.
-                                </p>
-                            )}
+                {/* ═══════════════════════════════════
+                    OPTIONS MENU — Inspera Style
+                ═══════════════════════════════════ */}
+                {
+                    showOptionsMenu && (
+                        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, paddingTop: '60px' }}>
+                            <div style={{ background: 'white', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', borderRadius: '4px', overflow: 'hidden' }}>
 
-                            <p className="text-xs text-gray-500 mb-4">
-                                Time remaining: <strong>{formatTime(currentTime)}</strong>. You cannot return to this part after submitting.
-                            </p>
+                                {optionsView === 'main' && (
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
+                                            <div></div>
+                                            <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', fontFamily: 'Arial, sans-serif', margin: 0 }}>Options</h2>
+                                            <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}><FaTimes size={18} color="#000" /></button>
+                                        </div>
+                                        <div style={{ padding: '0 24px 20px' }}>
+                                            <button onClick={() => { setShowOptionsMenu(false); setShowSubmitPartModal(true); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: '#e41e2b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', fontWeight: '500', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+                                                    <span>Go to submission page</span>
+                                                </div>
+                                                <span style={{ fontSize: '20px' }}>{'>'}</span>
+                                            </button>
+                                        </div>
+                                        <div style={{ borderTop: '1px solid #e5e7eb', margin: '0 24px' }}></div>
+                                        <button onClick={() => setOptionsView('contrast')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="#666"><circle cx="12" cy="12" r="10" fill="none" stroke="#666" strokeWidth="2" /><path d="M12 2a10 10 0 0 1 0 20z" fill="#666" /></svg>
+                                                <span style={{ fontSize: '16px', color: '#000' }}>Contrast</span>
+                                            </div>
+                                            <span style={{ fontSize: '20px', color: '#666' }}>{'>'}</span>
+                                        </button>
+                                        <div style={{ borderTop: '1px solid #e5e7eb', margin: '0 24px' }}></div>
+                                        <button onClick={() => setOptionsView('textsize')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="#666"><circle cx="11" cy="11" r="7" fill="none" stroke="#666" strokeWidth="2" /><line x1="16" y1="16" x2="21" y2="21" stroke="#666" strokeWidth="2" /><text x="8" y="14" fontSize="10" fill="#666" fontWeight="bold">A</text></svg>
+                                                <span style={{ fontSize: '16px', color: '#000' }}>Text size</span>
+                                            </div>
+                                            <span style={{ fontSize: '20px', color: '#666' }}>{'>'}</span>
+                                        </button>
+                                        <div style={{ height: '16px' }}></div>
+                                    </div>
+                                )}
 
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setShowSubmitPartModal(false)}
-                                    className="flex-1 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 cursor-pointer text-gray-700"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => { setShowSubmitPartModal(false); finishPart(activePart); }}
-                                    className="flex-1 py-2 bg-gray-800 text-white rounded-md text-sm hover:bg-gray-900 cursor-pointer font-medium"
-                                >
-                                    Submit
-                                </button>
+                                {optionsView === 'contrast' && (
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
+                                            <button onClick={() => setOptionsView('main')} style={{ background: 'none', border: 'none', fontSize: '15px', cursor: 'pointer', color: '#000' }}>Options</button>
+                                            <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', margin: 0 }}>Contrast</h2>
+                                            <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#000', padding: '4px' }}><FaTimes size={18} /></button>
+                                        </div>
+                                        <div style={{ margin: '8px 24px 24px', border: '1px solid #d1d5db', borderRadius: '6px' }}>
+                                            {[{ key: 'black-on-white', label: 'Black on white' }, { key: 'white-on-black', label: 'White on black' }, { key: 'yellow-on-black', label: 'Yellow on black' }].map((opt, idx) => (
+                                                <button key={opt.key} onClick={() => setContrastMode(opt.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', background: 'none', border: 'none', borderBottom: idx < 2 ? '1px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
+                                                    {contrastMode === opt.key ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#333"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" /></svg> : <span style={{ width: '20px' }}></span>}
+                                                    <span style={{ fontSize: '16px', color: '#000' }}>{opt.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {optionsView === 'textsize' && (
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
+                                            <button onClick={() => setOptionsView('main')} style={{ background: 'none', border: 'none', fontSize: '15px', cursor: 'pointer', color: '#000' }}>Options</button>
+                                            <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', margin: 0 }}>Text size</h2>
+                                            <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#000', padding: '4px' }}><FaTimes size={18} /></button>
+                                        </div>
+                                        <div style={{ margin: '8px 24px 24px', border: '1px solid #d1d5db', borderRadius: '6px' }}>
+                                            {[{ key: 'regular', label: 'Regular' }, { key: 'large', label: 'Large' }, { key: 'extra-large', label: 'Extra large' }].map((opt, idx) => (
+                                                <button key={opt.key} onClick={() => setTextSizeMode(opt.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', background: 'none', border: 'none', borderBottom: idx < 2 ? '1px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
+                                                    {textSizeMode === opt.key ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#333"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" /></svg> : <span style={{ width: '20px' }}></span>}
+                                                    <span style={{ fontSize: '16px', color: '#000' }}>{opt.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                             </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
         );
     }
 
     // Fallback
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center">
-            <FaSpinner className="animate-spin text-2xl text-gray-400" />
+        <div style={{ minHeight: '100vh', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FaSpinner style={{ fontSize: '24px', color: '#9ca3af', animation: 'spin 1s linear infinite' }} />
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
     );
 }

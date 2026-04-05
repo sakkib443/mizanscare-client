@@ -1,0 +1,1 @@
+UP:200 {"success":true,"message":"Mizan's Care IELTS API is running!","version":"1.0.0"}

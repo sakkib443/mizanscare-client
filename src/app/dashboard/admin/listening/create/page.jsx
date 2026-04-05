@@ -6,444 +6,164 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
     FaArrowLeft, FaSpinner, FaSave, FaHeadphones, FaTimes, FaCheck,
     FaPlus, FaTrash, FaChevronDown, FaChevronUp, FaEye, FaEyeSlash,
-    FaCode, FaCopy, FaVolumeUp, FaGripVertical, FaImage, FaUpload,
+    FaCode, FaCopy, FaVolumeUp, FaUpload,
 } from "react-icons/fa";
-import { listeningAPI, uploadImage, uploadAudio } from "@/lib/api";
+import { listeningAPI, uploadAudio } from "@/lib/api";
 import ListeningPreview from "@/components/listening/ListeningPreview";
+import { ListeningGroupEditor } from "@/components/listening/ListeningGroupForms";
+import {
+    LISTENING_QUESTION_TYPES,
+    createListeningGroupTemplate,
+    generateListeningQuestions,
+    getNextListeningQNumber,
+    renumberListeningGroups,
+    convertFlatQuestionsToGroups,
+} from "@/lib/listeningHelpers";
 
 // ═══════════════════════════════════════════════════════
 // Audio Upload Button (reusable)
 // ═══════════════════════════════════════════════════════
-function AudioUploadBtn({ onUploaded }) {
-    const [uploading, setUploading] = React.useState(false);
-
+function AudioUploadBtn({ onUploaded, label = "Upload" }) {
+    const [uploading, setUploading] = useState(false);
     const handleFile = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
         setUploading(true);
         try {
             const res = await uploadAudio(file);
-            if (res?.data?.url) {
-                onUploaded(res.data.url);
-            }
+            if (res?.data?.url) onUploaded(res.data.url);
         } catch (err) {
-            alert("Audio upload failed: " + (err.message || "Unknown error"));
-        } finally {
-            setUploading(false);
-            e.target.value = '';
-        }
+            alert("Audio upload failed: " + (err.message || "Unknown"));
+        } finally { setUploading(false); e.target.value = ''; }
     };
-
     return (
         <label className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium cursor-pointer hover:bg-indigo-700 transition-colors whitespace-nowrap">
             {uploading ? <FaSpinner className="animate-spin" size={11} /> : <FaUpload size={11} />}
-            {uploading ? 'Uploading...' : 'Upload'}
+            {uploading ? 'Uploading...' : label}
             <input type="file" accept="audio/*" onChange={handleFile} className="hidden" disabled={uploading} />
         </label>
     );
 }
 
 // ═══════════════════════════════════════════════════════
-// CONSTANTS
+// SECTION EDITOR (each Part)
 // ═══════════════════════════════════════════════════════
-const QUESTION_TYPES = [
-    { value: "note-completion", label: "Note Completion" },
-    { value: "form-completion", label: "Form Completion" },
-    { value: "table-completion", label: "Table Completion" },
-    { value: "multiple-choice", label: "Multiple Choice (A/B/C)" },
-    { value: "multiple-choice-multi", label: "Multiple Choice (Multi-Select)" },
-    { value: "matching", label: "Matching" },
-    { value: "matching-features", label: "Matching Features" },
-    { value: "map-labeling", label: "Map/Plan Labelling" },
-    { value: "diagram-labeling", label: "Diagram Labelling" },
-    { value: "short-answer", label: "Short Answer" },
-    { value: "sentence-completion", label: "Sentence Completion" },
-    { value: "summary-completion", label: "Summary Completion" },
-    { value: "flow-chart-completion", label: "Flow Chart Completion" },
-];
-
-function emptySection(num) {
-    return {
-        sectionNumber: num,
-        title: `Part ${num}`,
-        context: "",
-        instructions: `Questions ${(num - 1) * 10 + 1}–${num * 10}`,
-        audioUrl: "",
-        questions: [],
-    };
-}
-
-function emptyInstruction() {
-    return { blockType: "instruction", content: "" };
-}
-
-function emptyQuestion(num) {
-    return {
-        blockType: "question",
-        questionNumber: num,
-        questionType: "note-completion",
-        questionText: "",
-        correctAnswer: "",
-        options: [],
-        marks: 1,
-        wordLimit: 1,
-    };
-}
-
-// ═══════════════════════════════════════════════════════
-// QUESTION BLOCK EDITOR
-// ═══════════════════════════════════════════════════════
-function QuestionBlock({ block, index, onChange, onDelete, questionNumber }) {
-    if (block.blockType === "instruction") {
-        return (
-            <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-semibold text-amber-700 flex items-center gap-1">
-                        📋 Instruction Block
-                    </span>
-                    <button onClick={onDelete} className="text-gray-400 hover:text-red-500 cursor-pointer transition-colors">
-                        <FaTrash size={11} />
-                    </button>
-                </div>
-                <textarea
-                    value={block.content}
-                    onChange={e => onChange({ ...block, content: e.target.value })}
-                    rows={3}
-                    className="w-full px-2.5 py-2 border border-amber-200 rounded text-xs font-mono outline-none focus:border-amber-400 resize-y bg-white"
-                    placeholder="Instruction text (HTML supported)..."
-                />
-                <p className="text-[10px] text-amber-600 mt-1">HTML supported: &lt;strong&gt;, &lt;br/&gt;, &lt;ul&gt;&lt;li&gt;, &lt;table&gt;...</p>
-            </div>
-        );
-    }
-
-    // Question block
-    const isMultipleChoice = ["multiple-choice", "multiple-choice-multi", "matching", "matching-features", "map-labeling", "diagram-labeling"].includes(block.questionType);
-    const isMapDiagram = ["map-labeling", "diagram-labeling"].includes(block.questionType);
-    const [uploading, setUploading] = useState(false);
-
-    const handleImageUpload = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setUploading(true);
-        try {
-            const result = await uploadImage(file);
-            if (result.success && result.data?.url) {
-                onChange({ ...block, imageUrl: result.data.url });
-            }
-        } catch (err) {
-            console.error("Image upload failed:", err);
-            alert("Image upload failed: " + err.message);
-        } finally {
-            setUploading(false);
-        }
-    };
-
-    return (
-        <div className="border border-indigo-100 bg-white rounded-lg p-3">
-            {/* Image Upload for Map/Diagram types */}
-            {isMapDiagram && (
-                <div className="mb-3 p-3 border border-dashed border-blue-300 bg-blue-50 rounded-lg">
-                    <label className="text-xs font-semibold text-blue-700 mb-2 flex items-center gap-1.5">
-                        <FaImage size={11} /> Map / Diagram Image
-                    </label>
-                    {block.imageUrl ? (
-                        <div className="relative">
-                            <img src={block.imageUrl} alt="Map/Diagram" className="max-h-48 rounded border border-gray-200 mb-2" />
-                            <div className="flex items-center gap-2">
-                                <input
-                                    value={block.imageUrl}
-                                    onChange={e => onChange({ ...block, imageUrl: e.target.value })}
-                                    className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 outline-none font-mono bg-white"
-                                    placeholder="Image URL"
-                                />
-                                <button
-                                    onClick={() => onChange({ ...block, imageUrl: '' })}
-                                    className="text-xs text-red-500 hover:text-red-700 cursor-pointer"
-                                >
-                                    <FaTimes size={10} /> Remove
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded text-xs font-medium cursor-pointer hover:bg-blue-700 transition-colors">
-                                {uploading ? <FaSpinner className="animate-spin" size={10} /> : <FaUpload size={10} />}
-                                {uploading ? 'Uploading...' : 'Upload Image'}
-                                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploading} />
-                            </label>
-                            <span className="text-[10px] text-gray-400">or paste URL below</span>
-                            <input
-                                value={block.imageUrl || ''}
-                                onChange={e => onChange({ ...block, imageUrl: e.target.value })}
-                                className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 outline-none font-mono"
-                                placeholder="https://..."
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-
-            <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 bg-indigo-600 text-white rounded text-xs font-bold flex items-center justify-center">
-                        {block.questionNumber}
-                    </span>
-                    <select
-                        value={block.questionType}
-                        onChange={e => onChange({ ...block, questionType: e.target.value, options: [] })}
-                        className="text-xs border border-gray-200 rounded px-2 py-1 outline-none focus:border-indigo-400 bg-white cursor-pointer"
-                    >
-                        {QUESTION_TYPES.map(t => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
-                        ))}
-                    </select>
-                </div>
-                <div className="flex items-center gap-2">
-                    <label className="text-[10px] text-gray-500">Marks</label>
-                    <input
-                        type="number" min={1} max={2}
-                        value={block.marks || 1}
-                        onChange={e => onChange({ ...block, marks: parseInt(e.target.value) || 1 })}
-                        className="w-12 text-xs border border-gray-200 rounded px-1.5 py-1 outline-none text-center"
-                    />
-                    <button onClick={onDelete} className="text-gray-400 hover:text-red-500 cursor-pointer transition-colors">
-                        <FaTrash size={11} />
-                    </button>
-                </div>
-            </div>
-
-            {/* Question Text */}
-            <textarea
-                value={block.questionText}
-                onChange={e => onChange({ ...block, questionText: e.target.value })}
-                rows={2}
-                className="w-full px-2.5 py-2 border border-gray-200 rounded text-sm outline-none focus:border-indigo-400 resize-none mb-2"
-                placeholder='Question text, e.g. "Name of agent: Becky ________"'
-            />
-
-            {/* Options for MCQ */}
-            {isMultipleChoice && (
-                <div className="space-y-1.5 mb-2">
-                    <label className="text-[10px] font-semibold text-gray-500 uppercase">Options</label>
-                    {(block.options || []).map((opt, oIdx) => (
-                        <div key={oIdx} className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-500 w-4">{String.fromCharCode(65 + oIdx)}.</span>
-                            <input
-                                value={opt.replace(/^[A-Z]\.\s*/, "")}
-                                onChange={e => {
-                                    const newOpts = [...(block.options || [])];
-                                    newOpts[oIdx] = `${String.fromCharCode(65 + oIdx)}. ${e.target.value}`;
-                                    onChange({ ...block, options: newOpts });
-                                }}
-                                className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 outline-none focus:border-indigo-400"
-                                placeholder={`Option ${String.fromCharCode(65 + oIdx)}`}
-                            />
-                            <button
-                                onClick={() => {
-                                    const newOpts = block.options.filter((_, i) => i !== oIdx);
-                                    onChange({ ...block, options: newOpts });
-                                }}
-                                className="text-gray-300 hover:text-red-400 cursor-pointer"
-                            >
-                                <FaTimes size={9} />
-                            </button>
-                        </div>
-                    ))}
-                    <button
-                        onClick={() => {
-                            const nextLetter = String.fromCharCode(65 + (block.options || []).length);
-                            onChange({ ...block, options: [...(block.options || []), `${nextLetter}. `] });
-                        }}
-                        className="text-xs text-indigo-500 hover:text-indigo-700 cursor-pointer"
-                    >
-                        + Add Option
-                    </button>
-                </div>
-            )}
-
-            {/* Correct Answer */}
-            <div className="flex items-center gap-2">
-                <label className="text-[10px] font-semibold text-gray-500 w-20 shrink-0">Answer</label>
-                <input
-                    value={block.correctAnswer}
-                    onChange={e => onChange({ ...block, correctAnswer: e.target.value })}
-                    className="flex-1 px-2.5 py-1.5 border border-green-200 rounded text-sm outline-none focus:border-green-400 bg-green-50 text-green-800"
-                    placeholder={isMultipleChoice ? "A / B / C" : "Correct answer..."}
-                />
-                {!isMultipleChoice && (
-                    <>
-                        <label className="text-[10px] text-gray-400 shrink-0">Words</label>
-                        <input
-                            type="number" min={1} max={5}
-                            value={block.wordLimit || 1}
-                            onChange={e => onChange({ ...block, wordLimit: parseInt(e.target.value) || 1 })}
-                            className="w-12 text-xs border border-gray-200 rounded px-1 py-1.5 outline-none text-center"
-                        />
-                    </>
-                )}
-            </div>
-        </div>
-    );
-}
-
-// ═══════════════════════════════════════════════════════
-// SECTION PANEL
-// ═══════════════════════════════════════════════════════
-function SectionPanel({ section, onChange }) {
+function SectionEditor({ section, sectionIndex, onChange }) {
+    const [showTypeMenu, setShowTypeMenu] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
 
-    const questions = section.questions || [];
-    const qCount = questions.filter(b => b.blockType === "question").length;
+    const groups = section.questionGroups || [];
 
-    const getNextQNum = () => {
-        const nums = questions.filter(b => b.blockType === "question").map(b => b.questionNumber || 0);
-        return nums.length > 0 ? Math.max(...nums) + 1 : (section.sectionNumber - 1) * 10 + 1;
+    const addQuestionGroup = (type) => {
+        const startQ = getNextListeningQNumber(groups);
+        const template = createListeningGroupTemplate(type, startQ);
+        onChange({ ...section, questionGroups: [...groups, template] });
+        setShowTypeMenu(false);
     };
 
-    const addInstruction = () => {
-        onChange({ ...section, questions: [...questions, emptyInstruction()] });
+    const updateGroup = (gIdx, updated) => {
+        const newGroups = [...groups];
+        newGroups[gIdx] = updated;
+        onChange({ ...section, questionGroups: newGroups });
     };
 
-    const addQuestion = () => {
-        onChange({ ...section, questions: [...questions, emptyQuestion(getNextQNum())] });
+    const removeGroup = (gIdx) => {
+        onChange({ ...section, questionGroups: groups.filter((_, i) => i !== gIdx) });
     };
 
-    const updateBlock = (idx, updated) => {
-        const newQ = questions.map((b, i) => i === idx ? updated : b);
-        onChange({ ...section, questions: newQ });
-    };
-
-    const deleteBlock = (idx) => {
-        onChange({ ...section, questions: questions.filter((_, i) => i !== idx) });
-    };
+    const totalGroupQs = groups.reduce((sum, g) => sum + (g.endQuestion - g.startQuestion + 1), 0);
 
     return (
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-            {/* Part Header */}
-            <div
-                className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200 cursor-pointer select-none"
-                onClick={() => setCollapsed(!collapsed)}
-            >
-                <div className="flex items-center gap-3">
-                    <span className="w-7 h-7 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center justify-center">
-                        {section.sectionNumber}
-                    </span>
-                    <div>
-                        <span className="font-semibold text-gray-800 text-sm">{section.title || `Part ${section.sectionNumber}`}</span>
-                        <span className="ml-2 text-xs text-gray-400">{qCount} questions</span>
-                    </div>
+        <div className="space-y-4">
+            {/* Part Meta */}
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">📌 Part Title</label>
+                    <input value={section.title} onChange={e => onChange({ ...section, title: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                        placeholder={`e.g. Part ${section.sectionNumber}`} />
                 </div>
-                <div className="flex items-center gap-2">
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">📝 Context / Situation</label>
+                    <input value={section.context || ''} onChange={e => onChange({ ...section, context: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                        placeholder="e.g. A conversation between two people about..." />
+                </div>
+                <div className="col-span-2">
+                    <label className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-2">
+                        <FaVolumeUp className="text-indigo-500" size={11} /> Part Audio (optional)
+                    </label>
+                    <div className="flex items-center gap-2">
+                        <input value={section.audioUrl || ''} onChange={e => onChange({ ...section, audioUrl: e.target.value })}
+                            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
+                            placeholder="URL or upload →" />
+                        <AudioUploadBtn onUploaded={url => onChange({ ...section, audioUrl: url })} />
+                        {section.audioUrl && (
+                            <button type="button" onClick={() => onChange({ ...section, audioUrl: '' })}
+                                className="text-red-400 hover:text-red-600 cursor-pointer p-1"><FaTimes size={12} /></button>
+                        )}
+                    </div>
                     {section.audioUrl && (
-                        <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <FaVolumeUp size={9} /> Audio set
-                        </span>
+                        <div className="mt-1 text-[10px] text-green-600 flex items-center gap-1"><FaCheck size={8} /> Audio set</div>
                     )}
-                    {collapsed ? <FaChevronDown className="text-gray-400" size={12} /> : <FaChevronUp className="text-gray-400" size={12} />}
                 </div>
             </div>
 
-            {!collapsed && (
-                <div className="p-4 space-y-4">
-                    {/* Part meta */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="text-xs font-semibold text-gray-600 mb-1 block">Part Title</label>
-                            <input
-                                value={section.title}
-                                onChange={e => onChange({ ...section, title: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-indigo-400"
-                                placeholder="e.g. Part 1"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-gray-600 mb-1 block">Instructions Header</label>
-                            <input
-                                value={section.instructions}
-                                onChange={e => onChange({ ...section, instructions: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-indigo-400"
-                                placeholder="e.g. Questions 1–10"
-                            />
-                        </div>
-                        <div className="col-span-2">
-                            <label className="text-xs font-semibold text-gray-600 mb-1 block">Context / Situation</label>
-                            <input
-                                value={section.context}
-                                onChange={e => onChange({ ...section, context: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-indigo-400"
-                                placeholder="e.g. A conversation between two people about a recruitment agency."
-                            />
-                        </div>
-                        <div className="col-span-2">
-                            <label className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-2">
-                                <FaVolumeUp className="text-indigo-500" size={11} />
-                                Part Audio (optional)
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    value={section.audioUrl}
-                                    onChange={e => onChange({ ...section, audioUrl: e.target.value })}
-                                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-indigo-400 font-mono"
-                                    placeholder="https://... or upload →"
-                                />
-                                <AudioUploadBtn
-                                    onUploaded={(url) => onChange({ ...section, audioUrl: url })}
-                                />
-                                {section.audioUrl && (
-                                    <button type="button" onClick={() => onChange({ ...section, audioUrl: '' })}
-                                        className="text-red-400 hover:text-red-600 cursor-pointer p-1">
-                                        <FaTimes size={12} />
-                                    </button>
-                                )}
-                            </div>
-                            {section.audioUrl && (
-                                <div className="mt-1 flex items-center gap-2 text-[10px] text-green-600">
-                                    <FaCheck size={8} /> Audio set
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Questions list */}
-                    <div className="space-y-2">
-                        {questions.map((block, idx) => (
-                            <QuestionBlock
-                                key={idx}
-                                block={block}
-                                index={idx}
-                                onChange={updated => updateBlock(idx, updated)}
-                                onDelete={() => deleteBlock(idx)}
-                                questionNumber={block.questionNumber}
-                            />
-                        ))}
-                    </div>
-
-                    {/* Add buttons */}
-                    <div className="flex gap-2 pt-2">
-                        <button
-                            type="button"
-                            onClick={addInstruction}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-100 transition-colors cursor-pointer"
-                        >
-                            <FaPlus size={10} /> Add Instruction
-                        </button>
-                        <button
-                            type="button"
-                            onClick={addQuestion}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors cursor-pointer"
-                        >
-                            <FaPlus size={10} /> Add Question (Q{getNextQNum()})
-                        </button>
-                    </div>
+            {/* Question Groups */}
+            <div>
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-bold text-gray-700">
+                        📝 Question Groups
+                        <span className="ml-2 text-xs font-normal text-gray-400">({totalGroupQs} questions)</span>
+                    </h3>
                 </div>
-            )}
+
+                <div className="space-y-3">
+                    {groups.length === 0 && (
+                        <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                            <FaHeadphones size={30} className="mx-auto text-gray-300 mb-3" />
+                            <p className="text-sm text-gray-400 mb-1">No question groups yet</p>
+                            <p className="text-xs text-gray-400">নিচের "Add Question Group" button থেকে যোগ করুন</p>
+                        </div>
+                    )}
+
+                    {groups.map((g, gIdx) => (
+                        <ListeningGroupEditor
+                            key={gIdx}
+                            group={g}
+                            index={gIdx}
+                            onUpdate={updated => updateGroup(gIdx, updated)}
+                            onRemove={() => removeGroup(gIdx)}
+                        />
+                    ))}
+                </div>
+
+                {/* Add Question Group */}
+                <div className="mt-3 relative">
+                    <button type="button" onClick={() => setShowTypeMenu(!showTypeMenu)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors w-full justify-center border-2 border-dashed border-indigo-200 cursor-pointer">
+                        <FaPlus size={12} /> Add Question Group
+                    </button>
+
+                    {showTypeMenu && (
+                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 p-2 grid grid-cols-2 gap-1">
+                            {LISTENING_QUESTION_TYPES.map(t => (
+                                <button key={t.value} type="button" onClick={() => addQuestionGroup(t.value)}
+                                    className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer">
+                                    <span>{t.icon}</span>
+                                    <span className="text-gray-700">{t.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
 
 // ═══════════════════════════════════════════════════════
-// MAIN PAGE
+// MAIN PAGE CONTENT
 // ═══════════════════════════════════════════════════════
 function CreateListeningPageContent() {
     const router = useRouter();
@@ -456,23 +176,33 @@ function CreateListeningPageContent() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [showPreview, setShowPreview] = useState(true);
+    const [activeTab, setActiveTab] = useState(0);
+
+    // JSON
     const [showJson, setShowJson] = useState(false);
     const [jsonText, setJsonText] = useState("");
     const [jsonError, setJsonError] = useState("");
     const [copied, setCopied] = useState(false);
 
-    // Form state
+    // Form
     const [formData, setFormData] = useState({
-        title: "",
-        description: "",
-        source: "",
-        difficulty: "medium",
-        duration: 40,
-        mainAudioUrl: "",
-        audioDuration: 0,
+        title: "", description: "", source: "",
+        difficulty: "medium", testType: "academic", duration: 40,
+        mainAudioUrl: "", audioDuration: 0,
     });
 
-    // 4 sections for IELTS Listening
+    // Sections
+    const emptySection = (num) => ({
+        sectionNumber: num,
+        title: `Part ${num}`,
+        context: "",
+        instructions: `Questions ${(num - 1) * 10 + 1}–${num * 10}`,
+        audioUrl: "",
+        imageUrl: "",
+        questionGroups: [],
+        questions: [],
+    });
+
     const [sections, setSections] = useState([
         emptySection(1), emptySection(2), emptySection(3), emptySection(4),
     ]);
@@ -488,28 +218,42 @@ function CreateListeningPageContent() {
                     const data = response.data;
                     setIsEditMode(true);
                     setFormData({
-                        title: data.title || "",
-                        description: data.description || "",
-                        source: data.source || "",
-                        difficulty: data.difficulty || "medium",
+                        title: data.title || "", description: data.description || "",
+                        source: data.source || "", difficulty: data.difficulty || "medium",
+                        testType: data.testType || "academic",
                         duration: data.duration || 40,
-                        mainAudioUrl: data.mainAudioUrl || "",
-                        audioDuration: data.audioDuration || 0,
+                        mainAudioUrl: data.mainAudioUrl || "", audioDuration: data.audioDuration || 0,
                     });
-                    if (data.sections && data.sections.length > 0) {
-                        setSections(data.sections.map((s, i) => ({
-                            sectionNumber: s.sectionNumber || i + 1,
-                            title: s.title || `Part ${i + 1}`,
-                            context: s.context || "",
-                            instructions: s.instructions || "",
-                            audioUrl: s.audioUrl || "",
-                            questions: s.questions || [],
-                        })));
+                    if (data.sections?.length > 0) {
+                        setSections(data.sections.map((s, i) => {
+                            // If questionGroups already exist, use them directly
+                            // Otherwise, convert flat questions[] to questionGroups[]
+                            let qGroups = s.questionGroups || [];
+                            console.log(`Part ${i + 1} raw questions:`, s.questions?.length, JSON.stringify(s.questions?.slice(0, 2)));
+                            console.log(`Part ${i + 1} existing questionGroups:`, qGroups.length);
+                            if (qGroups.length === 0 && s.questions?.length > 0) {
+                                try {
+                                    qGroups = convertFlatQuestionsToGroups(s.questions);
+                                    console.log(`Part ${i + 1} converted groups:`, qGroups.length, JSON.stringify(qGroups.map(g => ({ type: g.groupType, start: g.startQuestion, end: g.endQuestion }))));
+                                } catch (convErr) {
+                                    console.error(`Part ${i + 1} conversion error:`, convErr);
+                                }
+                            }
+                            return {
+                                sectionNumber: s.sectionNumber || i + 1,
+                                title: s.title || `Part ${i + 1}`,
+                                context: s.context || "",
+                                instructions: s.instructions || "",
+                                audioUrl: s.audioUrl || "",
+                                imageUrl: s.imageUrl || "",
+                                questionGroups: qGroups,
+                                questions: s.questions || [],
+                            };
+                        }));
                     }
                 }
             } catch (err) {
                 setError("Failed to fetch listening test data");
-                console.error(err);
             } finally {
                 setFetchLoading(false);
             }
@@ -521,60 +265,95 @@ function CreateListeningPageContent() {
         setSections(prev => prev.map((s, i) => i === idx ? updated : s));
     };
 
+    // ═══ Build preview sections ═══
+    const previewSections = sections.map(s => {
+        const groups = s.questionGroups || [];
+        if (groups.length > 0) {
+            return {
+                ...s,
+                questions: generateListeningQuestions(groups),
+                instructions: `Questions ${groups[0]?.startQuestion || 1}–${groups[groups.length - 1]?.endQuestion || 10}`
+            };
+        }
+        return s;
+    });
+
     // ═══ JSON Export / Import ═══
     const handleJsonExport = () => {
-        setJsonText(JSON.stringify({ ...formData, sections }, null, 2));
-        setShowJson(true);
-        setJsonError("");
+        const data = {
+            ...formData,
+            sections: previewSections.map(s => ({
+                sectionNumber: s.sectionNumber,
+                title: s.title,
+                context: s.context,
+                instructions: s.instructions,
+                audioUrl: s.audioUrl,
+                imageUrl: s.imageUrl,
+                questions: s.questions,
+            }))
+        };
+        setJsonText(JSON.stringify(data, null, 2));
+        setShowJson(true); setJsonError("");
     };
 
     const handleJsonImport = () => {
         try {
             const parsed = JSON.parse(jsonText);
-            if (parsed.title !== undefined) setFormData(prev => ({ ...prev, ...parsed, sections: undefined }));
-            if (parsed.sections && Array.isArray(parsed.sections)) {
+            if (parsed.title !== undefined) {
+                setFormData(prev => ({
+                    ...prev,
+                    title: parsed.title || prev.title,
+                    description: parsed.description || prev.description,
+                    source: parsed.source || prev.source,
+                    difficulty: parsed.difficulty || prev.difficulty,
+                    duration: parsed.duration || prev.duration,
+                    mainAudioUrl: parsed.mainAudioUrl || prev.mainAudioUrl,
+                }));
+            }
+            if (parsed.sections?.length) {
                 setSections(parsed.sections.map((s, i) => ({
                     sectionNumber: s.sectionNumber || i + 1,
                     title: s.title || `Part ${i + 1}`,
                     context: s.context || "",
                     instructions: s.instructions || "",
                     audioUrl: s.audioUrl || "",
+                    imageUrl: s.imageUrl || "",
+                    questionGroups: s.questionGroups || [],
                     questions: s.questions || [],
                 })));
             }
-            setShowJson(false);
-            setJsonError("");
-            setSuccess("JSON imported!");
-            setTimeout(() => setSuccess(""), 2000);
-        } catch (err) {
-            setJsonError(err.message);
-        }
+            setShowJson(false); setJsonError("");
+            setSuccess("JSON imported!"); setTimeout(() => setSuccess(""), 2000);
+        } catch (err) { setJsonError(err.message); }
     };
 
     // ═══ Submit ═══
     const handleSubmit = async () => {
-        if (!formData.title.trim()) {
-            setError("Title is required");
-            return;
-        }
-
-        setLoading(true);
-        setError("");
+        if (!formData.title.trim()) { setError("Title is required"); return; }
+        setLoading(true); setError("");
 
         try {
-            // Count total questions
-            const totalQuestions = sections.reduce((sum, s) =>
-                sum + (s.questions || []).filter(b => b.blockType === "question").length, 0
-            );
+            const finalSections = sections.map(s => {
+                const groups = s.questionGroups || [];
+                const questions = groups.length > 0 ? generateListeningQuestions(groups) : (s.questions || []);
+                return {
+                    sectionNumber: s.sectionNumber,
+                    title: s.title,
+                    context: s.context || '',
+                    instructions: s.instructions || '',
+                    audioUrl: s.audioUrl || '',
+                    imageUrl: s.imageUrl || '',
+                    questions,
+                };
+            });
+
+            const totalQuestions = finalSections.reduce((sum, s) =>
+                sum + s.questions.filter(b => b.blockType === "question").length, 0);
 
             const payload = {
                 ...formData,
-                totalQuestions,
-                totalMarks: totalQuestions,
-                sections: sections.map(s => ({
-                    ...s,
-                    questions: s.questions || [],
-                })),
+                totalQuestions, totalMarks: totalQuestions,
+                sections: finalSections,
             };
 
             let response;
@@ -588,18 +367,16 @@ function CreateListeningPageContent() {
                 setSuccess(isEditMode ? "Listening test updated!" : "Listening test created!");
                 setTimeout(() => router.push("/dashboard/admin/listening"), 1500);
             } else {
-                setError(response.message || "Failed to save");
+                setError(response.message || "Failed");
             }
         } catch (err) {
-            setError(err.message || "Failed to save");
-        } finally {
-            setLoading(false);
-        }
+            setError(err.message || "Failed");
+        } finally { setLoading(false); }
     };
 
-    const totalQuestions = sections.reduce((sum, s) =>
-        sum + (s.questions || []).filter(b => b.blockType === "question").length, 0
-    );
+    // Total Q count
+    const totalQuestions = previewSections.reduce((sum, s) =>
+        sum + (s.questions || []).filter(b => b.blockType === "question").length, 0);
 
     if (fetchLoading) {
         return (
@@ -611,6 +388,9 @@ function CreateListeningPageContent() {
 
     return (
         <div className={`pb-10 mx-auto ${showPreview ? 'max-w-[1600px]' : 'max-w-5xl'}`}>
+
+
+
             {/* ═══ Header ═══ */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -623,30 +403,23 @@ function CreateListeningPageContent() {
                             {isEditMode ? "Edit Listening Test" : "Create Listening Test"}
                         </h1>
                         <p className="text-gray-500 text-xs mt-0.5">
-                            {totalQuestions} questions across 4 parts
+                            {totalQuestions}/40 questions across 4 parts
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        type="button" onClick={() => setShowPreview(!showPreview)}
+                    <button type="button" onClick={() => setShowPreview(!showPreview)}
                         className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${showPreview
                             ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                            : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-                            }`}
-                    >
+                            : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                         {showPreview ? <FaEyeSlash size={11} /> : <FaEye size={11} />} Preview
                     </button>
-                    <button
-                        type="button" onClick={handleJsonExport}
-                        className="px-3 py-2 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 flex items-center gap-1.5 cursor-pointer"
-                    >
+                    <button type="button" onClick={handleJsonExport}
+                        className="px-3 py-2 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 flex items-center gap-1.5 cursor-pointer">
                         <FaCode size={11} /> JSON
                     </button>
-                    <button
-                        type="button" onClick={handleSubmit} disabled={loading}
-                        className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50 cursor-pointer transition-colors"
-                    >
+                    <button type="button" onClick={handleSubmit} disabled={loading}
+                        className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50 cursor-pointer transition-colors">
                         {loading ? <FaSpinner className="animate-spin" size={13} /> : <FaSave size={13} />}
                         {isEditMode ? "Update" : "Save"} Test
                     </button>
@@ -672,163 +445,120 @@ function CreateListeningPageContent() {
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-indigo-700">📋 Full Test JSON</span>
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => { navigator.clipboard.writeText(jsonText); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                                className="text-xs text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
-                            >
+                            <button type="button" onClick={() => { navigator.clipboard.writeText(jsonText); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                                className="text-xs text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer">
                                 {copied ? <><FaCheck /> Copied!</> : <><FaCopy /> Copy</>}
                             </button>
-                            <button onClick={() => setShowJson(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><FaTimes /></button>
+                            <button type="button" onClick={() => setShowJson(false)} className="cursor-pointer text-gray-400 hover:text-gray-600"><FaTimes /></button>
                         </div>
                     </div>
-                    <textarea
-                        value={jsonText} onChange={e => setJsonText(e.target.value)}
-                        rows={15}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono outline-none focus:border-indigo-500 resize-y bg-gray-900 text-green-400"
-                    />
+                    <textarea value={jsonText} onChange={e => setJsonText(e.target.value)} rows={15}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono outline-none focus:border-indigo-500 resize-y" />
                     {jsonError && <p className="text-xs text-red-600 mt-1">{jsonError}</p>}
-                    <button
-                        type="button" onClick={handleJsonImport}
-                        className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium cursor-pointer hover:bg-indigo-700"
-                    >
+                    <button type="button" onClick={handleJsonImport}
+                        className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium cursor-pointer hover:bg-indigo-700">
                         Import JSON
                     </button>
                 </div>
             )}
 
-            {/* ═══ Test Information ═══ */}
+            {/* ═══ Test Info ═══ */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5">
-                <h2 className="text-sm font-bold text-gray-700 mb-4">🎧 Test Information</h2>
+                <h2 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">📋 Test Information</h2>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                         <label className="text-xs font-semibold text-gray-600 block mb-1">Title *</label>
-                        <input
-                            value={formData.title}
-                            onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
-                            placeholder="e.g. Listening Test 01"
-                        />
+                        <input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400"
+                            placeholder="e.g. Listening Test 06" />
                     </div>
                     <div className="col-span-2">
                         <label className="text-xs font-semibold text-gray-600 block mb-1">Description</label>
-                        <textarea
-                            value={formData.description}
-                            onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                            rows={2}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
-                            placeholder="Optional description..."
-                        />
-                    </div>
-                    {/* Main Audio URL */}
-                    <div className="col-span-2">
-                        <label className="text-xs font-semibold text-gray-600 block mb-1 flex items-center gap-1.5">
-                            <FaVolumeUp className="text-indigo-500" size={11} />
-                            Main Audio (full test audio)
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                value={formData.mainAudioUrl}
-                                onChange={e => setFormData(prev => ({ ...prev, mainAudioUrl: e.target.value }))}
-                                className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
-                                placeholder="https://... or upload →"
-                            />
-                            <AudioUploadBtn
-                                onUploaded={(url) => setFormData(prev => ({ ...prev, mainAudioUrl: url }))}
-                            />
-                            {formData.mainAudioUrl && (
-                                <button type="button" onClick={() => setFormData(prev => ({ ...prev, mainAudioUrl: '' }))}
-                                    className="text-red-400 hover:text-red-600 cursor-pointer p-1">
-                                    <FaTimes size={12} />
-                                </button>
-                            )}
-                        </div>
-                        {formData.mainAudioUrl && (
-                            <div className="mt-1.5 flex items-center gap-2 text-xs text-green-600">
-                                <FaCheck size={9} /> Audio set
-                            </div>
-                        )}
+                        <textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
+                            rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                            placeholder="Optional" />
                     </div>
                     <div>
-                        <label className="text-xs font-semibold text-gray-600 block mb-1">Difficulty</label>
-                        <select
-                            value={formData.difficulty}
-                            onChange={e => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-                        >
-                            <option value="easy">Easy</option>
-                            <option value="medium">Medium</option>
-                            <option value="hard">Hard</option>
+                        <label className="text-xs font-semibold text-gray-600 block mb-1">Test Type</label>
+                        <select value={formData.testType} onChange={e => setFormData(p => ({ ...p, testType: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none bg-white">
+                            <option value="academic">Academic</option>
+                            <option value="general-training">General Training</option>
                         </select>
                     </div>
                     <div>
-                        <label className="text-xs font-semibold text-gray-600 block mb-1">Duration (min)</label>
-                        <input
-                            type="number"
-                            value={formData.duration}
-                            onChange={e => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) || 40 }))}
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-semibold text-gray-600 block mb-1">Audio Duration (seconds)</label>
-                        <input
-                            type="number"
-                            value={formData.audioDuration}
-                            onChange={e => setFormData(prev => ({ ...prev, audioDuration: parseInt(e.target.value) || 0 }))}
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400"
-                            placeholder="1800 = 30 min"
-                        />
+                        <label className="text-xs font-semibold text-gray-600 block mb-1">Difficulty</label>
+                        <select value={formData.difficulty} onChange={e => setFormData(p => ({ ...p, difficulty: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none bg-white">
+                            <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
+                        </select>
                     </div>
                     <div>
                         <label className="text-xs font-semibold text-gray-600 block mb-1">Source</label>
-                        <input
-                            value={formData.source}
-                            onChange={e => setFormData(prev => ({ ...prev, source: e.target.value }))}
+                        <input value={formData.source} onChange={e => setFormData(p => ({ ...p, source: e.target.value }))}
                             className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400"
-                            placeholder="e.g. Cambridge IELTS 15"
-                        />
+                            placeholder="e.g. Cambridge 17" />
+                    </div>
+                    <div className="col-span-2">
+                        <label className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-2">
+                            <FaVolumeUp className="text-indigo-500" /> Main Audio (Full Test)
+                        </label>
+                        <div className="flex items-center gap-2">
+                            <input value={formData.mainAudioUrl} onChange={e => setFormData(p => ({ ...p, mainAudioUrl: e.target.value }))}
+                                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none font-mono"
+                                placeholder="URL or upload →" />
+                            <AudioUploadBtn onUploaded={url => setFormData(p => ({ ...p, mainAudioUrl: url }))} label="Upload Audio" />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* ═══ Two-Column Layout: Editor + Preview ═══ */}
-            <div className={`flex gap-6 items-start`}>
-                {/* LEFT — Parts Editor */}
+            {/* ═══ Two-Column: Editor + Preview ═══ */}
+            <div className="flex gap-5">
+                {/* LEFT — Editor */}
                 <div className={`${showPreview ? 'w-1/2' : 'w-full'} min-w-0`}>
-                    <div className="space-y-4 mb-6">
-                        {sections.map((section, idx) => (
-                            <SectionPanel
-                                key={idx}
-                                section={section}
-                                onChange={updated => updateSection(idx, updated)}
-                            />
-                        ))}
+                    {/* Part Tabs */}
+                    <div className="flex gap-1 mb-4">
+                        {sections.map((s, idx) => {
+                            const partQs = (previewSections[idx]?.questions || []).filter(b => b.blockType === "question").length;
+                            return (
+                                <button key={idx} type="button" onClick={() => setActiveTab(idx)}
+                                    className={`flex-1 py-3 px-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === idx
+                                        ? "bg-indigo-600 text-white shadow-md"
+                                        : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>
+                                    <div>Part {idx + 1}</div>
+                                    <div className={`text-[10px] mt-0.5 ${activeTab === idx ? "text-indigo-200" : "text-gray-400"}`}>
+                                        {partQs}Q • {(sections[idx].questionGroups || []).length} groups
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
 
+                    {/* Active Section Editor */}
+                    <SectionEditor
+                        section={sections[activeTab]}
+                        sectionIndex={activeTab}
+                        onChange={updated => updateSection(activeTab, updated)}
+                    />
+
                     {/* Bottom Save */}
-                    <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-4">
-                        <div className="text-xs text-gray-500">
-                            💡 Total: <strong>{totalQuestions}</strong> questions across <strong>4</strong> parts
+                    <div className="mt-6 flex items-center justify-between">
+                        <div className="text-xs text-gray-400">
+                            💡 Question Group add করুন → type select → step অনুসরণ করুন
                         </div>
-                        <button
-                            type="button" onClick={handleSubmit} disabled={loading}
-                            className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50 cursor-pointer transition-colors"
-                        >
+                        <button type="button" onClick={handleSubmit} disabled={loading}
+                            className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50 cursor-pointer shadow-md transition-colors">
                             {loading ? <FaSpinner className="animate-spin" /> : <FaSave />}
                             {isEditMode ? "Update" : "Save"} Listening Test
                         </button>
                     </div>
                 </div>
 
-                {/* RIGHT — Live Preview */}
+                {/* RIGHT — Preview */}
                 {showPreview && (
-                    <div className="w-1/2 min-w-0 sticky top-4">
-                        <ListeningPreview
-                            sections={sections}
-                            title={formData.title}
-                            mainAudioUrl={formData.mainAudioUrl}
-                        />
+                    <div className="w-1/2 min-w-0 sticky top-4 self-start">
+                        <ListeningPreview sections={previewSections} title={formData.title} mainAudioUrl={formData.mainAudioUrl} />
                     </div>
                 )}
             </div>
@@ -836,6 +566,9 @@ function CreateListeningPageContent() {
     );
 }
 
+// ═══════════════════════════════════════════════════════
+// PAGE WRAPPER
+// ═══════════════════════════════════════════════════════
 export default function CreateListeningPage() {
     return (
         <Suspense fallback={

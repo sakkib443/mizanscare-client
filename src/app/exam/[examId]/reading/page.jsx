@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
     FaBook,
@@ -11,7 +11,9 @@ import {
     FaTimes,
     FaSpinner,
     FaPlay,
-    FaArrowRight
+    FaArrowRight,
+    FaArrowLeft,
+    FaVolumeUp
 } from "react-icons/fa";
 import { readingAPI, studentsAPI } from "@/lib/api";
 import ExamSecurity from "@/components/ExamSecurity";
@@ -29,6 +31,56 @@ export default function ReadingExamPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showInstructions, setShowInstructions] = useState(true);
     const [fontSize, setFontSize] = useState(16);
+    const [focusedQuestion, setFocusedQuestion] = useState(1);
+    const [splitPercent, setSplitPercent] = useState(50); // left panel width %
+    const isDragging = useRef(false);
+    const containerRef = useRef(null);
+
+    // Splitter drag handlers
+    const onSplitterMouseDown = useCallback((e) => {
+        e.preventDefault();
+        isDragging.current = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    }, []);
+
+    useEffect(() => {
+        const onMouseMove = (e) => {
+            if (!isDragging.current || !containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const pct = Math.min(Math.max((x / rect.width) * 100, 20), 80);
+            setSplitPercent(pct);
+        };
+        const onMouseUp = () => {
+            if (isDragging.current) {
+                isDragging.current = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        return () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+    }, []);
+
+    // Options menu states
+    const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+    const [optionsView, setOptionsView] = useState('main');
+    const [contrastMode, setContrastMode] = useState('black-on-white');
+    const [textSizeMode, setTextSizeMode] = useState('regular');
+
+    const contrastStyles = {
+        'black-on-white': { bg: '#fff', text: '#000', partBg: '#f0ece4', partBorder: '#d6d0c4' },
+        'white-on-black': { bg: '#000', text: '#fff', partBg: '#000', partBorder: '#555' },
+        'yellow-on-black': { bg: '#000', text: '#ffff00', partBg: '#000', partBorder: '#555' }
+    };
+    const textSizeScale = { 'regular': 1, 'large': 1.2, 'extra-large': 1.45 };
+    const cs = contrastStyles[contrastMode];
+    const tScale = textSizeScale[textSizeMode];
 
 
     // Data loading states
@@ -57,29 +109,32 @@ export default function ReadingExamPage() {
                     const verifyResponse = await studentsAPI.verifyExamId(parsed.examId);
                     if (verifyResponse.success && verifyResponse.data) {
                         const dbCompletedModules = verifyResponse.data.completedModules || [];
-                        const isFinished = dbCompletedModules.length >= 3;
+                        const setNum = parsed.currentSetNumber;
+                        const isThisSetDone = setNum
+                            ? (dbCompletedModules.includes(`reading:${setNum}`) || dbCompletedModules.includes("reading"))
+                            : dbCompletedModules.includes("reading");
 
-                        // Security check: If reading is already completed OR all 3 are done, redirect back
-                        if (dbCompletedModules.includes("reading") || isFinished) {
-                            // Update localStorage to keep in sync
+                        if (isThisSetDone) {
                             parsed.completedModules = dbCompletedModules;
                             localStorage.setItem("examSession", JSON.stringify(parsed));
-
                             router.push(`/exam/${params.examId}`);
                             return;
                         }
                     }
                 } catch (apiError) {
                     console.error("Failed to verify completion from DB, using localStorage:", apiError);
-                    // Fallback to localStorage check
-                    if (parsed.completedModules && (parsed.completedModules.includes("reading") || parsed.completedModules.length >= 3)) {
+                    const setNum = parsed.currentSetNumber;
+                    const isThisSetDone = setNum
+                        ? (parsed.completedModules?.includes(`reading:${setNum}`) || parsed.completedModules?.includes("reading"))
+                        : parsed.completedModules?.includes("reading");
+                    if (isThisSetDone) {
                         router.push(`/exam/${params.examId}`);
                         return;
                     }
                 }
 
-                // Check if reading set is assigned
-                const readingSetNumber = parsed.assignedSets?.readingSetNumber;
+                // Use currentSetNumber (set on exam card click) or fallback to single set
+                const readingSetNumber = parsed.currentSetNumber || parsed.assignedSets?.readingSetNumber;
                 if (!readingSetNumber) {
                     setLoadError("No reading test assigned for this exam.");
                     setIsLoading(false);
@@ -170,6 +225,7 @@ export default function ReadingExamPage() {
                 };
 
                 group.questions?.forEach(processItem);
+                group.markers?.forEach(processItem);
                 group.mcQuestions?.forEach(processItem);
                 group.statements?.forEach(processItem);
                 group.matchingItems?.forEach(processItem);
@@ -196,7 +252,7 @@ export default function ReadingExamPage() {
 
                 if (group.questionSets) {
                     group.questionSets.forEach(qs => {
-                        qs.questionNumbers?.forEach(num => {
+                        qs.questionNumbers?.forEach((num, index) => {
                             const existing = questionMap.get(num) || {};
                             questionMap.set(num, {
                                 ...existing,
@@ -204,6 +260,7 @@ export default function ReadingExamPage() {
                                 questionNumber: num,
                                 type: existing.type || qType,
                                 text: existing.text || `Multiple Question ${num}`,
+                                correctAnswer: qs.correctAnswers ? qs.correctAnswers[index] : existing.correctAnswer,
                                 marks: 1
                             });
                         });
@@ -232,6 +289,7 @@ export default function ReadingExamPage() {
     const currentQuestions = currentPass.questions || [];
 
     const totalQuestions = allQuestions.length;
+    const answeredCount = allQuestions.filter(q => answers[q.questionNumber] && answers[q.questionNumber] !== '').length;
     const totalMarks = allQuestions.reduce((sum, q) => sum + (q.marks || 1), 0);
 
     // Official IELTS Academic Reading Band Score Conversion
@@ -299,6 +357,33 @@ export default function ReadingExamPage() {
         }
     };
 
+    // Focus a question — scroll to it & focus input only
+    const focusQuestionElement = (qNum) => {
+        setFocusedQuestion(qNum);
+        const tpi = passages.findIndex(p => p.questions.some(q => q.questionNumber === qNum));
+        if (tpi >= 0 && tpi !== currentPassage) setCurrentPassage(tpi);
+        setTimeout(() => {
+            const el = document.getElementById(`q-${qNum}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const inp = el.querySelector('input') || el.querySelector('select');
+                if (inp) { inp.focus(); if (inp.select) inp.select(); }
+            }
+        }, 200);
+    };
+
+    // Per-question navigation (arrow buttons) — matches listening page
+    const goNextQuestion = () => {
+        if (focusedQuestion < totalQuestions) {
+            focusQuestionElement(focusedQuestion + 1);
+        }
+    };
+    const goPrevQuestion = () => {
+        if (focusedQuestion > 1) {
+            focusQuestionElement(focusedQuestion - 1);
+        }
+    };
+
     const calculateScore = () => {
         let score = 0;
         allQuestions.forEach(q => {
@@ -355,17 +440,19 @@ export default function ReadingExamPage() {
 
         // Save to backend
         try {
+            const currentSetNumber = sessionData?.currentSetNumber;
             const response = await studentsAPI.saveModuleScore(examId, "reading", {
                 score: score,
                 total: totalMarks,
                 band: bandScore,
-                answers: detailedAnswers // Send answers to backend
+                answers: detailedAnswers,
+                setNumber: currentSetNumber
             });
             console.log("Reading data saved with answers");
 
             // Update localStorage
             if (response.success && sessionData) {
-                sessionData.completedModules = response.data?.completedModules || [...(sessionData.completedModules || []), "reading"];
+                sessionData.completedModules = response.data?.completedModules || [...(sessionData.completedModules || []), currentSetNumber ? `reading:${currentSetNumber}` : "reading"];
                 sessionData.scores = response.data?.scores || {
                     ...(sessionData.scores || {}),
                     reading: { band: bandScore, raw: score, correctAnswers: score, totalQuestions: totalMarks }
@@ -376,7 +463,8 @@ export default function ReadingExamPage() {
             console.error("Failed to save reading score:", error);
             // Still update localStorage even if backend fails
             if (sessionData) {
-                sessionData.completedModules = [...(sessionData.completedModules || []), "reading"];
+                const currentSetNumber = sessionData?.currentSetNumber;
+                sessionData.completedModules = [...(sessionData.completedModules || []), currentSetNumber ? `reading:${currentSetNumber}` : "reading"];
                 sessionData.scores = {
                     ...(sessionData.scores || {}),
                     reading: { band: bandScore, raw: score, correctAnswers: score, totalQuestions: totalMarks }
@@ -389,7 +477,7 @@ export default function ReadingExamPage() {
         router.push(`/exam/${params.examId}`);
     };
 
-    const answeredCount = Object.keys(answers).filter(k => answers[k] !== "").length;
+    // answeredCount already defined above
 
     // Get question type label
     const getQuestionTypeLabel = (type) => {
@@ -451,48 +539,56 @@ export default function ReadingExamPage() {
     // Instructions Screen
     if (showInstructions) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center p-4">
-                <div className="max-w-2xl w-full">
-                    <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-blue-600">
-                        <span className="text-blue-600 font-bold text-2xl">IELTS</span>
-                        <span className="text-gray-600">| Reading Test</span>
+            <div style={{ minHeight: '100vh', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Arial, sans-serif' }}>
+                <div style={{ maxWidth: '640px', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '2px solid #2563eb' }}>
+                        <span style={{ color: '#dc2626', fontWeight: '900', fontSize: '28px' }}>IELTS</span>
+                        <span style={{ color: '#6b7280', fontSize: '16px' }}>| Reading Test</span>
                     </div>
 
-                    <h1 className="text-2xl font-bold text-gray-800 mb-4">Reading Test Instructions</h1>
+                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>Reading Test Instructions</h1>
 
-                    <div className="bg-gray-50 border border-gray-200 rounded p-4 mb-4">
-                        <p className="text-gray-700 mb-3">
+                    <div style={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                        <p style={{ color: '#374151', marginBottom: '12px' }}>
                             <strong>Set:</strong> {questionSet?.title || `Reading Set #${questionSet?.setNumber}`}
                         </p>
-                        <p className="text-gray-700 mb-3">
+                        <p style={{ color: '#374151', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <FaClock style={{ color: '#2563eb' }} />
                             <strong>Time:</strong> {questionSet?.duration || 60} minutes
                         </p>
-                        <p className="text-gray-700 mb-3">
+                        <p style={{ color: '#374151', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <FaBook style={{ color: '#2563eb' }} />
                             <strong>Questions:</strong> {totalQuestions} questions in {passages.length} passages
                         </p>
-                        <p className="text-gray-700">
+                        <p style={{ color: '#374151' }}>
                             <strong>Instructions:</strong> Read the passages and answer the questions.
                             You can move between questions and passages freely.
                         </p>
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6">
-                        <h3 className="font-semibold text-blue-800 mb-2">Question Types:</h3>
-                        <ul className="text-blue-700 text-sm space-y-1">
-                            <li>• True/False/Not Given</li>
-                            <li>• Multiple Choice</li>
-                            <li>• Sentence Completion</li>
+                    <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '16px', marginBottom: '24px' }}>
+                        <h3 style={{ fontWeight: '600', color: '#1e40af', marginBottom: '8px' }}>Question Types:</h3>
+                        <ul style={{ color: '#1d4ed8', fontSize: '14px', listStyle: 'none', padding: 0, margin: 0 }}>
+                            <li style={{ marginBottom: '4px' }}>• True/False/Not Given</li>
+                            <li style={{ marginBottom: '4px' }}>• Multiple Choice</li>
+                            <li style={{ marginBottom: '4px' }}>• Sentence Completion</li>
                             <li>• Matching</li>
                         </ul>
                     </div>
 
                     <button
                         onClick={() => setShowInstructions(false)}
-                        className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 hover:shadow-lg transition-all flex items-center justify-center gap-3 cursor-pointer group"
+                        style={{
+                            width: '100%', backgroundColor: '#2563eb', color: 'white', padding: '16px',
+                            borderRadius: '12px', fontWeight: 'bold', fontSize: '18px', border: 'none',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563eb'}
                     >
-                        <FaPlay className="text-sm transition-transform group-hover:scale-110" />
+                        <FaPlay style={{ fontSize: '14px' }} />
                         <span>Start Reading Test</span>
-                        <FaArrowRight className="text-sm transition-transform group-hover:translate-x-1" />
+                        <FaArrowRight style={{ fontSize: '14px' }} />
                     </button>
                 </div>
             </div>
@@ -500,757 +596,885 @@ export default function ReadingExamPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white">
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text }}>
 
-            {/* Exam Security - Tab Switch & Fullscreen Detection */}
+            {/* Exam Security */}
             {!showInstructions && (
                 <ExamSecurity
                     examId={session?.examId}
-                    onViolationLimit={() => {
-                        handleSubmit();
-                    }}
+                    onViolationLimit={() => { handleSubmit(); }}
                 />
             )}
 
-            {/* Header */}
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-                <div className="w-full px-6 py-2">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <span className="text-blue-600 font-bold text-xl">IELTS</span>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <FaBook className="text-blue-600" />
-                                <span>Reading Test - Set #{questionSet?.setNumber}</span>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1">
-                                {passages.map((p, idx) => (
-                                    <button
-                                        key={p.id}
-                                        onClick={() => { setCurrentPassage(idx); setCurrentQuestion(0); }}
-                                        className={`px-3 py-1 rounded text-sm font-medium cursor-pointer ${currentPassage === idx ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                            }`}
-                                    >
-                                        P{idx + 1}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className={`flex items-center gap-2 px-3 py-1 rounded ${timeLeft < 300 ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-700"}`}>
-                                <FaClock />
-                                <span className="font-mono font-semibold">{formatTime(timeLeft)}</span>
-                            </div>
+            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                TOP HEADER â€” Inspera IELTS Clone
+            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            <header style={{ backgroundColor: cs.bg, borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}`, height: '56px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '0 16px' }}>
+                    {/* Left */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                        <span style={{ fontWeight: '900', color: '#cc0000', fontSize: '32px', letterSpacing: '-0.5px', fontFamily: 'Arial, sans-serif' }}>IELTS</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
+                            <span style={{ fontSize: '16px', fontWeight: '600', color: cs.text }}>Test taker ID</span>
                         </div>
                     </div>
+                    {/* Right */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                        {/* WiFi */}
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" />
+                        </svg>
+                        {/* Bell icon */}
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                        {/* Hamburger â†’ Options */}
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: 'pointer' }} onClick={() => { setShowOptionsMenu(true); setOptionsView('main'); }}>
+                            <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+                        </svg>
+                    </div>
+                </div >
+            </header >
+
+            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                PASSAGE BANNER â€” Inspera Style
+            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            < div style={{ backgroundColor: cs.partBg, borderBottom: `1px solid ${cs.partBorder}`, padding: '8px 40px', flexShrink: 0, fontFamily: 'Arial, sans-serif' }
+            }>
+                <div style={{ fontWeight: 'bold', fontSize: `${15 * tScale}px`, color: cs.text, marginBottom: '2px' }}>
+                    Part {currentPassage + 1}
                 </div>
-            </header>
+                <div style={{ fontSize: `${13 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text }}>
+                    Read the text and answer questions {currentQuestions.length > 0 ? `${currentQuestions[0].questionNumber}–${currentQuestions[currentQuestions.length - 1].questionNumber}` : ''}.
+                </div>
+            </div >
 
-            {/* Main Content */}
-            <div className="w-full px-6 py-4 pb-16">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Passage Panel */}
-                    <div className="bg-white border border-gray-200 rounded overflow-hidden">
-                        <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-                            <h3 className="font-semibold text-gray-800">{currentPass.title}</h3>
-                            {currentPass.source && (
-                                <p className="text-xs text-gray-500">{currentPass.source}</p>
-                            )}
-                        </div>
-                        <div className="p-4 overflow-y-auto max-h-[calc(100vh-200px)]" style={{ fontSize: `${fontSize}px` }}>
-                            <TextHighlighter passageId={`reading_passage_${currentPassage}`}>
-                                {currentPass.content.split('\n\n').map((para, index) => (
-                                    <p key={index} className="text-gray-700 leading-relaxed mb-4">{para}</p>
-                                ))}
-                            </TextHighlighter>
-                        </div>
-                    </div>
+            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                MAIN CONTENT â€” Two Column Layout
+            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            < div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+                {/* LEFT: Passage Text */}
+                < div style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
+                    <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
+                    {currentPass.source && <p style={{ fontSize: `${12 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text, marginBottom: '12px', fontStyle: 'italic' }}>{currentPass.source}</p>}
+                    <TextHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
+                        <div 
+                            className="reading-passage-content"
+                            style={{ color: cs.text, lineHeight: '1.8', fontSize: `${16 * tScale}px` }}
+                            dangerouslySetInnerHTML={{ __html: currentPass.content }} 
+                        />
+                    </TextHighlighter>
+                </div >
 
-                    {/* Question Panel */}
-                    <div className="space-y-4">
-                        <div className="bg-blue-50 border border-blue-100 rounded px-4 py-3">
-                            <h3 className="font-semibold text-gray-800">Questions {passages.slice(0, currentPassage).reduce((acc, p) => acc + p.questions.length, 0) + 1}–{passages.slice(0, currentPassage + 1).reduce((acc, p) => acc + p.questions.length, 0)}</h3>
-                        </div>
+                {/* SPLITTER — draggable resize handle */}
+                <div
+                    onMouseDown={onSplitterMouseDown}
+                    style={{
+                        width: '18px', cursor: 'col-resize', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: contrastMode === 'black-on-white' ? '#e5e7eb' : '#444', flexShrink: 0, zIndex: 10,
+                        borderLeft: `1px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : '#555'}`,
+                        borderRight: `1px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : '#555'}`
+                    }}
+                >
+                    <span style={{ fontSize: '22px', color: contrastMode === 'black-on-white' ? '#6b7280' : '#ccc', userSelect: 'none', fontWeight: 'bold', border: `1.5px solid ${contrastMode === 'black-on-white' ? '#9ca3af' : '#888'}`, borderRadius: '4px', padding: '2px 4px', lineHeight: '1', background: contrastMode === 'black-on-white' ? '#fff' : '#333' }}>↔</span>
+                </div>
 
-                        {/* Question */}
-                        {/* Questions List - Using questionGroups if available */}
-                        <div className="space-y-6 max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
-                            <TextHighlighter passageId={`reading_questions_${currentPassage}`}>
-                                {currentPass.questionGroups && currentPass.questionGroups.length > 0 ? (
-                                    // New format using questionGroups
-                                    currentPass.questionGroups.map((group, gIdx) => (
-                                        <div key={gIdx} className="mb-8">
-                                            {/* Note Completion Format (Matches User's Image) */}
-                                            {(group.questionType === "note-completion" || group.groupType === "note-completion") && (
-                                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
-                                                    {/* Range and Instructions */}
-                                                    <div className="mb-4">
-                                                        <h3 className="text-lg font-bold text-gray-900 mb-1">
-                                                            Questions {group.startQuestion}-{group.endQuestion}
-                                                        </h3>
-                                                        <p className="text-gray-800 font-medium mb-1">{group.instructions || group.mainInstruction}</p>
-                                                        <p className="text-gray-700 text-sm italic">
-                                                            Choose <span className="font-bold">ONE WORD ONLY</span> from the passage for each answer.
-                                                        </p>
-                                                    </div>
+                {/* RIGHT: Questions */}
+                < div style={{ flex: 1, overflowY: 'auto', padding: '20px 30px 250px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif' }}>
+                    <TextHighlighter passageId={`reading_questions_${currentPassage}`} contrastMode={contrastMode}>
+                        {currentPass.questionGroups && currentPass.questionGroups.length > 0 ? (
+                            currentPass.questionGroups.map((group, gIdx) => (
+                                <div key={gIdx} style={{ marginBottom: '24px' }}>
 
-                                                    {/* Main Heading from data */}
-                                                    {group.mainHeading && (
-                                                        <h3 className="text-xl font-bold text-blue-900 mb-4 border-b-2 border-blue-100 pb-2">
-                                                            {group.mainHeading}
-                                                        </h3>
-                                                    )}
+                                    {/* â”€â”€ NOTE COMPLETION â”€â”€ */}
+                                    {(group.questionType === "note-completion" || group.groupType === "note-completion") && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <div style={{ marginBottom: '12px' }}>
+                                                <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px', fontSize: `${16 * tScale}px` }}>{group.instructions || group.mainInstruction}</p>
+                                                <p style={{ color: cs.text, fontSize: `${13 * tScale}px`, fontStyle: 'italic' }}>
+                                                    Choose <b>ONE WORD ONLY</b> from the passage for each answer.
+                                                </p>
+                                            </div>
 
-                                                    {/* Render passage with headings and bullets */}
-                                                    {(group.passage || "").split('\n').map((line, lineIdx) => {
-                                                        const trimmedLine = line.trim();
-                                                        if (!trimmedLine) return <div key={lineIdx} className="h-3" />;
+                                            {group.mainHeading && <h3 style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginBottom: '12px', borderBottom: `2px solid ${contrastMode === 'black-on-white' ? '#dbeafe' : cs.text}`, paddingBottom: '6px' }}>{group.mainHeading}</h3>}
 
-                                                        // Identify Heading (No bullet, no blank, short)
-                                                        const isBullet = trimmedLine.startsWith('•') || trimmedLine.startsWith('-');
-                                                        const hasBlank = trimmedLine.includes('__________');
-                                                        const isHeading = !isBullet && !hasBlank && trimmedLine.length < 100;
+                                            {(group.passage || "").split('\n').map((line, lineIdx) => {
+                                                const rawLine = line;
+                                                const trimmedLine = line.trim();
+                                                if (!trimmedLine) return <div key={lineIdx} style={{ height: '8px' }} />;
+                                                const isBullet = trimmedLine.startsWith('•') || trimmedLine.startsWith('-');
+                                                const hasBlank = trimmedLine.includes('__________');
+                                                const isHeading = !isBullet && !hasBlank && trimmedLine.length < 100;
 
-                                                        const renderLine = (text) => {
-                                                            const parts = text.split(/(\d+\s*__________)/g);
-                                                            return parts.map((part, pIdx) => {
-                                                                const match = part.match(/(\d+)\s*__________/);
-                                                                if (match) {
-                                                                    const qNum = parseInt(match[1]);
-                                                                    return (
-                                                                        <span key={pIdx} id={`q-${qNum}`} className="inline-flex items-center gap-1 mx-1 align-baseline">
-                                                                            <span className="bg-white border border-gray-400 text-gray-800 text-xs font-bold px-1.5 py-0.5 rounded shadow-sm">
-                                                                                {qNum}
-                                                                            </span>
-                                                                            <input
-                                                                                type="text"
-                                                                                value={answers[qNum] || ""}
-                                                                                onChange={(e) => handleAnswer(qNum, e.target.value)}
-                                                                                className="border border-gray-300 rounded px-2 py-1 bg-white w-32 h-8 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-all shadow-sm"
-                                                                            />
-                                                                        </span>
-                                                                    );
-                                                                }
-                                                                return <span key={pIdx}>{part}</span>;
-                                                            });
-                                                        };
-
-                                                        if (isHeading) {
+                                                const renderLine = (text) => {
+                                                    const parts = text.split(/(\d+\s*__________)/g);
+                                                    return parts.map((part, pIdx) => {
+                                                        const match = part.match(/(\d+)\s*__________/);
+                                                        if (match) {
+                                                            const qNum = parseInt(match[1]);
+                                                            const val = answers[qNum] || '';
                                                             return (
-                                                                <h4 key={lineIdx} className="font-extrabold text-gray-900 text-base mt-5 mb-2 uppercase tracking-wide">
-                                                                    {trimmedLine}
-                                                                </h4>
+                                                                <span key={pIdx} id={`q-${qNum}`} style={{ display: 'inline-flex', alignItems: 'center', margin: '0 6px', verticalAlign: 'middle', position: 'relative', border: focusedQuestion === qNum ? '2.5px solid #2563eb' : `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px', justifyContent: 'center' }}>
+                                                                    {!val && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none', userSelect: 'none' }}>{qNum}</span>}
+                                                                    <input type="text" value={val} onChange={e => handleAnswer(qNum, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
+                                                                </span>
                                                             );
                                                         }
+                                                        return <span key={pIdx}>{part}</span>;
+                                                    });
+                                                };
 
-                                                        if (isBullet) {
-                                                            const bulletText = trimmedLine.replace(/^[•\-]\s*/, '');
-                                                            return (
-                                                                <div key={lineIdx} className="flex items-start gap-3 ml-6 mb-2">
-                                                                    <span className="text-gray-400 mt-1.5 text-xs">•</span>
-                                                                    <span className="flex-1 text-gray-700 leading-relaxed font-medium">
-                                                                        {renderLine(bulletText)}
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        }
+                                                if (isHeading) return <h4 key={lineIdx} style={{ fontWeight: 'bold', color: cs.text, fontSize: `${15 * tScale}px`, marginTop: '16px', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{trimmedLine}</h4>;
+                                                if (isBullet) {
+                                                    const bulletText = rawLine.replace(/^\s*[•\-]\s*/, '');
+                                                    return <div key={lineIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginLeft: '20px', marginBottom: '4px' }}><span style={{ color: cs.text, marginTop: '4px', fontSize: '10px' }}>•</span><span style={{ flex: 1, color: cs.text, lineHeight: '1.6', fontWeight: '500', whiteSpace: 'pre-wrap' }}>{renderLine(bulletText)}</span></div>;
+                                                }
+                                                return <p key={lineIdx} style={{ color: cs.text, lineHeight: '1.6', marginBottom: '4px', marginLeft: '8px', whiteSpace: 'pre-wrap', fontFamily: rawLine.startsWith(' ') ? 'monospace' : 'inherit' }}>{renderLine(rawLine)}</p>;
+                                            })}
 
-                                                        return (
-                                                            <p key={lineIdx} className="text-gray-700 leading-relaxed mb-2 ml-2">
-                                                                {renderLine(trimmedLine)}
-                                                            </p>
-                                                        );
-                                                    })}
-
-                                                    {/* Original format support for notesSections */}
-                                                    {!group.passage && group.notesSections?.map((section, sIdx) => (
-                                                        <div key={sIdx} className="mt-3">
-                                                            <h4 className="font-bold text-gray-800 mb-2">{section.subHeading}</h4>
-                                                            <ul className="space-y-2 pl-4">
-                                                                {section.bullets?.map((bullet, bIdx) => (
-                                                                    <li key={bIdx} className="flex items-start gap-2 text-gray-700">
-                                                                        <span className="mt-0.5">•</span>
-                                                                        {bullet.type === "context" ? (
-                                                                            <span>{bullet.text}</span>
-                                                                        ) : (
-                                                                            <div id={`q-${bullet.questionNumber}`} className="flex items-center flex-wrap gap-1">
-                                                                                <span>{bullet.textBefore}</span>
-                                                                                <span className="inline-flex items-center gap-1">
-                                                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5">{bullet.questionNumber}</span>
-                                                                                    <input
-                                                                                        type="text"
-                                                                                        value={answers[bullet.questionNumber] || ""}
-                                                                                        onChange={(e) => handleAnswer(bullet.questionNumber, e.target.value)}
-                                                                                        className="border border-gray-300 rounded px-2 py-1 bg-white w-32 h-8 focus:border-blue-500 outline-none"
-                                                                                    />
-                                                                                </span>
-                                                                                {bullet.textAfter && <span>{bullet.textAfter}</span>}
-                                                                            </div>
-                                                                        )}
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {/* TRUE/FALSE/NOT GIVEN Format (Matches User's Image) */}
-                                            {(group.questionType === "true-false-not-given" || group.groupType === "true-false-not-given" || group.questionType === "true-false-ng") && (
-                                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
-                                                    <div className="mb-4">
-                                                        <h3 className="text-lg font-bold text-gray-900 mb-1">
-                                                            Questions {group.startQuestion}-{group.endQuestion}
-                                                        </h3>
-                                                        <p className="text-gray-800 font-medium mb-3">{group.instructions || group.mainInstruction}</p>
-
-                                                        <div className="bg-gray-50 p-4 rounded-md space-y-2 text-sm border-l-4 border-gray-300">
-                                                            <p><span className="font-bold w-24 inline-block">TRUE</span> if the statement agrees with the information</p>
-                                                            <p><span className="font-bold w-24 inline-block">FALSE</span> if the statement contradicts the information</p>
-                                                            <p><span className="font-bold w-24 inline-block">NOT GIVEN</span> if there is no information on this</p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-6 mt-6">
-                                                        {(group.statements || group.questions)?.map((stmt) => (
-                                                            <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} className="pb-4 border-b border-gray-100 last:border-0">
-                                                                <div className="flex items-start gap-3 mb-4">
-                                                                    <span className="bg-gray-100 border border-gray-300 text-gray-800 text-sm font-bold px-2 py-0.5 rounded shadow-sm">
-                                                                        {stmt.questionNumber}
-                                                                    </span>
-                                                                    <p className="text-gray-800 font-medium leading-relaxed">{stmt.text || stmt.questionText}</p>
-                                                                </div>
-
-                                                                <div className="space-y-3 pl-10 mt-2">
-                                                                    {[
-                                                                        { letter: "A", value: "TRUE" },
-                                                                        { letter: "B", value: "FALSE" },
-                                                                        { letter: "C", value: "NOT GIVEN" }
-                                                                    ].map((opt) => (
-                                                                        <label
-                                                                            key={opt.value}
-                                                                            className="flex items-center gap-3 cursor-pointer group"
-                                                                            onClick={() => handleAnswer(stmt.questionNumber, opt.value)}
-                                                                        >
-                                                                            <span className="font-bold text-gray-800 text-sm min-w-[16px]">{opt.letter}</span>
-                                                                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${answers[stmt.questionNumber] === opt.value ? "border-blue-600" : "border-gray-400 group-hover:border-blue-400"}`}>
-                                                                                {answers[stmt.questionNumber] === opt.value && <div className="w-2 h-2 bg-blue-600 rounded-full" />}
-                                                                            </div>
-                                                                            <span className={`text-sm font-semibold uppercase tracking-wide ${answers[stmt.questionNumber] === opt.value ? "text-blue-700" : "text-gray-700"}`}>{opt.value}</span>
-                                                                        </label>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* MATCHING INFORMATION / MATCHING FEATURES / MATCHING HEADINGS Format */}
-                                            {(group.groupType === "matching-information" || group.groupType === "matching-features" || group.groupType === "matching-headings") && (
-                                                <div className="space-y-3">
-                                                    {/* Main Instruction */}
-                                                    <p className="text-gray-800">{group.mainInstruction}</p>
-
-                                                    {/* Sub Instruction */}
-                                                    <p className="text-gray-800">{group.subInstruction}</p>
-
-                                                    {/* NB Note */}
-                                                    {group.note && (
-                                                        <p className="text-gray-700 text-sm">
-                                                            <span className="font-bold">NB</span> <em>{group.note.replace('NB ', '')}</em>
-                                                        </p>
-                                                    )}
-
-                                                    {/* Feature Options List (for matching-features) */}
-                                                    {group.featureOptions?.length > 0 && (
-                                                        <div className="mt-4 mb-4 space-y-1">
-                                                            <p className="font-bold text-gray-900">{group.featureListTitle || "List of options"}</p>
-                                                            {group.featureOptions.map((opt) => (
-                                                                <div key={opt.letter} className="flex items-center gap-3 pl-2">
-                                                                    <span className="font-bold text-gray-800 min-w-[20px]">{opt.letter}</span>
-                                                                    <span className="text-gray-800">{opt.text}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Matching Items */}
-                                                    <div className="space-y-3 mt-4">
-                                                        {group.matchingItems?.map((item) => (
-                                                            <div key={item.questionNumber} id={`q-${item.questionNumber}`} className="flex items-center gap-3">
-                                                                <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5 flex-shrink-0">
-                                                                    {item.questionNumber}
-                                                                </span>
-                                                                <span className="flex-1 text-gray-800">{item.text}</span>
-                                                                <select
-                                                                    value={answers[item.questionNumber] || ""}
-                                                                    onChange={(e) => handleAnswer(item.questionNumber, e.target.value)}
-                                                                    className="border border-gray-300 rounded px-3 py-1.5 text-gray-700 focus:border-blue-500 focus:outline-none min-w-[80px]"
-                                                                >
-                                                                    <option value="">--</option>
-                                                                    {group.paragraphOptions?.map((opt) => (
-                                                                        <option key={opt} value={opt}>{opt}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* SUMMARY COMPLETION Format */}
-                                            {group.groupType === "summary-completion" && (
-                                                <div className="space-y-3 mt-6 pt-4 border-t">
-                                                    {/* Main Instruction */}
-                                                    <p className="text-gray-800 italic">{group.mainInstruction}</p>
-
-                                                    {/* Sub Instruction */}
-                                                    <p className="text-gray-800">
-                                                        Choose <span className="font-bold">ONE WORD ONLY</span> from the passage for each answer.
-                                                    </p>
-
-                                                    {/* Main Heading */}
-                                                    <h3 className="text-lg font-bold text-gray-900 mt-4">{group.mainHeading}</h3>
-
-                                                    {/* Summary Paragraph with inline blanks */}
-                                                    <div className="text-gray-700 leading-relaxed">
-                                                        {group.summarySegments?.map((segment, sIdx) => (
-                                                            segment.type === "text" ? (
-                                                                <span key={sIdx}>{segment.content} </span>
-                                                            ) : (
-                                                                <span key={sIdx} id={`q-${segment.questionNumber}`} className="inline-flex items-center gap-1 mx-1">
-                                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5">{segment.questionNumber}</span>
-                                                                    <input
-                                                                        type="text"
-                                                                        value={answers[segment.questionNumber] || ""}
-                                                                        onChange={(e) => handleAnswer(segment.questionNumber, e.target.value)}
-                                                                        className="border-b border-gray-400 bg-white w-32 px-2 py-1 focus:border-blue-600 focus:outline-none"
-                                                                    />
-                                                                </span>
-                                                            )
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* CHOOSE TWO LETTERS Format */}
-                                            {group.groupType === "choose-two-letters" && (
-                                                <div className="space-y-4 mt-6 pt-4 border-t">
-                                                    {/* Main Instruction */}
-                                                    <p className="text-gray-800 italic">{group.mainInstruction}</p>
-
-                                                    {/* Question Sets */}
-                                                    {group.questionSets?.map((qSet, qsIdx) => (
-                                                        <div key={qsIdx} className="mt-4">
-                                                            {/* Question Numbers and Text */}
-                                                            <div className="flex items-start gap-2 mb-3">
-                                                                <div className="flex gap-1">
-                                                                    {qSet.questionNumbers?.map((qNum) => (
-                                                                        <span key={qNum} id={`q-${qNum}`} className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5">
-                                                                            {qNum}
+                                            {!group.passage && group.notesSections?.map((section, sIdx) => (
+                                                <div key={sIdx} style={{ marginTop: '12px' }}>
+                                                    <h4 style={{ fontWeight: 'bold', color: cs.text, marginBottom: '8px' }}>{section.subHeading}</h4>
+                                                    <div style={{ paddingLeft: '16px' }}>
+                                                        {section.bullets?.map((bullet, bIdx) => (
+                                                            <div key={bIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px', color: cs.text }}>
+                                                                <span style={{ marginTop: '4px' }}>â€¢</span>
+                                                                {bullet.type === "context" ? (
+                                                                    <span>{bullet.text}</span>
+                                                                ) : (
+                                                                    <div id={`q-${bullet.questionNumber}`} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                                                        <span>{bullet.textBefore}</span>
+                                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: focusedQuestion === bullet.questionNumber ? '2.5px solid #2563eb' : `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px' }}>
+                                                                            {!(answers[bullet.questionNumber]) && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none' }}>{bullet.questionNumber}</span>}
+                                                                            <input type="text" value={answers[bullet.questionNumber] || ""} onChange={e => handleAnswer(bullet.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
                                                                         </span>
-                                                                    ))}
-                                                                </div>
-                                                                <p className="text-gray-800">
-                                                                    {qSet.questionText?.replace('TWO', '')}
-                                                                    <span className="font-bold">TWO</span>
-                                                                    {qSet.questionText?.split('TWO')[1]}
-                                                                </p>
-                                                            </div>
-
-                                                            {/* Options with Checkboxes */}
-                                                            <div className="space-y-2 ml-6">
-                                                                {qSet.options?.map((opt) => {
-                                                                    const isSelected = qSet.questionNumbers?.some(qNum => answers[qNum] === opt.letter);
-                                                                    return (
-                                                                        <label
-                                                                            key={opt.letter}
-                                                                            onClick={() => {
-                                                                                // Find which question number doesn't have this answer yet
-                                                                                const firstEmpty = qSet.questionNumbers?.find(qNum => !answers[qNum] || answers[qNum] === opt.letter);
-                                                                                if (firstEmpty) {
-                                                                                    if (answers[firstEmpty] === opt.letter) {
-                                                                                        handleAnswer(firstEmpty, ""); // Deselect
-                                                                                    } else {
-                                                                                        handleAnswer(firstEmpty, opt.letter);
-                                                                                    }
-                                                                                }
-                                                                            }}
-                                                                            className="flex items-center gap-2 cursor-pointer"
-                                                                        >
-                                                                            <span className="font-bold text-gray-700">{opt.letter}</span>
-                                                                            <div className={`w-4 h-4 border rounded flex items-center justify-center ${isSelected ? "bg-blue-600 border-blue-600" : "border-gray-400"}`}>
-                                                                                {isSelected && (
-                                                                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                                                    </svg>
-                                                                                )}
-                                                                            </div>
-                                                                            <span className="text-gray-700">{opt.text}</span>
-                                                                        </label>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {/* SUMMARY WITH OPTIONS (Phrase List) Format */}
-                                            {group.groupType === "summary-with-options" && (
-                                                <div className="space-y-3">
-                                                    {/* Main Instruction */}
-                                                    <p className="text-gray-800">{group.mainInstruction}</p>
-                                                    <p className="text-gray-800">{group.subInstruction}</p>
-
-                                                    {/* Phrase List - FIRST */}
-                                                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-3">
-                                                        {group.phraseList?.map((phrase) => (
-                                                            <div key={phrase.letter} className="text-gray-700">
-                                                                <span className="font-bold">{phrase.letter}</span> {phrase.text}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-
-                                                    {/* Main Heading */}
-                                                    <h3 className="text-lg font-bold text-gray-900 mt-4">{group.mainHeading}</h3>
-
-                                                    {/* Summary Paragraph with dropdowns */}
-                                                    <div className="text-gray-700 leading-relaxed">
-                                                        {group.summarySegments?.map((segment, sIdx) => (
-                                                            segment.type === "text" ? (
-                                                                <span key={sIdx}>{segment.content} </span>
-                                                            ) : (
-                                                                <span key={sIdx} id={`q-${segment.questionNumber}`} className="inline-flex items-center gap-1 mx-1">
-                                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5">{segment.questionNumber}</span>
-                                                                    <select
-                                                                        value={answers[segment.questionNumber] || ""}
-                                                                        onChange={(e) => handleAnswer(segment.questionNumber, e.target.value)}
-                                                                        className="border border-gray-300 rounded px-2 py-1 text-gray-700 focus:border-blue-500 focus:outline-none"
-                                                                    >
-                                                                        <option value="">--</option>
-                                                                        {group.phraseList?.map((phrase) => (
-                                                                            <option key={phrase.letter} value={phrase.letter}>{phrase.letter}</option>
-                                                                        ))}
-                                                                    </select>
-                                                                </span>
-                                                            )
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* YES/NO/NOT GIVEN Format */}
-                                            {group.groupType === "yes-no-not-given" && (
-                                                <div className="space-y-3 mt-6 pt-4 border-t">
-                                                    {/* Main Instruction */}
-                                                    <p className="text-gray-800">{group.mainInstruction}</p>
-                                                    <p className="text-gray-800">{group.subInstruction}</p>
-
-                                                    {/* Options Explanation */}
-                                                    <div className="space-y-1 pl-4 text-sm">
-                                                        {group.optionsExplanation?.map((opt) => (
-                                                            <div key={opt.label} className="text-gray-700">
-                                                                <span className="font-bold">{opt.label}</span> {opt.description}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-
-                                                    {/* Statements */}
-                                                    <div className="space-y-4 mt-3">
-                                                        {group.statements?.map((stmt) => (
-                                                            <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} className="py-2">
-                                                                <div className="flex items-start gap-2 mb-2">
-                                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5">{stmt.questionNumber}</span>
-                                                                    <span className="text-gray-800">{stmt.text}</span>
-                                                                </div>
-                                                                <div className="ml-8 space-y-1">
-                                                                    {["YES", "NO", "NOT GIVEN"].map((opt) => (
-                                                                        <label
-                                                                            key={opt}
-                                                                            onClick={() => handleAnswer(stmt.questionNumber, opt)}
-                                                                            className="flex items-center gap-2 cursor-pointer"
-                                                                        >
-                                                                            <span className="text-gray-500">•</span>
-                                                                            <div className={`w-4 h-4 border rounded flex items-center justify-center ${answers[stmt.questionNumber] === opt
-                                                                                ? "bg-blue-600 border-blue-600"
-                                                                                : "border-gray-400"
-                                                                                }`}>
-                                                                                {answers[stmt.questionNumber] === opt && (
-                                                                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                                                    </svg>
-                                                                                )}
-                                                                            </div>
-                                                                            <span className={`${answers[stmt.questionNumber] === opt ? "font-bold text-blue-600" : "text-gray-700"}`}>{opt}</span>
-                                                                        </label>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* MULTIPLE CHOICE FULL Format */}
-                                            {group.groupType === "multiple-choice-full" && (
-                                                <div className="space-y-3 mt-6 pt-4 border-t">
-                                                    {/* Main Instruction */}
-                                                    <p className="text-gray-800 italic">{group.mainInstruction}</p>
-                                                    <p className="text-gray-800">{group.subInstruction}</p>
-
-                                                    {/* Questions */}
-                                                    <div className="space-y-6 mt-4">
-                                                        {group.mcQuestions?.map((mcQ) => (
-                                                            <div key={mcQ.questionNumber} id={`q-${mcQ.questionNumber}`} className="py-2">
-                                                                <div className="flex items-start gap-2 mb-3">
-                                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5">{mcQ.questionNumber}</span>
-                                                                    <span className="text-gray-800 font-medium">{mcQ.questionText}</span>
-                                                                </div>
-                                                                <div className="ml-8 space-y-2">
-                                                                    {mcQ.options?.map((opt) => (
-                                                                        <label
-                                                                            key={opt.letter}
-                                                                            onClick={() => handleAnswer(mcQ.questionNumber, opt.letter)}
-                                                                            className="flex items-start gap-2 cursor-pointer"
-                                                                        >
-                                                                            <span className="font-bold text-gray-700 mt-0.5">{opt.letter}</span>
-                                                                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${answers[mcQ.questionNumber] === opt.letter
-                                                                                ? "border-blue-600 bg-blue-600"
-                                                                                : "border-gray-400"
-                                                                                }`}>
-                                                                                {answers[mcQ.questionNumber] === opt.letter && (
-                                                                                    <div className="w-2 h-2 bg-white rounded-full"></div>
-                                                                                )}
-                                                                            </div>
-                                                                            <span className={`${answers[mcQ.questionNumber] === opt.letter ? "text-blue-600" : "text-gray-700"}`}>
-                                                                                {opt.text}
-                                                                            </span>
-                                                                        </label>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* SHORT ANSWER Format */}
-                                            {(group.questionType === "short-answer" || group.groupType === "short-answer") && (
-                                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
-                                                    {/* Range and Instructions */}
-                                                    <div className="mb-4">
-                                                        <h3 className="text-lg font-bold text-gray-900 mb-1">
-                                                            Questions {group.startQuestion}-{group.endQuestion}
-                                                        </h3>
-                                                        <p className="text-gray-800 font-medium mb-1">{group.mainInstruction}</p>
-                                                        {group.subInstruction && (
-                                                            <p className="text-gray-700 text-sm italic">{group.subInstruction}</p>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Statements with text input */}
-                                                    <div className="space-y-4 mt-3">
-                                                        {group.statements?.map((stmt) => (
-                                                            <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} className="py-2">
-                                                                <div className="flex items-start gap-3">
-                                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0">{stmt.questionNumber}</span>
-                                                                    <div className="flex-1">
-                                                                        <span className="text-gray-800 block mb-2">{stmt.text}</span>
-                                                                        <input
-                                                                            type="text"
-                                                                            value={answers[stmt.questionNumber] || ""}
-                                                                            onChange={(e) => handleAnswer(stmt.questionNumber, e.target.value)}
-                                                                            placeholder="Your answer..."
-                                                                            className="border border-gray-300 rounded px-3 py-2 bg-white w-full max-w-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-all"
-                                                                        />
+                                                                        {bullet.textAfter && <span>{bullet.textAfter}</span>}
                                                                     </div>
-                                                                </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
                                                 </div>
-                                            )}
-
-                                            {/* SENTENCE COMPLETION Format */}
-                                            {(group.questionType === "sentence-completion" || group.groupType === "sentence-completion") && (
-                                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
-                                                    {/* Range and Instructions */}
-                                                    <div className="mb-4">
-                                                        <h3 className="text-lg font-bold text-gray-900 mb-1">
-                                                            Questions {group.startQuestion}-{group.endQuestion}
-                                                        </h3>
-                                                        <p className="text-gray-800 font-medium mb-1">{group.mainInstruction}</p>
-                                                        {group.subInstruction && (
-                                                            <p className="text-gray-700 text-sm italic">{group.subInstruction}</p>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Statements with text input */}
-                                                    <div className="space-y-4 mt-3">
-                                                        {group.statements?.map((stmt) => (
-                                                            <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} className="py-2">
-                                                                <div className="flex items-start gap-3">
-                                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0">{stmt.questionNumber}</span>
-                                                                    <div className="flex-1">
-                                                                        <p className="text-gray-800 mb-2">
-                                                                            {stmt.text?.split('_________').map((part, pIdx, arr) => (
-                                                                                <React.Fragment key={pIdx}>
-                                                                                    {part}
-                                                                                    {pIdx < arr.length - 1 && (
-                                                                                        <input
-                                                                                            type="text"
-                                                                                            value={answers[stmt.questionNumber] || ""}
-                                                                                            onChange={(e) => handleAnswer(stmt.questionNumber, e.target.value)}
-                                                                                            placeholder="..."
-                                                                                            className="border-b-2 border-gray-400 bg-transparent px-2 py-0.5 w-40 focus:border-blue-500 outline-none transition-all mx-1 inline-block"
-                                                                                        />
-                                                                                    )}
-                                                                                </React.Fragment>
-                                                                            ))}
-                                                                        </p>
-                                                                        {!stmt.text?.includes('_________') && (
-                                                                            <input
-                                                                                type="text"
-                                                                                value={answers[stmt.questionNumber] || ""}
-                                                                                onChange={(e) => handleAnswer(stmt.questionNumber, e.target.value)}
-                                                                                placeholder="Your answer..."
-                                                                                className="border border-gray-300 rounded px-3 py-2 bg-white w-full max-w-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-all"
-                                                                            />
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
+                                            ))}
                                         </div>
-                                    ))
-                                ) : null}
+                                    )}
 
+                                    {/* â”€â”€ TRUE/FALSE/NOT GIVEN â”€â”€ */}
+                                    {(group.questionType === "true-false-not-given" || group.groupType === "true-false-not-given" || group.questionType === "true-false-ng") && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <div style={{ marginBottom: '12px' }}>
+                                                <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px' }}>{group.instructions || group.mainInstruction}</p>
+                                                {group.subInstruction && <p style={{ color: cs.text, fontSize: `${15 * tScale}px`, marginBottom: '8px', color: '#4b5563' }}>{group.subInstruction}</p>}
+                                                <div style={{ padding: '12px', borderLeft: `4px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : cs.text}`, fontSize: `${13 * tScale}px` }}>
+                                                    <p><b>TRUE</b> if the statement agrees with the information</p>
+                                                    <p><b>FALSE</b> if the statement contradicts the information</p>
+                                                    <p><b>NOT GIVEN</b> if there is no information on this</p>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                {(group.statements || group.questions)?.map(stmt => (
+                                                    <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ paddingBottom: '12px', borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#f3f4f6' : '#333'}` }}>
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '10px' }}>
+                                                            <span style={{ border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === stmt.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', flexShrink: 0, borderRadius: '2px' }}>{stmt.questionNumber}</span>
+                                                            <p style={{ color: cs.text, fontWeight: '500', lineHeight: '1.5' }}>{stmt.text || stmt.questionText}</p>
+                                                        </div>
+                                                        <div style={{ paddingLeft: '34px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                            {["TRUE", "FALSE", "NOT GIVEN"].map((opt, oIdx) => {
+                                                                const letter = String.fromCharCode(65 + oIdx);
+                                                                const isSel = answers[stmt.questionNumber] === opt;
+                                                                return (
+                                                                    <div key={opt} onClick={() => handleAnswer(stmt.questionNumber, opt)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                                                        <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '14px', color: cs.text }}>{letter}</span>
+                                                                        <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                                                                            {isSel && <div style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%' }} />}
+                                                                        </div>
+                                                                        <span style={{ color: cs.text, fontWeight: isSel ? '600' : '400', fontSize: '14px', textTransform: 'uppercase' }}>{opt}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
-                            </TextHighlighter>
-                        </div>
+                                    {/* ── YES/NO/NOT GIVEN ── */}
+                                    {(group.groupType === "yes-no-not-given") && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <div style={{ marginBottom: '12px' }}>
+                                                <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px' }}>{group.instructions || group.mainInstruction}</p>
+                                                {group.subInstruction && <p style={{ color: cs.text, fontSize: `${15 * tScale}px`, marginBottom: '8px', color: '#4b5563' }}>{group.subInstruction}</p>}
+                                                <div style={{ padding: '12px', borderLeft: `4px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : cs.text}`, fontSize: `${13 * tScale}px` }}>
+                                                    <p><b>YES</b> if the statement agrees with the views of the writer</p>
+                                                    <p><b>NO</b> if the statement contradicts the views of the writer</p>
+                                                    <p><b>NOT GIVEN</b> if it is impossible to say what the writer thinks about this</p>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                {(group.statements || group.questions)?.map(stmt => (
+                                                    <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ paddingBottom: '12px', borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#f3f4f6' : '#333'}` }}>
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '10px' }}>
+                                                            <span style={{ border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === stmt.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', flexShrink: 0, borderRadius: '2px' }}>{stmt.questionNumber}</span>
+                                                            <p style={{ color: cs.text, fontWeight: '500', lineHeight: '1.5' }}>{stmt.text || stmt.questionText}</p>
+                                                        </div>
+                                                        <div style={{ paddingLeft: '34px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                            {["YES", "NO", "NOT GIVEN"].map((opt, oIdx) => {
+                                                                const letter = String.fromCharCode(65 + oIdx);
+                                                                const isSel = answers[stmt.questionNumber] === opt;
+                                                                return (
+                                                                    <div key={opt} onClick={() => handleAnswer(stmt.questionNumber, opt)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                                                        <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '14px', color: cs.text }}>{letter}</span>
+                                                                        <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                                                                            {isSel && <div style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%' }} />}
+                                                                        </div>
+                                                                        <span style={{ color: cs.text, fontWeight: isSel ? '600' : '400', fontSize: '14px', textTransform: 'uppercase' }}>{opt}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
+                                    {/* â”€â”€ MATCHING â”€â”€ */}
+                                    {(group.groupType === "matching-information" || group.groupType === "matching-features" || group.groupType === "matching-headings") && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, marginBottom: '4px' }}>{group.mainInstruction}</p>
+                                            <p style={{ color: cs.text, marginBottom: '8px' }}>{group.subInstruction}</p>
+                                            {group.note && <p style={{ color: cs.text, fontSize: `${13 * tScale}px` }}><b>NB</b> <em>{group.note.replace('NB ', '')}</em></p>}
 
+                                            {group.featureOptions?.length > 0 && (
+                                                <div style={{ marginTop: '12px', marginBottom: '12px' }}>
+                                                    <p style={{ fontWeight: 'bold', color: cs.text }}>{group.featureListTitle || "List of options"}</p>
+                                                    {group.featureOptions.map(opt => (
+                                                        <div key={opt.letter} style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '8px', color: cs.text }}>
+                                                            <span style={{ fontWeight: 'bold', minWidth: '20px' }}>{opt.letter}</span>
+                                                            <span>{opt.text}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
 
-                    </div>
-                </div>
-            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                                                {group.matchingItems?.map(item => (
+                                                    <div key={item.questionNumber} id={`q-${item.questionNumber}`} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                        <span style={{ border: focusedQuestion === item.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === item.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', flexShrink: 0, borderRadius: '2px' }}>{item.questionNumber}</span>
+                                                        <span style={{ flex: 1, color: cs.text, fontSize: '15px' }}>{item.text}</span>
+                                                        <select value={answers[item.questionNumber] || ""} onChange={e => handleAnswer(item.questionNumber, e.target.value)} style={{ border: `1px solid ${cs.text}`, padding: '4px 8px', fontSize: '14px', background: cs.bg, color: cs.text, cursor: 'pointer', width: '70px', textAlign: 'center', borderRadius: '2px' }}>
+                                                            <option value="">--</option>
+                                                            {group.paragraphOptions?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                        </select>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
-            {/* Fixed Question Navigator - Bottom Bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-gray-300 shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
-                <div className="flex items-center h-12">
-                    {/* Part Tabs */}
-                    {passages.map((p, pIdx) => (
-                        <button
-                            key={pIdx}
-                            onClick={() => { setCurrentPassage(pIdx); setCurrentQuestion(0); }}
-                            className={`flex-shrink-0 h-full px-4 text-xs font-bold cursor-pointer transition-colors border-r border-gray-200 ${currentPassage === pIdx
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-50 text-gray-500 hover:bg-gray-100"
-                                }`}
-                        >
-                            Part {pIdx + 1}
-                        </button>
-                    ))}
+                                    {/* ── SHORT ANSWER ── */}
+                                    {group.groupType === "short-answer" && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, marginBottom: '4px' }}>{group.mainInstruction}</p>
+                                            <p style={{ color: cs.text, marginBottom: '12px' }}>{group.subInstruction}</p>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                {(group.questions || []).map(q => (
+                                                    <div key={q.questionNumber} id={`q-${q.questionNumber}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                                            <span style={{ border: focusedQuestion === q.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === q.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', flexShrink: 0, borderRadius: '2px', marginTop: '2px' }}>{q.questionNumber}</span>
+                                                            <span style={{ color: cs.text, fontSize: '15px', lineHeight: '1.5' }}>{q.questionText}</span>
+                                                        </div>
+                                                        <div style={{ paddingLeft: '32px' }}>
+                                                            <input type="text" value={answers[q.questionNumber] || ""} onChange={e => handleAnswer(q.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', borderBottom: `2px solid ${focusedQuestion === q.questionNumber ? '#2563eb' : cs.text}`, width: '250px', background: 'transparent', outline: 'none', color: cs.text, fontSize: '15px', padding: '4px 8px' }} />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
-                    {/* Current Part Question Numbers */}
-                    <div className="flex items-center gap-1 px-3 overflow-x-auto flex-1">
-                        {currentPass.questions.map((q) => {
-                            const isAnswered = answers[q.questionNumber] && answers[q.questionNumber] !== "";
-                            const scrollToQ = () => {
-                                const element = document.getElementById(`q-${q.questionNumber}`);
-                                if (element) {
-                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }
-                            };
-                            return (
-                                <button
-                                    key={q.questionNumber}
-                                    onClick={scrollToQ}
-                                    title={`Question ${q.questionNumber}`}
-                                    className={`flex-shrink-0 w-8 h-8 rounded text-xs font-bold cursor-pointer transition-all ${isAnswered
-                                        ? "bg-green-600 text-white border border-green-700"
-                                        : "bg-white text-gray-700 border border-gray-300 hover:bg-blue-50 hover:border-blue-400"
-                                        }`}
-                                >
-                                    {q.questionNumber}
-                                </button>
-                            );
-                        })}
-                    </div>
+                                    {/* â”€â”€ SUMMARY COMPLETION â”€â”€ */}
+                                    {group.groupType === "summary-completion" && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, fontStyle: 'italic', marginBottom: '4px' }}>{group.mainInstruction}</p>
+                                            <p style={{ color: cs.text, marginBottom: '8px' }}>Choose <b>ONE WORD ONLY</b> from the passage for each answer.</p>
+                                            <h3 style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginTop: '12px' }}>{group.mainHeading}</h3>
+                                            <div style={{ color: cs.text, lineHeight: '1.8', marginTop: '8px' }}>
+                                                {group.summarySegments?.map((segment, sIdx) => (
+                                                    segment.type === "text" ? <span key={sIdx}>{segment.content} </span> : (
+                                                        <span key={sIdx} id={`q-${segment.questionNumber}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: '0 6px', verticalAlign: 'middle', position: 'relative', border: focusedQuestion === segment.questionNumber ? '2.5px solid #2563eb' : `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px' }}>
+                                                            {!(answers[segment.questionNumber]) && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none' }}>{segment.questionNumber}</span>}
+                                                            <input type="text" value={answers[segment.questionNumber] || ""} onChange={e => handleAnswer(segment.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
+                                                        </span>
+                                                    )
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
-                    {/* Answered count + Nav */}
-                    <div className="flex-shrink-0 flex items-center gap-2 px-3 border-l border-gray-200 h-full">
-                        <span className="text-[11px] text-gray-500 whitespace-nowrap">
-                            {currentPass.questions.filter(q => answers[q.questionNumber] && answers[q.questionNumber] !== "").length} of {currentPass.questions.length}
-                        </span>
-                        <button
-                            onClick={goPrev}
-                            disabled={currentPassage === 0}
-                            className={`w-7 h-7 rounded flex items-center justify-center cursor-pointer transition-all ${currentPassage === 0 ? "text-gray-300 cursor-not-allowed" : "text-blue-600 hover:bg-blue-100 border border-blue-200"}`}
-                        >
-                            <FaChevronLeft className="text-xs" />
-                        </button>
-                        <button
-                            onClick={goNext}
-                            className="w-7 h-7 rounded flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 cursor-pointer transition-all"
-                        >
-                            {currentPassage === passages.length - 1 ? <FaCheck className="text-xs" /> : <FaChevronRight className="text-xs" />}
-                        </button>
-                    </div>
-                </div>
-            </div>
+                                    {/* â”€â”€ CHOOSE TWO LETTERS â”€â”€ */}
+                                    {group.groupType === "choose-two-letters" && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, fontStyle: 'italic', marginBottom: '12px' }}>{group.mainInstruction}</p>
+                                            {group.questionSets?.map((qSet, qsIdx) => (
+                                                <div key={qsIdx} style={{ marginTop: '12px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                                                        {qSet.questionNumbers?.map(qNum => (
+                                                            <span key={qNum} id={`q-${qNum}`} style={{ border: focusedQuestion === qNum ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === qNum ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', borderRadius: '2px' }}>{qNum}</span>
+                                                        ))}
+                                                        <span style={{ color: cs.text, fontSize: '15px' }}>{qSet.questionText}</span>
+                                                    </div>
+                                                    <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                        {qSet.options?.map(opt => {
+                                                            const isSel = qSet.questionNumbers?.some(qNum => answers[qNum] === opt.letter);
+                                                            return (
+                                                                <div key={opt.letter} onClick={() => { const emp = qSet.questionNumbers?.find(qNum => !answers[qNum] || answers[qNum] === opt.letter); if (emp) { answers[emp] === opt.letter ? handleAnswer(emp, "") : handleAnswer(emp, opt.letter); } }} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                                                    <span style={{ fontWeight: 'bold', color: cs.text, width: '16px' }}>{opt.letter}</span>
+                                                                    <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px' }}>
+                                                                        {isSel && <svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="white" strokeWidth="2" fill="none" /></svg>}
+                                                                    </div>
+                                                                    <span style={{ color: cs.text, fontWeight: isSel ? '600' : '400', fontSize: '14px' }}>{opt.text}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
 
-            {/* Submit Modal */}
-            {showSubmitModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-bold text-gray-800">Submit Reading Test?</h3>
-                            <button onClick={() => setShowSubmitModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
-                                <FaTimes />
-                            </button>
-                        </div>
+                                    {/* ── CUSTOM PURE CSS FLOWCHART FOR MOCK 01 ── */}
+                                    {(group.groupType === "custom-flowchart-1" || group.groupType === "diagram-labeling") && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <div style={{ marginBottom: '16px' }}>
+                                                <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px', fontSize: `${16 * tScale}px` }}>{group.instructions || group.mainInstruction}</p>
+                                                {group.subInstruction && <p style={{ color: cs.text, fontSize: `${14 * tScale}px`, marginBottom: '16px', opacity: 0.9 }}>{group.subInstruction}</p>}
+                                            </div>
 
-                        <div className="bg-gray-50 rounded p-4 mb-4">
-                            <div className="flex justify-between mb-2">
-                                <span className="text-gray-600">Answered</span>
-                                <span className="font-semibold text-blue-600">{answeredCount} / {totalQuestions}</span>
-                            </div>
-                            <div className="w-full h-2 bg-gray-200 rounded overflow-hidden">
-                                <div className="h-full bg-blue-600" style={{ width: `${(answeredCount / totalQuestions) * 100}%` }}></div>
-                            </div>
-                        </div>
+                                            {/* CSS Flowchart Container */}
+                                            <div style={{ display: 'flex', justifyContent: 'center', width: '100%', padding: '20px', background: contrastMode === 'black-on-white' ? '#f8fafc' : '#1e293b', borderRadius: '8px', border: `1px solid ${contrastMode === 'black-on-white' ? '#e2e8f0' : '#334155'}` }}>
+                                                <div style={{ position: 'relative', width: '600px', fontFamily: '"Arial", sans-serif' }}>
+                                                    
+                                                    {/* ROW 1 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '8px 40px', fontWeight: 'bold', fontSize: '15px', color: cs.text, background: cs.bg }}>
+                                                            productive land
+                                                        </div>
+                                                        {/* Arrow connecting multiple causes */}
+                                                        <svg style={{ position: 'absolute', right: '40px', top: '10px', width: '50px', height: '40px' }} viewBox="0 0 50 40">
+                                                            <path d="M 50 40 Q 20 40 5 15" fill="none" stroke={cs.text} strokeWidth="2" />
+                                                            <polygon points="5,15 12,20 0,25" fill={cs.text} transform="rotate(25 5 15) translate(-2, -8)" />
+                                                        </svg>
+                                                        <div style={{ position: 'absolute', right: '-10px', top: '40px', border: `2px solid ${cs.text}`, padding: '4px 16px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: cs.text }}>
+                                                            multiple<br/>causes
+                                                        </div>
+                                                    </div>
 
-                        {totalQuestions - answeredCount > 0 && (
-                            <div className="bg-amber-50 border border-amber-200 rounded p-3 mb-4">
-                                <p className="text-amber-700 text-sm">{totalQuestions - answeredCount} questions unanswered!</p>
-                            </div>
-                        )}
+                                                    {/* ROW 1 TO 2 ARROW */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', height: '30px' }}>
+                                                        <div style={{ width: '4px', background: cs.text, height: '100%', position: 'relative' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
 
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowSubmitModal(false)}
-                                className="flex-1 py-2 border border-gray-300 rounded hover:bg-gray-50 cursor-pointer"
+                                                    {/* ROW 2 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px dashed ${cs.text}`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', background: contrastMode === 'black-on-white' ? '#ffffff' : '#0f172a' }}>
+                                                            <span style={{ fontWeight: 'bold', fontSize: '14px', color: cs.text }}>degradation proceeds at</span>
+                                                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                                                                <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[27] ? '27' : ''}</span>
+                                                                <input id="q-27" type="text" value={answers[27] || ''} onChange={e => handleAnswer(27, e.target.value)} onFocus={() => { setFocusedQuestion(27); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '120px', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 2 TO 3 ARROW */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', height: '30px' }}>
+                                                        <div style={{ width: '4px', background: cs.text, height: '100%', position: 'relative' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 3 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '15px 120px', fontWeight: 'bold', fontSize: '20px', color: cs.text, background: cs.bg }}>
+                                                            DESERTIFICATION
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 3 TO 4 ARROWS (SPLIT) */}
+                                                    <div style={{ position: 'relative', height: '50px', width: '100%', marginTop: '5px' }}>
+                                                        <div style={{ position: 'absolute', left: '20%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                        <div style={{ position: 'absolute', right: '20%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 4 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 40px', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px dashed ${cs.text}`, padding: '12px', width: '220px', background: contrastMode === 'black-on-white' ? '#ffffff' : '#0f172a' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                                <div style={{ position: 'relative', width: '100%' }}>
+                                                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[28] ? '28' : ''}</span>
+                                                                    <input id="q-28" type="text" value={answers[28] || ''} onChange={e => handleAnswer(28, e.target.value)} onFocus={() => { setFocusedQuestion(28); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '100%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '14px', textAlign: 'center', color: cs.text }}>a climate trend</div>
+                                                        </div>
+                                                        <div style={{ border: `2px dashed ${cs.text}`, padding: '12px', width: '220px', background: contrastMode === 'black-on-white' ? '#ffffff' : '#0f172a' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                                <div style={{ position: 'relative', width: '100%' }}>
+                                                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[29] ? '29' : ''}</span>
+                                                                    <input id="q-29" type="text" value={answers[29] || ''} onChange={e => handleAnswer(29, e.target.value)} onFocus={() => { setFocusedQuestion(29); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '100%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '14px', textAlign: 'center', color: cs.text }}>a change in climate</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 4 TO 5 ARROWS */}
+                                                    <div style={{ position: 'relative', height: '40px', width: '100%', marginTop: '5px' }}>
+                                                        <div style={{ position: 'absolute', left: '20%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                        <div style={{ position: 'absolute', right: '20%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 5 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '12px 20px', width: '480px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px', background: cs.bg }}>
+                                                            <span style={{ fontWeight: 'bold', fontSize: '14px', color: cs.text, paddingLeft: '10px' }}>resulting in greater</span>
+                                                            <div style={{ position: 'relative', display: 'inline-block', flex: 1 }}>
+                                                                <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[30] ? '30' : ''}</span>
+                                                                <input id="q-30" type="text" value={answers[30] || ''} onChange={e => handleAnswer(30, e.target.value)} onFocus={() => { setFocusedQuestion(30); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '80%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 5 TO 6 ARROWS */}
+                                                    <div style={{ position: 'relative', height: '30px', width: '100%', marginTop: '5px' }}>
+                                                        <div style={{ position: 'absolute', left: '30%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                        <div style={{ position: 'absolute', right: '30%', top: '0', width: '4px', background: cs.text, height: '100%' }}>
+                                                            <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }}></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* ROW 6 */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 80px', marginTop: '5px' }}>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '10px', width: '200px', background: cs.bg }}>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '13px', textAlign: 'center', color: cs.text, marginBottom: '6px' }}>depletion of</div>
+                                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                                <div style={{ position: 'relative', width: '80%' }}>
+                                                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[31] ? '31' : ''}</span>
+                                                                    <input id="q-31" type="text" value={answers[31] || ''} onChange={e => handleAnswer(31, e.target.value)} onFocus={() => { setFocusedQuestion(31); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '100%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ border: `2px solid ${cs.text}`, padding: '10px', width: '200px', background: cs.bg }}>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '13px', textAlign: 'center', color: cs.text, marginBottom: '6px' }}>depletion of</div>
+                                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                                <div style={{ position: 'relative', width: '80%' }}>
+                                                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{!answers[32] ? '32' : ''}</span>
+                                                                    <input id="q-32" type="text" value={answers[32] || ''} onChange={e => handleAnswer(32, e.target.value)} onFocus={() => { setFocusedQuestion(32); setFocusedGroup(gIdx); }} autoComplete="off" style={{ width: '100%', height: '24px', borderBottom: `1px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none' }} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* â”€â”€ SUMMARY WITH OPTIONS â”€â”€ */}
+                                    {group.groupType === "summary-with-options" && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, marginBottom: '4px' }}>{group.mainInstruction}</p>
+                                            <p style={{ color: cs.text, marginBottom: '8px' }}>{group.subInstruction}</p>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 32px', marginTop: '8px' }}>
+                                                {group.phraseList?.map(phrase => (
+                                                    <div key={phrase.letter} style={{ color: cs.text }}><b>{phrase.letter}</b> {phrase.text}</div>
+                                                ))}
+                                            </div>
+                                            <h3 style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginTop: '16px' }}>{group.mainHeading}</h3>
+                                            <div style={{ color: cs.text, lineHeight: '1.8', marginTop: '8px' }}>
+                                                {group.summarySegments?.map((segment, sIdx) => (
+                                                    segment.type === "text" ? <span key={sIdx}>{segment.content} </span> : (
+                                                        <span key={sIdx} id={`q-${segment.questionNumber}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', margin: '0 4px' }}>
+                                                            <select value={answers[segment.questionNumber] || ""} onChange={e => handleAnswer(segment.questionNumber, e.target.value)} style={{ border: `1px solid ${cs.text}`, padding: '4px 8px', fontSize: '14px', background: cs.bg, color: cs.text, cursor: 'pointer', width: '70px', textAlign: 'center', borderRadius: '2px' }}>
+                                                                <option value="">--</option>
+                                                                {group.phraseList?.map(phrase => <option key={phrase.letter} value={phrase.letter}>{phrase.letter}</option>)}
+                                                            </select>
+                                                        </span>
+                                                    )
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* â”€â”€ YES/NO/NOT GIVEN â”€â”€ */}
+                                    {group.groupType === "yes-no-not-given" && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, marginBottom: '4px' }}>{group.mainInstruction}</p>
+                                            <p style={{ color: cs.text, marginBottom: '8px' }}>{group.subInstruction}</p>
+                                            <div style={{ paddingLeft: '16px', fontSize: `${13 * tScale}px`, marginBottom: '12px' }}>
+                                                {group.optionsExplanation?.map(opt => (
+                                                    <div key={opt.label} style={{ color: cs.text }}><b>{opt.label}</b> {opt.description}</div>
+                                                ))}
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                {group.statements?.map(stmt => (
+                                                    <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ paddingBottom: '8px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                                                            <span style={{ border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === stmt.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', borderRadius: '2px' }}>{stmt.questionNumber}</span>
+                                                            <span style={{ color: cs.text }}>{stmt.text}</span>
+                                                        </div>
+                                                        <div style={{ marginLeft: '32px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                            {["YES", "NO", "NOT GIVEN"].map((opt, oIdx) => {
+                                                                const letter = String.fromCharCode(65 + oIdx);
+                                                                const isSel = answers[stmt.questionNumber] === opt;
+                                                                return (
+                                                                    <div key={opt} onClick={() => handleAnswer(stmt.questionNumber, opt)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                                                        <span style={{ fontWeight: 'bold', width: '16px', color: cs.text }}>{letter}</span>
+                                                                        <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                                                                            {isSel && <div style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%' }} />}
+                                                                        </div>
+                                                                        <span style={{ color: cs.text, fontWeight: isSel ? '600' : '400', fontSize: '14px' }}>{opt}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* â”€â”€ MULTIPLE CHOICE FULL â”€â”€ */}
+                                    {group.groupType === "multiple-choice-full" && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, fontStyle: 'italic', marginBottom: '4px' }}>{group.mainInstruction}</p>
+                                            <p style={{ color: cs.text, marginBottom: '12px' }}>{group.subInstruction}</p>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                {group.mcQuestions?.map(mcQ => (
+                                                    <div key={mcQ.questionNumber} id={`q-${mcQ.questionNumber}`}>
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                                                            <span style={{ border: focusedQuestion === mcQ.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === mcQ.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', borderRadius: '2px' }}>{mcQ.questionNumber}</span>
+                                                            <span style={{ color: cs.text, fontWeight: '500' }}>{mcQ.questionText}</span>
+                                                        </div>
+                                                        <div style={{ marginLeft: '32px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                            {mcQ.options?.map(opt => {
+                                                                const isSel = answers[mcQ.questionNumber] === opt.letter;
+                                                                return (
+                                                                    <div key={opt.letter} onClick={() => handleAnswer(mcQ.questionNumber, opt.letter)} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                                                                        <span style={{ fontWeight: 'bold', width: '16px', color: cs.text, marginTop: '1px' }}>{opt.letter}</span>
+                                                                        <div style={{ width: '18px', height: '18px', border: `2px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', flexShrink: 0, marginTop: '1px' }}>
+                                                                            {isSel && <div style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%' }} />}
+                                                                        </div>
+                                                                        <span style={{ color: cs.text, fontWeight: isSel ? '600' : '400', fontSize: '14px' }}>{opt.text}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* â”€â”€ SHORT ANSWER â”€â”€ */}
+                                    {(group.questionType === "short-answer" || group.groupType === "short-answer") && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px' }}>{group.mainInstruction}</p>
+                                            {group.subInstruction && <p style={{ color: cs.text, fontSize: `${13 * tScale}px`, fontStyle: 'italic', marginBottom: '8px' }}>{group.subInstruction}</p>}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                {group.statements?.map(stmt => (
+                                                    <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                                        <span style={{ color: cs.text, fontWeight: '500', flex: 1 }}>{stmt.text}</span>
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px', flexShrink: 0 }}>
+                                                            {!(answers[stmt.questionNumber]) && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none' }}>{stmt.questionNumber}</span>}
+                                                            <input type="text" value={answers[stmt.questionNumber] || ""} onChange={e => handleAnswer(stmt.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* â”€â”€ SENTENCE COMPLETION â”€â”€ */}
+                                    {(group.questionType === "sentence-completion" || group.groupType === "sentence-completion") && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px' }}>{group.mainInstruction}</p>
+                                            {group.subInstruction && <p style={{ color: cs.text, fontSize: `${13 * tScale}px`, fontStyle: 'italic', marginBottom: '8px' }}>{group.subInstruction}</p>}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                {group.statements?.map(stmt => (
+                                                    <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                        {stmt.text?.includes('_________') ? (
+                                                            stmt.text.split('_________').map((part, pIdx, arr) => (
+                                                                <React.Fragment key={pIdx}>
+                                                                    <span style={{ color: cs.text }}>{part}</span>
+                                                                    {pIdx < arr.length - 1 && (
+                                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px' }}>
+                                                                            {!(answers[stmt.questionNumber]) && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none' }}>{stmt.questionNumber}</span>}
+                                                                            <input type="text" value={answers[stmt.questionNumber] || ""} onChange={e => handleAnswer(stmt.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
+                                                                        </span>
+                                                                    )}
+                                                                </React.Fragment>
+                                                            ))
+                                                        ) : (
+                                                            <>
+                                                                <span style={{ color: cs.text, flex: 1 }}>{stmt.text}</span>
+                                                                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px', flexShrink: 0 }}>
+                                                                    {!(answers[stmt.questionNumber]) && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none' }}>{stmt.questionNumber}</span>}
+                                                                    <input type="text" value={answers[stmt.questionNumber] || ""} onChange={e => handleAnswer(stmt.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                </div>
+                            ))
+                        ) : null}
+                    </TextHighlighter>
+                </div >
+            </div >
+
+            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                FLOATING NAV ARROWS
+            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            < div style={{ position: 'fixed', bottom: '140px', right: '16px', display: 'flex', gap: '4px', zIndex: 99 }}>
+                <button onClick={goPrevQuestion} disabled={focusedQuestion <= 1} style={{ width: '56px', height: '56px', cursor: focusedQuestion <= 1 ? 'not-allowed' : 'pointer', background: focusedQuestion <= 1 ? '#c8c8c8' : '#4a4a4a', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px' }}>
+                    <FaArrowLeft size={24} />
+                </button>
+                <button onClick={goNextQuestion} disabled={focusedQuestion >= totalQuestions} style={{ width: '56px', height: '56px', cursor: focusedQuestion >= totalQuestions ? 'not-allowed' : 'pointer', background: focusedQuestion >= totalQuestions ? '#c8c8c8' : '#1a1a1a', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px' }}>
+                    <FaArrowRight size={24} />
+                </button>
+            </div >
+
+            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                BOTTOM NAV â€” Inspera Clone
+            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            <div style={{
+                position: 'fixed', bottom: 0, left: 0, right: 0,
+                background: cs.bg,
+                display: 'flex', alignItems: 'center',
+                height: '44px', padding: '0', zIndex: 100
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', flex: 1, height: '100%' }}>
+                    {passages.map((pass, pIdx) => {
+                        const isActivePassage = pIdx === currentPassage;
+                        const passageQuestions = pass.questions || [];
+                        const passageAnswered = passageQuestions.filter(q => answers[q.questionNumber] && answers[q.questionNumber] !== '').length;
+
+                        return (
+                            <div key={pIdx} style={{
+                                flex: 1, display: 'flex', alignItems: 'center',
+                                gap: '6px', height: '100%', padding: '0 12px',
+                                cursor: 'pointer', borderRadius: '4px', overflow: 'hidden'
+                            }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                onClick={() => {
+                                    setCurrentPassage(pIdx);
+                                    const fq = passageQuestions[0]?.questionNumber || 1;
+                                    setFocusedQuestion(fq);
+                                }}
                             >
-                                Review
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={isSubmitting}
-                                className="flex-1 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer disabled:opacity-70"
-                            >
-                                {isSubmitting ? "Submitting..." : "Submit"}
-                            </button>
+                                {/* Part label */}
+                                <span style={{
+                                    fontSize: '14px', fontWeight: 'bold', color: isActivePassage ? cs.text : '#888',
+                                    fontFamily: 'Arial, sans-serif', whiteSpace: 'nowrap', flexShrink: 0
+                                }}>
+                                    Part {pIdx + 1}
+                                </span>
+
+                                {/* Active: question numbers | Inactive: answered count */}
+                                {isActivePassage ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'nowrap' }}>
+                                        {passageQuestions.map(q => {
+                                            const isAnswered = answers[q.questionNumber] && answers[q.questionNumber] !== '';
+                                            const isFocused = focusedQuestion === q.questionNumber;
+                                            return (
+                                                <div key={q.questionNumber}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        focusQuestionElement(q.questionNumber);
+                                                    }}
+                                                    style={{
+                                                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <div style={{ width: '18px', height: '3px', background: isAnswered ? '#2563eb' : '#c0c0c0', marginBottom: '3px', borderRadius: '1px' }}></div>
+                                                    <span style={{
+                                                        fontSize: '14px', fontWeight: '400',
+                                                        color: cs.text,
+                                                        fontFamily: 'Arial, sans-serif',
+                                                        padding: '2px 3px',
+                                                        border: isFocused ? '1.5px solid #2563eb' : '1.5px solid transparent',
+                                                        borderRadius: '3px',
+                                                        lineHeight: '1'
+                                                    }}>
+                                                        {q.questionNumber}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <span style={{
+                                        fontSize: '13px', fontWeight: '400', color: '#aaa',
+                                        fontFamily: 'Arial, sans-serif', whiteSpace: 'nowrap'
+                                    }}>
+                                        {passageAnswered} of {passageQuestions.length}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Submit checkmark button — fixed bottom-right */}
+                <button
+                    onClick={() => setShowSubmitModal(true)}
+                    onMouseEnter={e => e.currentTarget.style.background = '#c8c8c8'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#e5e7eb'}
+                    style={{
+                        width: '48px', height: '44px', cursor: 'pointer',
+                        background: '#e5e7eb', border: 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, borderRadius: 0
+                    }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                </button>
+            </div>
+            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                SUBMIT MODAL
+            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {
+                showSubmitModal && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
+                        <div style={{ background: 'white', padding: '24px', maxWidth: '360px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <h3 style={{ fontWeight: 'bold', fontSize: '16px', color: '#1f2937' }}>Submit Reading Test?</h3>
+                                <button onClick={() => setShowSubmitModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#6b7280' }}><FaTimes /></button>
+                            </div>
+                            <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', padding: '16px', marginBottom: '16px', textAlign: 'center' }}>
+                                <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#1f2937' }}>{answeredCount}<span style={{ fontSize: '18px', color: '#9ca3af' }}>/{totalQuestions}</span></p>
+                                <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '4px' }}>questions answered</p>
+                            </div>
+                            {totalQuestions - answeredCount > 0 && (
+                                <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '10px', marginBottom: '16px', textAlign: 'center' }}>
+                                    <p style={{ color: '#92400e', fontSize: '13px', fontWeight: '600' }}>{totalQuestions - answeredCount} question{totalQuestions - answeredCount > 1 ? 's' : ''} unanswered</p>
+                                </div>
+                            )}
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button onClick={() => setShowSubmitModal(false)} style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Review</button>
+                                <button onClick={handleSubmit} disabled={isSubmitting} style={{ flex: 1, padding: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: '600', fontSize: '13px', cursor: 'pointer', opacity: isSubmitting ? 0.7 : 1 }}>{isSubmitting ? 'Submitting...' : 'Submit'}</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+
+            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                OPTIONS MENU â€” Inspera Style
+            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {
+                showOptionsMenu && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, paddingTop: '60px' }}>
+                        <div style={{ background: 'white', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', borderRadius: '4px', overflow: 'hidden' }}>
+
+                            {optionsView === 'main' && (
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
+                                        <div></div>
+                                        <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', fontFamily: 'Arial, sans-serif', margin: 0 }}>Options</h2>
+                                        <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}><FaTimes size={18} color="#000" /></button>
+                                    </div>
+                                    <div style={{ padding: '0 24px 20px' }}>
+                                        <button onClick={() => { setShowOptionsMenu(false); setShowSubmitModal(true); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: '#e41e2b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', fontWeight: '500', cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+                                                <span>Go to submission page</span>
+                                            </div>
+                                            <span style={{ fontSize: '20px' }}>{'>'}</span>
+                                        </button>
+                                    </div>
+                                    <div style={{ borderTop: '1px solid #e5e7eb', margin: '0 24px' }}></div>
+                                    <button onClick={() => setOptionsView('contrast')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="#666"><circle cx="12" cy="12" r="10" fill="none" stroke="#666" strokeWidth="2" /><path d="M12 2a10 10 0 0 1 0 20z" fill="#666" /></svg>
+                                            <span style={{ fontSize: '16px', color: '#000' }}>Contrast</span>
+                                        </div>
+                                        <span style={{ fontSize: '20px', color: '#666' }}>{'>'}</span>
+                                    </button>
+                                    <div style={{ borderTop: '1px solid #e5e7eb', margin: '0 24px' }}></div>
+                                    <button onClick={() => setOptionsView('textsize')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="#666"><circle cx="11" cy="11" r="7" fill="none" stroke="#666" strokeWidth="2" /><line x1="16" y1="16" x2="21" y2="21" stroke="#666" strokeWidth="2" /><text x="8" y="14" fontSize="10" fill="#666" fontWeight="bold">A</text></svg>
+                                            <span style={{ fontSize: '16px', color: '#000' }}>Text size</span>
+                                        </div>
+                                        <span style={{ fontSize: '20px', color: '#666' }}>{'>'}</span>
+                                    </button>
+                                    <div style={{ height: '16px' }}></div>
+                                </div>
+                            )}
+
+                            {optionsView === 'contrast' && (
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
+                                        <button onClick={() => setOptionsView('main')} style={{ background: 'none', border: 'none', fontSize: '15px', cursor: 'pointer', color: '#000' }}>Options</button>
+                                        <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', margin: 0 }}>Contrast</h2>
+                                        <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#000', padding: '4px' }}><FaTimes size={18} /></button>
+                                    </div>
+                                    <div style={{ margin: '8px 24px 24px', border: '1px solid #d1d5db', borderRadius: '6px' }}>
+                                        {[{ key: 'black-on-white', label: 'Black on white' }, { key: 'white-on-black', label: 'White on black' }, { key: 'yellow-on-black', label: 'Yellow on black' }].map((opt, idx) => (
+                                            <button key={opt.key} onClick={() => setContrastMode(opt.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', background: 'none', border: 'none', borderBottom: idx < 2 ? '1px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
+                                                {contrastMode === opt.key ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#333"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" /></svg> : <span style={{ width: '20px' }}></span>}
+                                                <span style={{ fontSize: '16px', color: '#000' }}>{opt.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {optionsView === 'textsize' && (
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px' }}>
+                                        <button onClick={() => setOptionsView('main')} style={{ background: 'none', border: 'none', fontSize: '15px', cursor: 'pointer', color: '#000' }}>Options</button>
+                                        <h2 style={{ fontSize: '22px', fontWeight: '400', color: '#000', margin: 0 }}>Text size</h2>
+                                        <button onClick={() => setShowOptionsMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#000', padding: '4px' }}><FaTimes size={18} /></button>
+                                    </div>
+                                    <div style={{ margin: '8px 24px 24px', border: '1px solid #d1d5db', borderRadius: '6px' }}>
+                                        {[{ key: 'regular', label: 'Regular' }, { key: 'large', label: 'Large' }, { key: 'extra-large', label: 'Extra large' }].map((opt, idx) => (
+                                            <button key={opt.key} onClick={() => setTextSizeMode(opt.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', background: 'none', border: 'none', borderBottom: idx < 2 ? '1px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
+                                                {textSizeMode === opt.key ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#333"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" /></svg> : <span style={{ width: '20px' }}></span>}
+                                                <span style={{ fontSize: '16px', color: '#000' }}>{opt.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
+                    </div>
+                )
+            }
+
+        </div >
     );
 }

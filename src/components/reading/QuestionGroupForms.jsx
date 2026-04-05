@@ -1,6 +1,7 @@
 "use client";
-import React from "react";
-import { FaTrash, FaPlus } from "react-icons/fa";
+import React, { useState } from "react";
+import { FaTrash, FaPlus, FaCloudUploadAlt } from "react-icons/fa";
+import { uploadAPI } from "@/lib/api";
 
 // ═══ Shared Styles ═══
 const inp = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none";
@@ -946,8 +947,9 @@ export function ChooseTwoForm({ group, onChange }) {
     const toggleCorrect = (sIdx, letter) => {
         const set = sets[sIdx];
         const current = set.correctAnswers || [];
+        const maxLen = (set.questionNumbers || []).length;
         const updated = current.includes(letter) ? current.filter(l => l !== letter)
-            : current.length < 2 ? [...current, letter] : [current[1], letter];
+            : current.length < maxLen ? [...current, letter] : [...current.slice(1), letter];
         updateSet(sIdx, "correctAnswers", updated);
     };
 
@@ -961,6 +963,32 @@ export function ChooseTwoForm({ group, onChange }) {
         onChange({ ...group, endQuestion: maxQ + 2, questionSets: [...sets, newSet] });
     };
 
+    const changeNumQuestions = (sIdx, delta) => {
+        const set = sets[sIdx];
+        let nums = [...(set.questionNumbers || [])];
+        if (delta > 0) {
+            const maxQ = Math.max(...sets.flatMap(s => s.questionNumbers || []), group.startQuestion - 1);
+            nums.push(maxQ + 1);
+            onChange({ ...group, endQuestion: maxQ + 1, questionSets: sets.map((s, i) => i === sIdx ? { ...s, questionNumbers: nums } : s) });
+        } else if (nums.length > 1) {
+            nums.pop();
+            const maxQ = Math.max(...sets.flatMap((s, i) => i === sIdx ? nums : s.questionNumbers || []), group.startQuestion - 1);
+            onChange({ ...group, endQuestion: maxQ, questionSets: sets.map((s, i) => i === sIdx ? { ...s, questionNumbers: nums } : s) });
+        }
+    };
+
+    const changeNumOptions = (sIdx, delta) => {
+        const set = sets[sIdx];
+        let opts = [...(set.options || [])];
+        if (delta > 0) {
+            const nextLetter = String.fromCharCode(65 + opts.length);
+            opts.push({ letter: nextLetter, text: "" });
+        } else if (opts.length > 2) {
+            opts.pop();
+        }
+        updateSet(sIdx, "options", opts);
+    };
+
     const removeSet = (idx) => {
         const updated = sets.filter((_, i) => i !== idx);
         const maxQ = updated.length > 0 ? Math.max(...updated.flatMap(s => s.questionNumbers)) : group.startQuestion;
@@ -970,23 +998,32 @@ export function ChooseTwoForm({ group, onChange }) {
     return (
         <div className="space-y-4">
             <Tip>
-                Choose Two Letters মানে — ৫টি option (A-E) থেকে সঠিক ২টি বেছে নিতে হবে।<br />
-                <strong>সঠিক ২টি option এর letter বাটনে click করুন</strong> — সবুজ হলে selected।
+                Choose Multiple Letters — সঠিক অপশনগুলো বেছে নিন।<br />
+                <strong>সঠিক অপশনের লেটার বাটনে ক্লিক করুন</strong> — সবুজ হলে সিলেক্টেড।
             </Tip>
 
-            {sets.map((set, sIdx) => (
+            {sets.map((set, sIdx) => {
+                const numQs = (set.questionNumbers || []).length;
+                return (
                 <div key={sIdx} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
                     <div className="flex items-start gap-2">
                         <span className="text-xs font-bold text-white bg-blue-600 px-2 py-1 rounded shrink-0">Q{set.questionNumbers?.join(" & ")}</span>
                         <textarea className={`${ta} flex-1`} rows={2} value={set.questionText}
                             onChange={e => updateSet(sIdx, "questionText", e.target.value)}
-                            placeholder="Question text paste করুন... e.g. Which TWO of the following are mentioned?" />
+                            placeholder="Question text paste করুন... e.g. Which THREE of the following are mentioned?" />
                         <RemBtn onClick={() => removeSet(sIdx)} />
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-gray-500">Number of Selections:</span>
+                        <button type="button" onClick={() => changeNumQuestions(sIdx, -1)} className="px-2 py-0.5 bg-gray-200 rounded text-xs">-</button>
+                        <span className="text-xs font-bold w-4 text-center">{numQs}</span>
+                        <button type="button" onClick={() => changeNumQuestions(sIdx, 1)} className="px-2 py-0.5 bg-gray-200 rounded text-xs">+</button>
                     </div>
 
                     {/* Correct answers indicator */}
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-gray-500">সঠিক ২টি:</span>
+                        <span className="text-xs text-gray-500">সঠিক {numQs}টি:</span>
                         {(set.correctAnswers || []).length === 0
                             ? <span className="text-xs text-orange-500">নিচের option বাটনে click করুন</span>
                             : (set.correctAnswers || []).map(l => (
@@ -1016,13 +1053,176 @@ export function ChooseTwoForm({ group, onChange }) {
                             );
                         })}
                     </div>
+                    
+                    <div className="flex justify-end gap-2 mt-1">
+                        <button type="button" onClick={() => changeNumOptions(sIdx, -1)} className="text-xs text-red-500 underline hover:text-red-700">Remove Option</button>
+                        <button type="button" onClick={() => changeNumOptions(sIdx, 1)} className="text-xs text-blue-500 underline hover:text-blue-700">Add Option</button>
+                    </div>
                 </div>
-            ))}
+            )})}
             <AddBtn onClick={addSet} label="Question Set যোগ করুন" />
         </div>
     );
 }
 
+
+// ═══════════════════════════════════════════════════
+// 11. DIAGRAM / FLOWCHART LABELING
+// ═══════════════════════════════════════════════════
+export function DiagramLabelingForm({ group, onChange }) {
+    const [isUploading, setIsUploading] = useState(false);
+    const markers = group.markers || [];
+
+    const handleUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setIsUploading(true);
+        try {
+            const res = await uploadAPI.uploadImage(file);
+            onChange({ ...group, imageUrl: res.url || res.data?.url || "" });
+        } catch (err) {
+            alert("Upload failed: " + err.message);
+        }
+        setIsUploading(false);
+    };
+
+    const addMarkerClick = (e) => {
+        if (!group.imageUrl) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        
+        const maxQ = markers.length > 0 ? Math.max(...markers.map(m => m.questionNumber)) : group.startQuestion - 1;
+        
+        onChange({ 
+            ...group, 
+            endQuestion: maxQ + 1,
+            markers: [...markers, { questionNumber: maxQ + 1, x, y, correctAnswer: "" }] 
+        });
+    };
+
+    const updateMarker = (idx, field, val) => {
+        onChange({
+            ...group,
+            markers: markers.map((m, i) => i === idx ? { ...m, [field]: val } : m)
+        });
+    };
+
+    const removeMarker = (idx) => {
+        const updated = markers.filter((_, i) => i !== idx);
+        const maxQ = updated.length > 0 ? Math.max(...updated.map(m => m.questionNumber)) : group.startQuestion;
+        onChange({ ...group, endQuestion: maxQ, markers: updated });
+    };
+
+    return (
+        <div className="space-y-4">
+            <Tip>
+                Diagram বা Flowchart এর ছবি আপলোড করুন। তারপর ছবির যে যে জায়গায় প্রশ্ন আছে সেখানে ক্লিক করে Question Marker বসান।
+            </Tip>
+            
+            <Step num="1" title="ছবি আপলোড করুন (Upload Image)" />
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-2 text-center">
+                {!group.imageUrl ? (
+                    <label className="cursor-pointer inline-flex flex-col items-center">
+                        <FaCloudUploadAlt size={32} className="text-gray-400 mb-2" />
+                        <span className="text-sm text-blue-600 font-bold underline mb-1">{isUploading ? "Uploading..." : "Click to select image"}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={isUploading} />
+                    </label>
+                ) : (
+                    <div className="space-y-3">
+                        <div className="text-xs text-green-600 font-bold mb-2">✅ Image Uploaded</div>
+                        <label className="text-xs text-blue-600 cursor-pointer underline">
+                             [Change Image]
+                             <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={isUploading} />
+                        </label>
+                    </div>
+                )}
+                {/* Fallback to allow URL paste directly if upload fails */}
+                <div className="mt-4 text-left">
+                    <span className="text-xs text-gray-500 mb-1 block">Or paste image URL directly:</span>
+                    <input className={inp} value={group.imageUrl || ""} onChange={e => onChange({ ...group, imageUrl: e.target.value })} placeholder="https://..." />
+                </div>
+            </div>
+
+            {group.imageUrl && (
+                <>
+                    <Step num="2" title="ছবির ওপর ক্লিক করে Marker (Question Box) তৈরি করুন" />
+                    <div className="relative border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-white max-w-2xl mx-auto cursor-crosshair group select-none"
+                        onClick={addMarkerClick}>
+                        <img src={group.imageUrl} alt="Diagram" className="w-full h-auto pointer-events-none" />
+                        
+                        {/* Render temporary hover hint overlay */}
+                        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center justify-center">
+                            <span className="bg-black/50 text-white text-xs px-2 py-1 rounded shadow-lg backdrop-blur-sm pointer-events-none">Click to add marker</span>
+                        </div>
+
+                        {markers.map((m, idx) => (
+                            <div key={idx} 
+                                onClick={e => e.stopPropagation()} 
+                                className="absolute -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-md shadow-lg border-2 border-blue-500 rounded p-1 flex flex-col items-center z-10 hover:z-20 transition-transform"
+                                style={{ top: `${m.y}%`, left: `${m.x}%` }}>
+                                <div className="text-[10px] font-bold bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center -mt-3 absolute top-0 shadow-sm border border-white">
+                                    {m.questionNumber}
+                                </div>
+                                <input 
+                                    className="w-20 text-xs px-1 py-0.5 border border-gray-300 rounded mt-2 outline-none text-center focus:border-blue-500 font-medium"
+                                    value={m.correctAnswer}
+                                    placeholder="Answer"
+                                    onChange={e => updateMarker(idx, "correctAnswer", e.target.value)}
+                                />
+                                <button type="button" onClick={() => removeMarker(idx)} className="text-[10px] text-red-500 hover:text-red-700 mt-1 uppercase font-bold tracking-wider">Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════
+// 12. CUSTOM FLOWCHART (MOCK 01)
+// ═══════════════════════════════════════════════════
+export function CustomFlowchartForm({ group, onChange }) {
+    const handleAnswerChange = (qNum, val) => {
+        const idx = group.questions?.findIndex(q => q.questionNumber === qNum);
+        if (idx >= 0) {
+            const updated = [...group.questions];
+            updated[idx] = { ...updated[idx], correctAnswer: val };
+            onChange({ ...group, questions: updated });
+        } else {
+            const updated = [...(group.questions || []), { questionNumber: qNum, correctAnswer: val }];
+            onChange({ ...group, questions: updated });
+        }
+    };
+
+    return (
+        <div className="space-y-4 bg-gray-50 p-4 border border-blue-200 rounded-lg">
+            <h4 className="font-bold text-gray-800 text-sm mb-2">Custom CSS Flowchart (Mock 01)</h4>
+            <div className="text-xs text-gray-600 mb-4 bg-white p-3 rounded border border-gray-200">
+                <p>This is a custom hard-coded flowchart layout. The design is fixed via CSS in the frontend.</p>
+                <p>You do not need to upload any image. Just enter the correct answers below.</p>
+            </div>
+            
+            <div className="space-y-3">
+                {[27, 28, 29, 30, 31, 32].map(qNum => {
+                    const qObj = (group.questions || []).find(q => q.questionNumber === qNum) || {};
+                    return (
+                        <div key={qNum} className="flex items-center gap-2 max-w-sm">
+                            <span className="font-bold text-sm min-w-[30px]">Q{qNum}:</span>
+                            <input 
+                                className={inp} 
+                                value={qObj.correctAnswer || ""} 
+                                onChange={e => handleAnswerChange(qNum, e.target.value)} 
+                                placeholder="Correct answer"
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
 // ═══════════════════════════════════════════════════
 // MAIN WRAPPER — QuestionGroupEditor
@@ -1057,6 +1257,8 @@ export function QuestionGroupEditor({ group, index, onUpdate, onRemove }) {
             case "multiple-choice-full": return <MCQFullForm group={group} onChange={onUpdate} />;
             case "summary-with-options": return <SummaryOptionsForm group={group} onChange={onUpdate} />;
             case "choose-two-letters": return <ChooseTwoForm group={group} onChange={onUpdate} />;
+            case "diagram-labeling": 
+            case "custom-flowchart-1": return <CustomFlowchartForm group={group} onChange={onUpdate} />;
             default: return <p className="text-sm text-gray-500">Unknown question type</p>;
         }
     };
@@ -1090,11 +1292,19 @@ export function QuestionGroupEditor({ group, index, onUpdate, onRemove }) {
                     {/* Instruction field */}
                     <div>
                         <label className="text-xs font-semibold text-gray-500 block mb-1">
-                            📌 Instruction (question paper এ যা লেখা আছে)
+                            📌 Main Instruction (e.g. Do the following statements agree...)
                         </label>
                         <input className={inp} value={group.mainInstruction || ""}
                             onChange={e => onUpdate({ ...group, mainInstruction: e.target.value })}
                             placeholder="e.g. Do the following statements agree with the information in the Reading Passage?" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">
+                            📌 Sub Instruction (e.g. In spaces 1-5 below, write...)
+                        </label>
+                        <input className={inp} value={group.subInstruction || ""}
+                            onChange={e => onUpdate({ ...group, subInstruction: e.target.value })}
+                            placeholder="e.g. In spaces 23-26 below, write YES, NO or NOT GIVEN" />
                     </div>
 
                     {/* Type-specific form */}

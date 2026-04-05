@@ -119,13 +119,24 @@ const ModuleScoreCard = ({
 };
 
 // View Answers Modal Component
-const ViewAnswersModal = ({ show, onClose, module, answers, loading, scores }) => {
+const ViewAnswersModal = ({ show, onClose, module, answers, loading, scores, allSetsData }) => {
+    const [activeSetTab, setActiveSetTab] = useState('latest');
+
     if (!show) return null;
 
-    const getProcessedAnswers = () => {
-        if (!answers || !Array.isArray(answers)) return { processed: [], stats: { correct: 0, incorrect: 0, total: 0 } };
+    // Determine which answers to show based on active tab
+    const getDisplayAnswers = () => {
+        if (activeSetTab === 'latest' || !allSetsData) return answers;
+        const setData = allSetsData[activeSetTab];
+        return setData?.answers || answers;
+    };
+
+    const displayAnswers = getDisplayAnswers();
+
+    const getProcessedAnswers = (answerData) => {
+        if (!answerData || !Array.isArray(answerData)) return { processed: [], stats: { correct: 0, incorrect: 0, total: 0 } };
         const uniqueMap = new Map();
-        answers.forEach(ans => {
+        answerData.forEach(ans => {
             if (ans && ans.questionNumber && !uniqueMap.has(ans.questionNumber)) {
                 uniqueMap.set(ans.questionNumber, ans);
             }
@@ -136,7 +147,11 @@ const ViewAnswersModal = ({ show, onClose, module, answers, loading, scores }) =
         return { processed, stats: { correct, incorrect, total: processed.length } };
     };
 
-    const { processed: processedAnswers, stats } = getProcessedAnswers();
+    const { processed: processedAnswers, stats } = getProcessedAnswers(displayAnswers);
+
+    // Get set tabs if multi-set data exists
+    const setTabs = allSetsData ? Object.keys(allSetsData).sort() : [];
+    const hasMultipleSets = setTabs.length > 0;
 
     const countWords = (text) => {
         if (!text) return 0;
@@ -163,6 +178,36 @@ const ViewAnswersModal = ({ show, onClose, module, answers, loading, scores }) =
                         <FaTimes className="text-slate-400" />
                     </button>
                 </div>
+
+                {/* Multi-Set Tabs */}
+                {hasMultipleSets && !loading && (
+                    <div className="px-6 py-2 bg-white border-b border-slate-100 flex items-center gap-2 overflow-x-auto">
+                        <button
+                            onClick={() => setActiveSetTab('latest')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${activeSetTab === 'latest' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        >
+                            Latest
+                        </button>
+                        {setTabs.map((key, idx) => {
+                            const setData = allSetsData[key];
+                            const setScore = setData?.scores;
+                            return (
+                                <button
+                                    key={key}
+                                    onClick={() => setActiveSetTab(key)}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${activeSetTab === key ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                >
+                                    Exam {idx + 1}
+                                    {setScore?.band != null && (
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${activeSetTab === key ? 'bg-white/20' : 'bg-emerald-100 text-emerald-700'}`}>
+                                            {setScore.band}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* Stats Bar for Listening/Reading */}
                 {module?.toLowerCase() !== 'writing' && module?.toLowerCase() !== 'speaking' && !loading && answers?.length > 0 && (
@@ -441,7 +486,7 @@ const ViewAnswersModal = ({ show, onClose, module, answers, loading, scores }) =
 };
 
 // Comprehensive Score Edit Modal
-const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule }) => {
+const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule, editSetNumber }) => {
     const [scores, setScores] = useState({
         listening: { band: 0, correctAnswers: 0 },
         reading: { band: 0, correctAnswers: 0 },
@@ -452,27 +497,32 @@ const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule }) 
 
     useEffect(() => {
         if (student?.scores) {
+            const sc = student.scores;
+            // If editing a specific set, try to use per-set score
+            const setKey = editModule && editSetNumber ? `${editModule}_${editSetNumber}` : null;
+            const perSetScore = setKey ? (sc[setKey] || null) : null;
+
             setScores({
                 listening: {
-                    band: student.scores.listening?.band || 0,
-                    correctAnswers: student.scores.listening?.correctAnswers || 0
+                    band: (editModule === 'listening' && perSetScore) ? (perSetScore.band || 0) : (sc.listening?.band || 0),
+                    correctAnswers: (editModule === 'listening' && perSetScore) ? (perSetScore.correctAnswers || 0) : (sc.listening?.correctAnswers || 0)
                 },
                 reading: {
-                    band: student.scores.reading?.band || 0,
-                    correctAnswers: student.scores.reading?.correctAnswers || 0
+                    band: (editModule === 'reading' && perSetScore) ? (perSetScore.band || 0) : (sc.reading?.band || 0),
+                    correctAnswers: (editModule === 'reading' && perSetScore) ? (perSetScore.correctAnswers || 0) : (sc.reading?.correctAnswers || 0)
                 },
                 writing: {
-                    task1Band: student.scores.writing?.task1Band || 0,
-                    task2Band: student.scores.writing?.task2Band || 0,
-                    overallBand: student.scores.writing?.overallBand || 0
+                    task1Band: (editModule === 'writing' && perSetScore) ? (perSetScore.task1Band || 0) : (sc.writing?.task1Band || 0),
+                    task2Band: (editModule === 'writing' && perSetScore) ? (perSetScore.task2Band || 0) : (sc.writing?.task2Band || 0),
+                    overallBand: (editModule === 'writing' && perSetScore) ? (perSetScore.overallBand || 0) : (sc.writing?.overallBand || 0)
                 },
                 speaking: {
-                    band: student.scores.speaking?.band || 0
+                    band: sc.speaking?.band || 0
                 },
                 adminRemarks: student.adminRemarks || ""
             });
         }
-    }, [student]);
+    }, [student, editModule, editSetNumber]);
 
     // Calculate overall band
     const calculateOverall = () => {
@@ -484,7 +534,7 @@ const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule }) 
     };
 
     const handleSave = () => {
-        onSave(scores);
+        onSave(scores, editSetNumber || null);
     };
 
     if (!show) return null;
@@ -499,7 +549,12 @@ const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule }) 
                             <FaAward className="text-lg" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-slate-800">Edit Exam Scores</h3>
+                            <h3 className="font-bold text-slate-800">
+                                {editModule
+                                    ? `Edit ${editModule.charAt(0).toUpperCase() + editModule.slice(1)}${editSetNumber ? ` — Set #${editSetNumber}` : ''}`
+                                    : 'Edit All Exam Scores'
+                                }
+                            </h3>
                             <p className="text-slate-500 text-xs">{student?.nameEnglish} • {student?.examId}</p>
                         </div>
                     </div>
@@ -693,21 +748,18 @@ function StudentContent() {
     const [editModal, setEditModal] = useState({ show: false });
 
     // Fetch student data
+    const fetchStudent = async () => {
+        try {
+            const response = await studentsAPI.getById(params.id);
+            if (response.success) setStudent(response.data);
+        } catch (error) {
+            console.error("Failed to fetch student:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchStudent = async () => {
-            try {
-                const response = await studentsAPI.getById(params.id);
-                console.log("=== Student Data Fetched ===");
-                console.log("Full response:", response);
-                console.log("Student examAnswers:", response?.data?.examAnswers);
-                console.log("Student writing:", response?.data?.examAnswers?.writing);
-                if (response.success) setStudent(response.data);
-            } catch (error) {
-                console.error("Failed to fetch student:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchStudent();
     }, [params.id]);
 
@@ -726,7 +778,7 @@ function StudentContent() {
             console.log("Answers from response:", response?.data?.answers);
 
             if (response.success) {
-                setViewModal(prev => ({ ...prev, answers: response.data.answers, loading: false }));
+                setViewModal(prev => ({ ...prev, answers: response.data.answers, allSetsData: response.data.allSetsData || null, loading: false }));
             } else {
                 console.error("API returned success: false", response);
                 setViewModal(prev => ({ ...prev, loading: false }));
@@ -738,14 +790,19 @@ function StudentContent() {
     };
 
     // Update all scores handler
-    const handleSaveAllScores = async (scoresData) => {
+    const handleSaveAllScores = async (scoresData, setNumber = null) => {
         setSaving(true);
         try {
-            const response = await studentsAPI.updateAllScores(params.id, scoresData);
+            const payload = { ...scoresData };
+            if (setNumber) payload.setNumber = setNumber;
+            const response = await studentsAPI.updateAllScores(params.id, payload);
             if (response.success) {
                 setStudent(response.data);
                 setEditModal({ show: false });
-                alert("✅ All scores updated successfully!");
+                const label = scoresData.listening !== undefined ? 'Listening' :
+                    scoresData.reading !== undefined ? 'Reading' :
+                        scoresData.writing !== undefined ? 'Writing' : 'All';
+                alert(`✅ ${label} score${setNumber ? ` (Set #${setNumber})` : 's'} updated successfully!`);
             }
         } catch (error) {
             alert("❌ Failed to update scores: " + error.message);
@@ -788,7 +845,8 @@ function StudentContent() {
         try {
             const response = await studentsAPI.resetModule(params.id, module);
             if (response.success) {
-                setStudent(response.data);
+                // Refetch full student data to ensure complete state
+                await fetchStudent();
                 alert(`✅ ${module} module reset successfully! The student can now retake this module.`);
             }
         } catch (error) {
@@ -884,60 +942,189 @@ function StudentContent() {
                 </div>
             </div>
 
-            {/* Module Score Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-                <ModuleScoreCard
-                    icon={FaHeadphones}
-                    title="Listening"
-                    band={student.scores?.listening?.band}
-                    subInfo={`Correct: ${student.scores?.listening?.correctAnswers || 0}/40`}
-                    color="blue"
-                    isCompleted={completedModules.some(m => m.toLowerCase() === 'listening')}
-                    onView={() => handleViewAnswers('Listening')}
-                    onEdit={() => setEditModal({ show: true, module: 'listening' })}
-                    onReset={() => handleResetModule('listening')}
-                    resetting={resetting === 'listening'}
-                />
-                <ModuleScoreCard
-                    icon={FaBook}
-                    title="Reading"
-                    band={student.scores?.reading?.band}
-                    subInfo={`Correct: ${student.scores?.reading?.correctAnswers || 0}/40`}
-                    color="green"
-                    isCompleted={completedModules.some(m => m.toLowerCase() === 'reading')}
-                    onView={() => handleViewAnswers('Reading')}
-                    onEdit={() => setEditModal({ show: true, module: 'reading' })}
-                    onReset={() => handleResetModule('reading')}
-                    resetting={resetting === 'reading'}
-                />
-                <ModuleScoreCard
-                    icon={FaPen}
-                    title="Writing"
-                    band={student.scores?.writing?.overallBand}
-                    subInfo={`Task 1: ${student.scores?.writing?.task1Band || 0} | Task 2: ${student.scores?.writing?.task2Band || 0}`}
-                    color="purple"
-                    isCompleted={completedModules.some(m => m.toLowerCase() === 'writing')}
-                    onView={() => handleViewAnswers('Writing')}
-                    onEdit={() => setEditModal({ show: true, module: 'writing' })}
-                    onReset={() => handleResetModule('writing')}
-                    resetting={resetting === 'writing'}
-                />
-                {/* Speaking card hidden */}
-                {false && (
-                    <ModuleScoreCard
-                        icon={FaMicrophone}
-                        title="Speaking"
-                        band={student.scores?.speaking?.band}
-                        subInfo="Examiner graded"
-                        color="orange"
-                        isCompleted={completedModules.some(m => m.toLowerCase() === 'speaking')}
-                        onView={() => handleViewAnswers('Speaking')}
-                        onEdit={() => setEditModal({ show: true, module: 'speaking' })}
-                        onReset={() => handleResetModule('speaking')}
-                        resetting={resetting === 'speaking'}
-                    />
-                )}
-            </div>
+            {/* Assigned Question Sets Info */}
+            {student.assignedSets && (
+                <div className="bg-white rounded-md border border-slate-200 p-4 mb-5">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <FaClipboardCheck className="text-indigo-400" /> Assigned Question Sets
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {[
+                            { label: 'Listening', icon: FaHeadphones, color: 'text-indigo-600 bg-indigo-50', sets: student.assignedSets.listeningSetNumbers?.length ? student.assignedSets.listeningSetNumbers : (student.assignedSets.listeningSetNumber ? [student.assignedSets.listeningSetNumber] : []) },
+                            { label: 'Reading', icon: FaBook, color: 'text-emerald-600 bg-emerald-50', sets: student.assignedSets.readingSetNumbers?.length ? student.assignedSets.readingSetNumbers : (student.assignedSets.readingSetNumber ? [student.assignedSets.readingSetNumber] : []) },
+                            { label: 'Writing', icon: FaPen, color: 'text-violet-600 bg-violet-50', sets: student.assignedSets.writingSetNumbers?.length ? student.assignedSets.writingSetNumbers : (student.assignedSets.writingSetNumber ? [student.assignedSets.writingSetNumber] : []) },
+                            { label: 'Speaking', icon: FaMicrophone, color: 'text-orange-600 bg-orange-50', sets: student.assignedSets.speakingSetNumbers?.length ? student.assignedSets.speakingSetNumbers : (student.assignedSets.speakingSetNumber ? [student.assignedSets.speakingSetNumber] : []) },
+                        ].map((mod, i) => {
+                            const Icon = mod.icon;
+                            return (
+                                <div key={i} className="border border-slate-100 rounded-md p-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className={`w-6 h-6 rounded flex items-center justify-center ${mod.color}`}>
+                                            <Icon className="text-xs" />
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-700">{mod.label}</span>
+                                    </div>
+                                    {mod.sets.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {mod.sets.map((s, j) => (
+                                                <span key={j} className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">
+                                                    Set #{s}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <span className="text-[10px] text-slate-400 italic">Not assigned</span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* Module Score Cards - Full Set Grouped */}
+            {(() => {
+                const moduleConfigs = {
+                    listening: { title: 'Listening', icon: FaHeadphones, color: 'blue' },
+                    reading: { title: 'Reading', icon: FaBook, color: 'green' },
+                    writing: { title: 'Writing', icon: FaPen, color: 'purple' },
+                };
+                const scoresObj = student.scores || {};
+                const assignedSets = student.assignedSets || {};
+
+                // Build Full Sets from assignedSets or fallback to legacy
+                const fullSets = assignedSets.fullSets && assignedSets.fullSets.length > 0
+                    ? assignedSets.fullSets
+                    : (assignedSets.listeningSetNumber || assignedSets.readingSetNumber || assignedSets.writingSetNumber)
+                        ? [{
+                            label: "Full Set 1",
+                            listeningSetNumber: assignedSets.listeningSetNumber,
+                            readingSetNumber: assignedSets.readingSetNumber,
+                            writingSetNumber: assignedSets.writingSetNumber,
+                        }]
+                        : [];
+                const extraSetsData = assignedSets.extraSets || [];
+
+                // Helper: get per-set score for a module
+                const getModuleScore = (moduleId, setNum) => {
+                    const setKey = `${moduleId}_${setNum}`;
+                    const perSet = scoresObj[setKey] || null;
+                    if (moduleId === 'writing') {
+                        const src = perSet || scoresObj.writing || {};
+                        return { band: src.overallBand || 0, subInfo: `Task 1: ${src.task1Band || 0} | Task 2: ${src.task2Band || 0}` };
+                    }
+                    const src = perSet || scoresObj[moduleId] || {};
+                    return { band: src.band || 0, subInfo: `Correct: ${src.correctAnswers || 0}/${src.totalQuestions || 40}` };
+                };
+
+                // Render a single card
+                const renderCard = (moduleId, setNum, label) => {
+                    const mod = moduleConfigs[moduleId];
+                    if (!mod) return null;
+                    const { band, subInfo } = getModuleScore(moduleId, setNum);
+                    const completionKey = `${moduleId}:${setNum}`;
+                    const isCompleted = completedModules.some(m =>
+                        m === completionKey || m.toLowerCase() === moduleId || m.toLowerCase() === moduleId.toUpperCase()
+                    );
+
+                    return (
+                        <div key={`${moduleId}-${setNum}`} className={`relative p-5 rounded-md border ${mod.color === 'blue' ? 'bg-blue-50 border-blue-100 hover:border-blue-200' :
+                            mod.color === 'green' ? 'bg-emerald-50 border-emerald-100 hover:border-emerald-200' :
+                                'bg-violet-50 border-violet-100 hover:border-violet-200'
+                            } transition-all`}>
+                            {isCompleted && (
+                                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                    <FaCheckCircle className="text-white text-[10px]" />
+                                </div>
+                            )}
+                            <div className="flex items-start gap-3 mb-3">
+                                <div className={`w-10 h-10 rounded-md flex items-center justify-center ${mod.color === 'blue' ? 'bg-blue-500 text-white' :
+                                    mod.color === 'green' ? 'bg-emerald-500 text-white' : 'bg-violet-500 text-white'}`}>
+                                    <mod.icon className="text-base" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-sm font-semibold text-slate-800 truncate">{label || mod.title}</h3>
+                                    <p className="text-xs text-slate-500">{subInfo}</p>
+                                </div>
+                                <BandScoreCircle score={band} size="small" />
+                            </div>
+                            <div className="flex gap-1.5">
+                                <button onClick={() => handleViewAnswers(moduleId)}
+                                    className="flex-1 h-8 flex items-center justify-center gap-1 bg-white border border-slate-200 text-slate-600 rounded-md text-xs font-medium hover:bg-slate-50 transition-all cursor-pointer">
+                                    <FaEye className="text-slate-400 text-[10px]" /> View
+                                </button>
+                                <button onClick={() => setEditModal({ show: true, module: moduleId, setNumber: setNum })}
+                                    className="flex-1 h-8 flex items-center justify-center gap-1 bg-slate-800 text-white rounded-md text-xs font-medium hover:bg-slate-900 transition-all cursor-pointer">
+                                    <FaEdit className="text-[10px]" /> Edit
+                                </button>
+                                {isCompleted && (
+                                    <button onClick={() => handleResetModule(moduleId)}
+                                        disabled={resetting === moduleId}
+                                        className="h-8 px-2.5 flex items-center justify-center bg-rose-500 text-white rounded-md text-xs font-medium hover:bg-rose-600 transition-all disabled:opacity-50 cursor-pointer"
+                                        title="Reset module">
+                                        {resetting === moduleId ? <FaSpinner className="animate-spin text-[10px]" /> : <FaRedo className="text-[10px]" />}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                };
+
+                // Calculate per-Full-Set overall band
+                const calcFullSetOverall = (fs) => {
+                    const l = getModuleScore('listening', fs.listeningSetNumber).band;
+                    const r = getModuleScore('reading', fs.readingSetNumber).band;
+                    const w = getModuleScore('writing', fs.writingSetNumber).band;
+                    const bands = [l, r, w].filter(b => b > 0);
+                    if (bands.length === 0) return 0;
+                    const avg = bands.reduce((a, b) => a + b, 0) / bands.length;
+                    return Math.round(avg * 2) / 2;
+                };
+
+                return (
+                    <div className="mb-6 space-y-6">
+                        {/* Full Sets */}
+                        {fullSets.map((fs, idx) => {
+                            const fsOverall = calcFullSetOverall(fs);
+                            return (
+                                <div key={idx}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                        <h2 className="text-sm font-bold text-slate-700">{fs.label || `Full Set ${idx + 1}`}</h2>
+                                        {fsOverall > 0 && (
+                                            <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-bold">
+                                                Overall: {fsOverall}
+                                            </span>
+                                        )}
+                                        <div className="h-px flex-1 bg-slate-200"></div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {fs.listeningSetNumber && renderCard('listening', fs.listeningSetNumber, 'Listening')}
+                                        {fs.readingSetNumber && renderCard('reading', fs.readingSetNumber, 'Reading')}
+                                        {fs.writingSetNumber && renderCard('writing', fs.writingSetNumber, 'Writing')}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Extra Parts */}
+                        {extraSetsData.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                                    <h2 className="text-sm font-bold text-slate-700">Extra Exams</h2>
+                                    <div className="h-px flex-1 bg-slate-200"></div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {extraSetsData.map((es, idx) =>
+                                        renderCard(es.module, es.setNumber, `${moduleConfigs[es.module]?.title || es.module} (Extra)`)
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
 
             {/* Student Information Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1013,6 +1200,8 @@ function StudentContent() {
                 module={viewModal.module}
                 answers={viewModal.answers}
                 loading={viewModal.loading}
+                scores={student?.scores}
+                allSetsData={viewModal.allSetsData || null}
             />
 
             <ScoreEditModal
@@ -1022,6 +1211,7 @@ function StudentContent() {
                 onSave={handleSaveAllScores}
                 saving={saving}
                 editModule={editModal.module || null}
+                editSetNumber={editModal.setNumber || null}
             />
         </div>
     );

@@ -21,11 +21,6 @@ const menuItems = [
         href: "/dashboard/student",
     },
     {
-        title: "My Exam",
-        icon: FaClipboardList,
-        href: "/dashboard/student/exam",
-    },
-    {
         title: "Results",
         icon: FaChartBar,
         href: "/dashboard/student/results",
@@ -64,10 +59,27 @@ function StudentLayoutContent({ children }) {
             return;
         }
 
+        // 🔒 Check if token is expired
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.exp * 1000 < Date.now()) {
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                localStorage.removeItem("adminAuth");
+                router.push("/login");
+                return;
+            }
+        } catch (e) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            router.push("/login");
+            return;
+        }
+
         try {
             const parsedUser = JSON.parse(user);
             // Admin should go to admin dashboard
-            if (parsedUser.role === "admin") {
+            if (parsedUser.role === "admin" || parsedUser.role === "super-admin") {
                 router.push("/dashboard/admin/dashboard");
                 return;
             }

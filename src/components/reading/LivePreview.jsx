@@ -34,10 +34,14 @@ export default function LivePreview({ sections, title }) {
                 <div className="p-5 border-b border-gray-200 bg-amber-50/30">
                     <h2 className="text-lg font-bold text-gray-900 mb-3">{currentSection.title || "Section Title"}</h2>
                     {currentSection.passage ? (
-                        <div className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto pr-2">
-                            {currentSection.passage.substring(0, 1500)}
-                            {currentSection.passage.length > 1500 && <span className="text-gray-400">... (passage truncated in preview)</span>}
-                        </div>
+                        <div 
+                            className="text-gray-700 text-sm leading-relaxed max-h-60 overflow-y-auto pr-2 prose prose-sm max-w-none"
+                            dangerouslySetInnerHTML={{ 
+                                __html: currentSection.passage.length > 2000 
+                                    ? currentSection.passage.substring(0, 2000) + '... <span class="text-gray-400 italic">(passage truncated in preview)</span>'
+                                    : currentSection.passage 
+                            }}
+                        />
                     ) : (
                         <p className="text-gray-400 text-sm italic">No passage yet</p>
                     )}
@@ -65,6 +69,7 @@ export default function LivePreview({ sections, title }) {
                                         <h3 className="text-xl font-bold text-blue-900 mb-4 border-b-2 border-blue-100 pb-2">{group.mainHeading}</h3>
                                     )}
                                     {(group.passage || "").split('\n').map((line, lineIdx) => {
+                                        const rawLine = line;
                                         const trimmed = line.trim();
                                         if (!trimmed) return <div key={lineIdx} className="h-3" />;
                                         const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-');
@@ -90,12 +95,12 @@ export default function LivePreview({ sections, title }) {
 
                                         if (isHeading) return <h4 key={lineIdx} className="font-extrabold text-gray-900 text-base mt-5 mb-2 uppercase tracking-wide">{trimmed}</h4>;
                                         if (isBullet) return (
-                                            <div key={lineIdx} className="flex items-start gap-3 ml-6 mb-2">
+                                            <div key={lineIdx} className="flex items-start gap-3 ml-6 mb-2 whitespace-pre-wrap">
                                                 <span className="text-gray-400 mt-1.5 text-xs">•</span>
-                                                <span className="flex-1 text-gray-700 leading-relaxed font-medium">{renderLine(trimmed.replace(/^[•\-]\s*/, ''))}</span>
+                                                <span className="flex-1 text-gray-700 leading-relaxed font-medium">{renderLine(rawLine.replace(/^\s*[•\-]\s*/, ''))}</span>
                                             </div>
                                         );
-                                        return <p key={lineIdx} className="text-gray-700 leading-relaxed mb-2 ml-2">{renderLine(trimmed)}</p>;
+                                        return <p key={lineIdx} className="text-gray-700 leading-relaxed mb-2 ml-2 whitespace-pre-wrap" style={{ fontFamily: rawLine.startsWith(' ') ? 'monospace' : 'inherit' }}>{renderLine(rawLine)}</p>;
                                     })}
 
                                     {!group.passage && group.notesSections?.map((section, sIdx) => (
@@ -130,7 +135,8 @@ export default function LivePreview({ sections, title }) {
                                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                                     <div className="mb-4">
                                         <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}-{group.endQuestion}</h3>
-                                        <p className="text-gray-800 font-medium mb-3">{group.mainInstruction}</p>
+                                        <p className="text-gray-800 font-medium mb-1">{group.mainInstruction}</p>
+                                        {group.subInstruction && <p className="text-gray-600 text-sm mb-3">{group.subInstruction}</p>}
                                         <div className="bg-gray-50 p-4 rounded-md space-y-2 text-sm border-l-4 border-gray-300">
                                             <p><span className="font-bold w-24 inline-block">TRUE</span> if the statement agrees with the information</p>
                                             <p><span className="font-bold w-24 inline-block">FALSE</span> if the statement contradicts the information</p>
@@ -165,7 +171,13 @@ export default function LivePreview({ sections, title }) {
                                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                                     <div className="mb-4">
                                         <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}-{group.endQuestion}</h3>
-                                        <p className="text-gray-800 font-medium">{group.mainInstruction}</p>
+                                        <p className="text-gray-800 font-medium mb-1">{group.mainInstruction}</p>
+                                        {group.subInstruction && <p className="text-gray-600 text-sm mb-3">{group.subInstruction}</p>}
+                                        <div className="bg-gray-50 p-4 rounded-md space-y-2 text-sm border-l-4 border-gray-300">
+                                            <p><span className="font-bold w-24 inline-block">YES</span> if the statement agrees with the views of the writer</p>
+                                            <p><span className="font-bold w-24 inline-block">NO</span> if the statement contradicts the views of the writer</p>
+                                            <p><span className="font-bold w-24 inline-block">NOT GIVEN</span> if it is impossible to say what the writer thinks about this</p>
+                                        </div>
                                     </div>
                                     <div className="space-y-4 mt-3">
                                         {(group.statements || []).map(stmt => (
@@ -218,6 +230,29 @@ export default function LivePreview({ sections, title }) {
                                                 <span className="border border-gray-300 rounded px-3 py-1.5 text-gray-500 min-w-[60px] text-center bg-gray-50">
                                                     {item.correctAnswer || "--"}
                                                 </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ═══ SHORT ANSWER ═══ */}
+                            {group.groupType === "short-answer" && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}-{group.endQuestion}</h3>
+                                    <p className="text-gray-800 italic mb-1">{group.mainInstruction}</p>
+                                    <p className="text-gray-800 mb-4">{group.subInstruction}</p>
+                                    <div className="space-y-4">
+                                        {(group.questions || []).map(q => (
+                                            <div key={q.questionNumber} className="flex flex-col gap-2 border-b border-gray-100 pb-3 last:border-0">
+                                                <div className="flex items-start gap-2">
+                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5 mt-0.5">{q.questionNumber}</span>
+                                                    <span className="text-gray-800 font-medium">{q.questionText}</span>
+                                                </div>
+                                                <div className="ml-8">
+                                                    <input disabled type="text" placeholder="Type answer here..." className="border-b-2 border-blue-300 outline-none w-full max-w-sm px-2 py-1 text-sm bg-gray-50" />
+                                                    {q.correctAnswer && <span className="ml-3 text-xs bg-green-100 text-green-700 font-bold px-2 py-1 rounded">Ans: {q.correctAnswer}</span>}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -399,30 +434,7 @@ export default function LivePreview({ sections, title }) {
                             )}
 
                             {/* ═══ SHORT ANSWER QUESTIONS ═══ */}
-                            {group.groupType === "short-answer" && (
-                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}–{group.endQuestion}</h3>
-                                    <p className="text-gray-800 font-medium mb-1">{group.mainInstruction || "Answer the questions below."}</p>
-                                    {group.subInstruction && (
-                                        <p className="text-blue-700 font-semibold mb-4 text-sm">
-                                            Choose <strong>{group.subInstruction.match(/ONE \w+ ONLY/)?.[0] || "ONE WORD ONLY"}</strong> from the passage for each answer.
-                                        </p>
-                                    )}
-                                    <div className="space-y-3 mt-3">
-                                        {(group.questions || []).map((q, idx) => (
-                                            <div key={idx} className="flex items-start gap-3">
-                                                <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5 flex-shrink-0 mt-0.5">{q.questionNumber}</span>
-                                                <div className="flex-1">
-                                                    <span className="text-gray-800">{q.questionText || <span className="text-gray-400 italic">Question text...</span>}</span>
-                                                    {q.correctAnswer && (
-                                                        <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">✓ {q.correctAnswer}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+
 
                             {/* ═══ SUMMARY COMPLETION (legacy) ═══ */}
                             {group.groupType === "summary-completion" && (
@@ -444,6 +456,152 @@ export default function LivePreview({ sections, title }) {
                                     </div>
                                 </div>
                             )}
+                            {/* ── CUSTOM PURE CSS FLOWCHART FOR MOCK 01 ── */}
+                            {(group.groupType === "custom-flowchart-1" || group.groupType === "diagram-labeling") && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}-{group.endQuestion}</h3>
+                                    <p className="text-gray-800 font-medium mb-1">{group.mainInstruction}</p>
+                                    {group.subInstruction && <p className="text-gray-600 text-sm mb-4">{group.subInstruction}</p>}
+
+                                    <div className="relative border border-gray-200 shadow-inner rounded-xl bg-gray-50 flex justify-center p-6 min-h-[300px] overflow-x-auto overflow-y-hidden">
+                                        <div style={{ position: 'relative', width: '600px', minWidth: '600px', fontFamily: '"Arial", sans-serif' }}>
+                                            
+                                            {/* ROW 1 */}
+                                            <div style={{ display: 'flex', justifySelf: 'center', position: 'relative', width: 'max-content', margin: '0 auto' }}>
+                                                <div style={{ border: `2px solid #374151`, padding: '8px 40px', fontWeight: 'bold', fontSize: '15px', color: '#111827', background: 'white' }}>
+                                                    productive land
+                                                </div>
+                                                <svg style={{ position: 'absolute', right: '-40px', top: '10px', width: '50px', height: '40px', zIndex: 10 }} viewBox="0 0 50 40">
+                                                    <path d="M 50 40 Q 20 40 5 15" fill="none" stroke="#374151" strokeWidth="2" />
+                                                    <polygon points="5,15 12,20 0,25" fill="#374151" transform="rotate(25 5 15) translate(-2, -8)" />
+                                                </svg>
+                                                <div style={{ position: 'absolute', right: '-80px', top: '40px', border: `2px solid #374151`, padding: '4px 16px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: '#111827', background: 'white', zIndex: 11 }}>
+                                                    multiple<br/>causes
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 1 TO 2 ARROW */}
+                                            <div style={{ display: 'flex', justifyContent: 'center', height: '30px' }}>
+                                                <div style={{ width: '4px', background: '#374151', height: '100%', position: 'relative' }}>
+                                                    <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid #374151` }}></div>
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 2 */}
+                                            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '5px' }}>
+                                                <div style={{ border: `2px dashed #374151`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', background: 'white' }}>
+                                                    <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#111827' }}>degradation proceeds at</span>
+                                                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                                                        <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>27</span>
+                                                        <input type="text" readOnly value="answer" style={{ width: '120px', height: '24px', borderBottom: `1px dotted #374151`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '12px', color: '#9ca3af', outline: 'none' }} />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 2 TO 3 ARROW */}
+                                            <div style={{ display: 'flex', justifyContent: 'center', height: '30px' }}>
+                                                <div style={{ width: '4px', background: '#374151', height: '100%', position: 'relative' }}>
+                                                    <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid #374151` }}></div>
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 3 */}
+                                            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '5px' }}>
+                                                <div style={{ border: `2px solid #374151`, padding: '15px 120px', fontWeight: 'bold', fontSize: '20px', color: '#111827', background: 'white' }}>
+                                                    DESERTIFICATION
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 3 TO 4 ARROWS (SPLIT) */}
+                                            <div style={{ position: 'relative', height: '50px', width: '100%', marginTop: '5px' }}>
+                                                <div style={{ position: 'absolute', left: '15%', top: '0', width: '4px', background: '#374151', height: '100%' }}>
+                                                    <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid #374151` }}></div>
+                                                </div>
+                                                <div style={{ position: 'absolute', right: '15%', top: '0', width: '4px', background: '#374151', height: '100%' }}>
+                                                    <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid #374151` }}></div>
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 4 */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 20px', marginTop: '5px' }}>
+                                                <div style={{ border: `2px dashed #374151`, padding: '12px', width: '220px', background: 'white' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                        <div style={{ position: 'relative', width: '100%' }}>
+                                                            <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>28</span>
+                                                            <input type="text" readOnly value="answer" style={{ width: '100%', height: '24px', borderBottom: `1px dotted #374151`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '12px', color: '#9ca3af', outline: 'none' }} />
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ fontWeight: 'bold', fontSize: '14px', textAlign: 'center', color: '#111827' }}>a climate trend</div>
+                                                </div>
+                                                <div style={{ border: `2px dashed #374151`, padding: '12px', width: '220px', background: 'white' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                        <div style={{ position: 'relative', width: '100%' }}>
+                                                            <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>29</span>
+                                                            <input type="text" readOnly value="answer" style={{ width: '100%', height: '24px', borderBottom: `1px dotted #374151`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '12px', color: '#9ca3af', outline: 'none' }} />
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ fontWeight: 'bold', fontSize: '14px', textAlign: 'center', color: '#111827' }}>a change in climate</div>
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 4 TO 5 ARROWS */}
+                                            <div style={{ position: 'relative', height: '40px', width: '100%', marginTop: '5px' }}>
+                                                <div style={{ position: 'absolute', left: '15%', top: '0', width: '4px', background: '#374151', height: '100%' }}>
+                                                    <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid #374151` }}></div>
+                                                </div>
+                                                <div style={{ position: 'absolute', right: '15%', top: '0', width: '4px', background: '#374151', height: '100%' }}>
+                                                    <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid #374151` }}></div>
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 5 */}
+                                            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '5px' }}>
+                                                <div style={{ border: `2px solid #374151`, padding: '12px 20px', width: '480px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px', background: 'white' }}>
+                                                    <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#111827', paddingLeft: '10px' }}>resulting in greater</span>
+                                                    <div style={{ position: 'relative', display: 'inline-block', flex: 1 }}>
+                                                        <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>30</span>
+                                                        <input type="text" readOnly value="answer" style={{ width: '80%', height: '24px', borderBottom: `1px dotted #374151`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '12px', color: '#9ca3af', outline: 'none' }} />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 5 TO 6 ARROWS */}
+                                            <div style={{ position: 'relative', height: '30px', width: '100%', marginTop: '5px' }}>
+                                                <div style={{ position: 'absolute', left: '30%', top: '0', width: '4px', background: '#374151', height: '100%' }}>
+                                                    <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid #374151` }}></div>
+                                                </div>
+                                                <div style={{ position: 'absolute', right: '30%', top: '0', width: '4px', background: '#374151', height: '100%' }}>
+                                                    <div style={{ position: 'absolute', bottom: '-2px', left: '-5px', width: '0', height: '0', borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid #374151` }}></div>
+                                                </div>
+                                            </div>
+
+                                            {/* ROW 6 */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 80px', marginTop: '5px' }}>
+                                                <div style={{ border: `2px solid #374151`, padding: '10px', width: '200px', background: 'white' }}>
+                                                    <div style={{ fontWeight: 'bold', fontSize: '13px', textAlign: 'center', color: '#111827', marginBottom: '6px' }}>depletion of</div>
+                                                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                        <div style={{ position: 'relative', width: '80%' }}>
+                                                            <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>31</span>
+                                                            <input type="text" readOnly value="answer" style={{ width: '100%', height: '24px', borderBottom: `1px dotted #374151`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '12px', color: '#9ca3af', outline: 'none' }} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div style={{ border: `2px solid #374151`, padding: '10px', width: '200px', background: 'white' }}>
+                                                    <div style={{ fontWeight: 'bold', fontSize: '13px', textAlign: 'center', color: '#111827', marginBottom: '6px' }}>depletion of</div>
+                                                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                        <div style={{ position: 'relative', width: '80%' }}>
+                                                            <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>32</span>
+                                                            <input type="text" readOnly value="answer" style={{ width: '100%', height: '24px', borderBottom: `1px dotted #374151`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '12px', color: '#9ca3af', outline: 'none' }} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
                     ))}
                 </div>

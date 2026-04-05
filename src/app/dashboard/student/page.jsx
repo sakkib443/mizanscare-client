@@ -83,7 +83,37 @@ export default function StudentDashboard() {
         completedModules = [],
     } = studentData;
 
-    const isAllCompleted = completedModules.length >= 3;
+    // Build module cards for multi-set support
+    const getModuleSets = (moduleName) => {
+        const sets = studentData.assignedSets || {};
+        const arrKey = `${moduleName}SetNumbers`;
+        const singleKey = `${moduleName}SetNumber`;
+        if (sets[arrKey]?.length > 0) return sets[arrKey];
+        if (sets[singleKey]) return [sets[singleKey]];
+        return [];
+    };
+
+    const moduleConfigs = [
+        { id: 'listening', label: 'Listening', icon: FaHeadphones },
+        { id: 'reading', label: 'Reading', icon: FaBook },
+        { id: 'writing', label: 'Writing', icon: FaPen },
+    ];
+
+    // Generate individual module cards (one per set)
+    const allModuleCards = moduleConfigs.flatMap(mod => {
+        const sets = getModuleSets(mod.id);
+        if (sets.length <= 1) {
+            return [{ ...mod, label: mod.label, completed: completedModules.includes(mod.id) || completedModules.includes(`${mod.id}:${sets[0]}`) }];
+        }
+        return sets.map((setNum, idx) => ({
+            ...mod,
+            label: `${mod.label} Exam ${idx + 1}`,
+            completed: completedModules.includes(`${mod.id}:${setNum}`) || completedModules.includes(mod.id),
+        }));
+    });
+
+    const totalModuleSets = allModuleCards.length;
+    const isAllCompleted = allModuleCards.length > 0 && allModuleCards.every(c => c.completed);
 
     // Check if today is exam day
     const isExamDay = () => {
@@ -120,6 +150,9 @@ export default function StudentDashboard() {
                 studentName: studentData.nameEnglish,
                 name: studentData.nameEnglish,
                 email: studentData.email,
+                assignedSets: studentData.assignedSets || {},
+                completedModules: studentData.completedModules || [],
+                scores: studentData.scores || {},
             })
         );
         router.push(`/exam/${examId}`);
@@ -146,7 +179,7 @@ export default function StudentDashboard() {
                 />
                 <StatCard
                     label="Completed"
-                    value={`${completedModules.length}/3 Modules`}
+                    value={`${completedModules.length}/${totalModuleSets} Modules`}
                 />
                 <StatCard
                     label="Exam Date"
@@ -187,51 +220,37 @@ export default function StudentDashboard() {
                             <h3 className="font-medium text-gray-800">Exam Progress</h3>
                             <p className="text-xs text-gray-500 mt-0.5">Track your module completion</p>
                         </div>
-                        {!isAllCompleted && paymentStatus === "paid" ? (
-                            <button
-                                onClick={handleStartExam}
-                                className="bg-cyan-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-cyan-700 transition-colors flex items-center gap-2"
-                            >
-                                Continue Exam <FaArrowRight size={12} />
-                            </button>
-                        ) : isAllCompleted ? (
+                        {isAllCompleted && (
                             <span className="bg-green-100 text-green-700 px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5">
                                 <FaCheckCircle size={12} /> Completed
                             </span>
-                        ) : null}
+                        )}
                     </div>
 
                     {/* Progress Bar */}
                     <div className="mb-5">
                         <div className="flex justify-between text-xs text-gray-500 mb-2">
                             <span>Progress</span>
-                            <span>{completedModules.length}/3 completed</span>
+                            <span>{completedModules.length}/{totalModuleSets} completed</span>
                         </div>
                         <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div
                                 className="h-full bg-cyan-600 rounded-full transition-all duration-500"
-                                style={{ width: `${(completedModules.length / 3) * 100}%` }}
+                                style={{ width: `${totalModuleSets > 0 ? (completedModules.length / totalModuleSets) * 100 : 0}%` }}
                             />
                         </div>
                     </div>
 
-                    {/* Module Cards */}
-                    <div className="grid grid-cols-3 gap-3">
-                        <ModuleCard
-                            title="Listening"
-                            icon={FaHeadphones}
-                            completed={completedModules.includes("listening")}
-                        />
-                        <ModuleCard
-                            title="Reading"
-                            icon={FaBook}
-                            completed={completedModules.includes("reading")}
-                        />
-                        <ModuleCard
-                            title="Writing"
-                            icon={FaPen}
-                            completed={completedModules.includes("writing")}
-                        />
+                    {/* Module Cards — Multi-Set Aware */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                        {allModuleCards.map((card, i) => (
+                            <ModuleCard
+                                key={i}
+                                title={card.label}
+                                icon={card.icon}
+                                completed={card.completed}
+                            />
+                        ))}
                     </div>
                 </div>
             </div>
@@ -252,27 +271,84 @@ export default function StudentDashboard() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3">
-                            <ScoreCard
-                                title="Listening"
-                                icon={FaHeadphones}
-                                band={scores?.listening?.band}
-                                raw={scores?.listening?.raw}
-                                total={40}
-                            />
-                            <ScoreCard
-                                title="Reading"
-                                icon={FaBook}
-                                band={scores?.reading?.band}
-                                raw={scores?.reading?.raw}
-                                total={40}
-                            />
-                            <ScoreCard
-                                title="Writing"
-                                icon={FaPen}
-                                band={scores?.writing?.overallBand}
-                            />
-                        </div>
+                        {/* Full Set Grouped Scores */}
+                        {(() => {
+                            const assignedSets = studentData.assignedSets || {};
+                            const fullSets = assignedSets.fullSets && assignedSets.fullSets.length > 0
+                                ? assignedSets.fullSets
+                                : (assignedSets.listeningSetNumber || assignedSets.readingSetNumber || assignedSets.writingSetNumber)
+                                    ? [{
+                                        label: "Full Set 1",
+                                        listeningSetNumber: assignedSets.listeningSetNumber,
+                                        readingSetNumber: assignedSets.readingSetNumber,
+                                        writingSetNumber: assignedSets.writingSetNumber,
+                                    }]
+                                    : [];
+                            const extraSets = assignedSets.extraSets || [];
+
+                            const getScore = (moduleId, setNum) => {
+                                const perSet = scores?.[`${moduleId}_${setNum}`] || null;
+                                return perSet || scores?.[moduleId] || {};
+                            };
+
+                            return (
+                                <div className="space-y-4">
+                                    {fullSets.map((fs, idx) => {
+                                        const lScore = getScore('listening', fs.listeningSetNumber);
+                                        const rScore = getScore('reading', fs.readingSetNumber);
+                                        const wScore = getScore('writing', fs.writingSetNumber);
+                                        const bands = [lScore?.band || 0, rScore?.band || 0, wScore?.overallBand || 0].filter(b => b > 0);
+                                        const fsOverall = bands.length > 0 ? Math.round((bands.reduce((a, b) => a + b, 0) / bands.length) * 2) / 2 : 0;
+
+                                        return (
+                                            <div key={idx}>
+                                                {fullSets.length > 1 && (
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                                        <span className="text-xs font-bold text-gray-700">{fs.label || `Full Set ${idx + 1}`}</span>
+                                                        {fsOverall > 0 && (
+                                                            <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-bold">
+                                                                Overall: {fsOverall}
+                                                            </span>
+                                                        )}
+                                                        <div className="h-px flex-1 bg-gray-200"></div>
+                                                    </div>
+                                                )}
+                                                <div className="grid grid-cols-3 gap-3">
+                                                    {fs.listeningSetNumber && (
+                                                        <ScoreCard title="Listening" icon={FaHeadphones} band={lScore?.band} raw={lScore?.raw || lScore?.correctAnswers} total={40} />
+                                                    )}
+                                                    {fs.readingSetNumber && (
+                                                        <ScoreCard title="Reading" icon={FaBook} band={rScore?.band} raw={rScore?.raw || rScore?.correctAnswers} total={40} />
+                                                    )}
+                                                    {fs.writingSetNumber && (
+                                                        <ScoreCard title="Writing" icon={FaPen} band={wScore?.overallBand} />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {extraSets.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                                                <span className="text-xs font-bold text-gray-700">Extra Exams</span>
+                                                <div className="h-px flex-1 bg-gray-200"></div>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                {extraSets.map((es, idx) => {
+                                                    const eScore = getScore(es.module, es.setNumber);
+                                                    return es.module === 'writing'
+                                                        ? <ScoreCard key={idx} title={`Writing`} icon={FaPen} band={eScore?.overallBand} />
+                                                        : <ScoreCard key={idx} title={es.module === 'listening' ? 'Listening' : 'Reading'} icon={es.module === 'listening' ? FaHeadphones : FaBook} band={eScore?.band} raw={eScore?.raw || eScore?.correctAnswers} total={40} />;
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
                 ) : isAllCompleted ? (
                     /* Exam Completed but Results Not Published - Pending */
@@ -318,17 +394,14 @@ export default function StudentDashboard() {
                                 <FaClipboardList className="text-gray-500 text-lg" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="font-medium text-gray-800">Start Your Exam</h3>
+                                <h3 className="font-medium text-gray-800">Exam Not Started</h3>
                                 <p className="text-gray-500 text-sm mt-0.5">
-                                    Your exam is scheduled for {formatExamDate(examDate)}.
+                                    Your exam is scheduled for {formatExamDate(examDate)}. Use your Exam ID on the homepage to start the exam.
                                 </p>
                             </div>
-                            <button
-                                onClick={handleStartExam}
-                                className="bg-cyan-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-cyan-700 transition-colors"
-                            >
-                                Start Exam
-                            </button>
+                            <span className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-md text-xs font-medium">
+                                Upcoming
+                            </span>
                         </div>
                     </div>
                 )}

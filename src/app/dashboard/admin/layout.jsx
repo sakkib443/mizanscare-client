@@ -103,8 +103,23 @@ function AdminLayoutContent({ children }) {
                 return;
             }
 
+            // 🔒 Check if token is expired
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.exp * 1000 < Date.now()) {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    localStorage.removeItem("adminAuth");
+                    router.replace("/login");
+                    return;
+                }
+            } catch (e) {
+                router.replace("/login");
+                return;
+            }
+
             const user = JSON.parse(userStr);
-            if (user.role !== "admin") {
+            if (user.role !== "admin" && user.role !== "super-admin") {
                 router.replace("/dashboard/student");
                 return;
             }
@@ -225,12 +240,12 @@ function AdminLayoutContent({ children }) {
                     } ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
             >
                 {/* Logo Area */}
-                <div className="h-16 flex items-center px-6 border-b border-gray-200">
+                <div className="h-16 flex items-center px-4 border-b border-gray-200">
                     {sidebarOpen ? (
-                        <Logo className="w-32" />
+                        <Logo size="large" className="w-44" />
                     ) : (
-                        <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                            IE
+                        <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                            MC
                         </div>
                     )}
                 </div>

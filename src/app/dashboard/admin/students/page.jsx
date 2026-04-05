@@ -325,7 +325,7 @@ export default function StudentsListPage() {
                                                 >
                                                     <FaEdit />
                                                 </Link>
-                                                {(student.examStatus === "completed" || student.examStatus === "terminated") && (
+                                                {(student.examStatus === "completed" || student.examStatus === "terminated" || student.examStatus === "in-progress") && (
                                                     <button
                                                         onClick={() => setResetModal({ show: true, student })}
                                                         className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"

@@ -18,7 +18,8 @@ import {
     FaWifi,
     FaTimes,
     FaExclamationCircle,
-    FaArrowRight
+    FaArrowRight,
+    FaVideo
 } from "react-icons/fa";
 import { LuGraduationCap, LuShieldCheck } from "react-icons/lu";
 import { HiOutlineDocumentText } from "react-icons/hi";
@@ -89,6 +90,7 @@ export default function HomePage() {
     const [toast, setToast] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [agreed, setAgreed] = useState(false);
+    const [showDemoVideo, setShowDemoVideo] = useState(false);
 
     // Parse error message to user-friendly format
     const parseErrorMessage = (error) => {
@@ -254,6 +256,63 @@ export default function HomePage() {
                 )}
             </AnimatePresence>
 
+            {/* Demo Video Modal */}
+            <AnimatePresence>
+                {showDemoVideo && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+                        onClick={() => setShowDemoVideo(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                                        <FaVideo className="text-red-500 text-sm" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-gray-800 text-sm">Exam Instruction</h3>
+                                        <p className="text-gray-400 text-[11px]">Learn how the exam works</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowDemoVideo(false)}
+                                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                                >
+                                    <FaTimes />
+                                </button>
+                            </div>
+                            <div className="relative w-full bg-black" style={{ paddingBottom: "56.25%" }}>
+                                <video
+                                    className="absolute inset-0 w-full h-full"
+                                    src="/video/IELTS on computer - Quick Guide.mp4"
+                                    controls
+                                    autoPlay
+                                    playsInline
+                                />
+                            </div>
+                            <div className="px-5 py-3 bg-gray-50 flex items-center justify-between">
+                                <p className="text-gray-500 text-xs">Watch this video before starting your exam</p>
+                                <button
+                                    onClick={() => setShowDemoVideo(false)}
+                                    className="px-4 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-black transition-colors cursor-pointer"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Static Background Blobs */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#41bfb8]/10 rounded-full blur-[120px]"></div>
@@ -275,8 +334,22 @@ export default function HomePage() {
                         animate={{ opacity: 1, y: 0 }}
                         className="flex items-center justify-between max-w-7xl mx-auto"
                     >
-                        <Logo />
+                        <Logo size="large" />
                         <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => setShowDemoVideo(true)}
+                                className="relative px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-red-500/40 transition-all cursor-pointer transform hover:-translate-y-0.5 flex items-center gap-2"
+                            >
+                                {/* Pulsing glow ring */}
+                                <span className="absolute -inset-1 rounded-2xl bg-red-400 opacity-0 animate-pulse" style={{ animationDuration: '2s' }}></span>
+                                {/* Pulsing dot */}
+                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-400 border border-white"></span>
+                                </span>
+                                <FaVideo className="relative z-10 text-xs" />
+                                <span className="relative z-10">Exam Instruction</span>
+                            </button>
                             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
                                 <LuShieldCheck className="text-emerald-500" />
                                 <span className="hidden sm:inline">Secure Platform</span>
@@ -301,16 +374,25 @@ export default function HomePage() {
                             transition={{ delay: 0.2 }}
                             className="hidden lg:block"
                         >
-                            <h2 className="text-4xl font-bold text-slate-900 mb-4 outfit leading-tight">
-                                Professional IELTS
+                            {/* Badge */}
+                            <div className="inline-flex items-center gap-2 bg-red-50 border border-red-100 rounded-full px-4 py-1.5 mb-5">
+                                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                                <span className="text-red-600 text-xs font-bold tracking-wider uppercase">100% Authentic Exam Experience</span>
+                            </div>
+
+                            <h2 className="text-4xl font-extrabold text-slate-900 mb-2 outfit leading-tight">
+                                <span className="text-red-600">Mizan's Care</span>
                                 <br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#41bfb8] to-[#e87d32]">
+                                Online IELTS Mock Tests
+                                <br />
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc2626] to-[#b91c1c]">
                                     Examination System
                                 </span>
                             </h2>
                             <p className="text-slate-600 mb-8 text-lg font-medium leading-relaxed">
-                                Experience a realistic IELTS test environment with our advanced online examination platform.
-                                Get instant results for Listening and Reading sections.
+                                Prepare for your IELTS exam with our <span className="text-red-600 font-bold">Official-Style
+                                    Computer-Based Mock Tests</span> — real exam format,
+                                instant results, anytime, anywhere!
                             </p>
 
                             {/* Exam Sections Preview */}
@@ -361,8 +443,8 @@ export default function HomePage() {
                             <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/50">
                                 {/* Card Header */}
                                 <div className="text-center mb-8">
-                                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-50 border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm">
-                                        <HiOutlineDocumentText className="text-[#41bfb8] text-3xl" />
+                                    <div className="w-16 h-16 mx-auto mb-4 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-center shadow-sm">
+                                        <HiOutlineDocumentText className="text-red-500 text-3xl" />
                                     </div>
                                     <h3 className="text-2xl font-bold text-slate-900 outfit">Start Your Exam</h3>
                                     <p className="text-slate-500 text-sm mt-2 font-medium">Enter your unique Exam ID to begin</p>
@@ -381,7 +463,7 @@ export default function HomePage() {
                                                     setExamId(e.target.value.toUpperCase());
                                                 }}
                                                 placeholder="e.g., BACIELTS240001"
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-4 text-slate-900 placeholder-slate-400 focus:border-[#41bfb8] focus:bg-white focus:ring-4 focus:ring-[#41bfb8]/10 outline-none transition-all text-lg font-mono tracking-widest"
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-4 text-slate-900 placeholder-slate-400 focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10 outline-none transition-all text-lg font-mono tracking-widest"
                                                 autoComplete="off"
                                                 spellCheck="false"
                                             />
@@ -397,7 +479,7 @@ export default function HomePage() {
                                                 onChange={(e) => {
                                                     setAgreed(e.target.checked);
                                                 }}
-                                                className="w-5 h-5 rounded border-2 border-slate-300 bg-white checked:bg-[#41bfb8] checked:border-[#41bfb8] appearance-none cursor-pointer transition-all"
+                                                className="w-5 h-5 rounded border-2 border-slate-300 bg-white checked:bg-red-500 checked:border-red-500 appearance-none cursor-pointer transition-all"
                                             />
                                             {agreed && (
                                                 <FaCheckCircle className="absolute inset-0 text-white w-5 h-5 pointer-events-none" />
@@ -412,7 +494,7 @@ export default function HomePage() {
                                     <button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#41bfb8] to-[#2d9a94] text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-[#41bfb8]/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed transform hover:-translate-y-0.5 active:translate-y-0"
+                                        className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-red-600 to-red-700 text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-red-500/30 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed transform hover:-translate-y-0.5 active:translate-y-0"
                                     >
                                         {isLoading ? (
                                             <>
@@ -432,7 +514,7 @@ export default function HomePage() {
                                 {/* Security Note */}
                                 <div className="mt-8 pt-8 border-t border-slate-100">
                                     <div className="flex items-start gap-3 text-slate-500 text-xs leading-relaxed">
-                                        <FaShieldAlt className="text-amber-500 mt-0.5 flex-shrink-0" />
+                                        <FaShieldAlt className="text-red-400 mt-0.5 flex-shrink-0" />
                                         <p>
                                             This exam is conducted in a secure environment. Tab switching, screen recording, and copy-paste are monitored.
                                         </p>
@@ -446,7 +528,7 @@ export default function HomePage() {
                 {/* Footer */}
                 <footer className="py-8 px-8 border-t border-slate-200 bg-white/50 backdrop-blur-sm">
                     <div className="max-w-7xl mx-auto flex flex-col md:row items-center justify-between gap-4 text-slate-600 text-sm font-medium">
-                        <p>© 2024 IELTSPro. All rights reserved.</p>
+                        <p>© 2026 Mizan's Care. All rights reserved.</p>
                         <div className="flex items-center gap-6">
                             <span className="hover:text-[#41bfb8] cursor-pointer transition-colors">Privacy Policy</span>
                             <span className="hover:text-[#41bfb8] cursor-pointer transition-colors">Terms of Service</span>
