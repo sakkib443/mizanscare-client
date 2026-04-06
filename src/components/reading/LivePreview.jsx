@@ -386,6 +386,33 @@ export default function LivePreview({ sections, title }) {
                                             )
                                         ))}
                                     </div>
+
+                                    {/* Fallback: render statements with blanks for summary-with-options */}
+                                    {!group.summarySegments?.length && group.statements?.length > 0 && (
+                                        <div className="space-y-3 mt-4">
+                                            {group.statements.map(stmt => (
+                                                <div key={stmt.questionNumber} className="flex items-start gap-2 pb-2 border-b border-gray-100 last:border-0">
+                                                    <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5 mt-0.5 flex-shrink-0">{stmt.questionNumber}</span>
+                                                    <div className="flex-1">
+                                                        <p className="text-gray-800 leading-relaxed">
+                                                            {(stmt.text || '').split(/_{3,}/).map((part, pIdx, arr) => (
+                                                                <React.Fragment key={pIdx}>
+                                                                    {part}
+                                                                    {pIdx < arr.length - 1 && (
+                                                                        <span className="inline-flex items-center gap-1 mx-1 align-baseline">
+                                                                            <span className="border border-gray-300 rounded px-2 py-1 bg-green-50 min-w-[80px] h-7 inline-block text-xs text-green-700 font-medium leading-6 text-center">
+                                                                                {stmt.correctAnswer || "answer"}
+                                                                            </span>
+                                                                        </span>
+                                                                    )}
+                                                                </React.Fragment>
+                                                            ))}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

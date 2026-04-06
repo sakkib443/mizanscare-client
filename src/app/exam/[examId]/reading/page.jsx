@@ -1150,6 +1150,30 @@ export default function ReadingExamPage() {
                                                     )
                                                 ))}
                                             </div>
+
+                                            {/* Fallback: render statements with dropdowns for summary-with-options */}
+                                            {!group.summarySegments?.length && group.statements?.length > 0 && (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+                                                    {group.statements.map(stmt => (
+                                                        <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                                            <span style={{ border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === stmt.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', flexShrink: 0, borderRadius: '2px', marginTop: '2px' }}>{stmt.questionNumber}</span>
+                                                            <span style={{ flex: 1, color: cs.text, fontSize: '15px', lineHeight: '1.6' }}>
+                                                                {(stmt.text || '').split(/_{3,}/).map((part, pIdx, arr) => (
+                                                                    <span key={pIdx}>
+                                                                        {part}
+                                                                        {pIdx < arr.length - 1 && (
+                                                                            <select value={answers[stmt.questionNumber] || ""} onChange={e => handleAnswer(stmt.questionNumber, e.target.value)} style={{ border: `1px solid ${cs.text}`, padding: '4px 8px', fontSize: '14px', background: cs.bg, color: cs.text, cursor: 'pointer', width: '70px', textAlign: 'center', borderRadius: '2px', margin: '0 4px' }}>
+                                                                                <option value="">--</option>
+                                                                                {group.phraseList?.map(phrase => <option key={phrase.letter} value={phrase.letter}>{phrase.letter}</option>)}
+                                                                            </select>
+                                                                        )}
+                                                                    </span>
+                                                                ))}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
