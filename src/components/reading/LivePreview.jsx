@@ -2,6 +2,25 @@
 import React, { useState } from "react";
 
 // ═══════════════════════════════════════════
+// Helper: Convert passage text to proper HTML
+// Handles \n newlines, double-newline paragraphs, and bold paragraph labels (A., B., etc.)
+// ═══════════════════════════════════════════
+function formatPassageHtml(text) {
+    if (!text) return '';
+    // Normalize: convert literal \n to actual newlines
+    let html = text.replace(/\\n/g, '\n');
+    // Split by double newline = paragraphs
+    const paragraphs = html.split(/\n\n+/);
+    return paragraphs.map(p => {
+        // Convert remaining single newlines to <br>
+        let content = p.trim().replace(/\n/g, '<br>');
+        // Bold paragraph labels like "A.<br>" or "A. "
+        content = content.replace(/^([A-Z])\.(<br>|\s)/, '<strong>$1.</strong>$2');
+        return `<p style="margin-bottom:12px">${content}</p>`;
+    }).join('');
+}
+
+// ═══════════════════════════════════════════
 // LIVE PREVIEW — Same rendering as exam page
 // ═══════════════════════════════════════════
 export default function LivePreview({ sections, title }) {
@@ -36,11 +55,7 @@ export default function LivePreview({ sections, title }) {
                     {currentSection.passage ? (
                         <div 
                             className="text-gray-700 text-sm leading-relaxed max-h-60 overflow-y-auto pr-2 prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ 
-                                __html: currentSection.passage.length > 2000 
-                                    ? currentSection.passage.substring(0, 2000) + '... <span class="text-gray-400 italic">(passage truncated in preview)</span>'
-                                    : currentSection.passage 
-                            }}
+                            dangerouslySetInnerHTML={{ __html: formatPassageHtml(currentSection.passage) }}
                         />
                     ) : (
                         <p className="text-gray-400 text-sm italic">No passage yet</p>
@@ -222,6 +237,21 @@ export default function LivePreview({ sections, title }) {
                                         </div>
                                     )}
 
+                                    {/* Headings List for matching-headings */}
+                                    {group.headingsList?.length > 0 && (
+                                        <div className="mt-4 mb-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                            <p className="font-bold text-gray-900 mb-2">List of Headings</p>
+                                            <div className="space-y-1.5">
+                                                {group.headingsList.map(h => (
+                                                    <div key={h.numeral} className="flex items-start gap-3 pl-2">
+                                                        <span className="font-bold text-gray-700 min-w-[24px] text-sm">{h.numeral}.</span>
+                                                        <span className="text-gray-800 text-sm">{h.text}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="space-y-3 mt-4">
                                         {(group.matchingItems || []).map(item => (
                                             <div key={item.questionNumber} className="flex items-center gap-3">
@@ -286,6 +316,38 @@ export default function LivePreview({ sections, title }) {
                                                             </span>
                                                         </div>
                                                     ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ═══ SENTENCE COMPLETION ═══ */}
+                            {group.groupType === "sentence-completion" && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1">Questions {group.startQuestion}-{group.endQuestion}</h3>
+                                    <p className="text-gray-800 italic mb-1">{group.mainInstruction}</p>
+                                    <p className="text-gray-700 text-sm mb-4">{group.subInstruction}</p>
+                                    <div className="space-y-4">
+                                        {(group.statements || []).map(stmt => (
+                                            <div key={stmt.questionNumber} className="flex items-start gap-2 pb-3 border-b border-gray-100 last:border-0">
+                                                <span className="border border-gray-400 text-gray-700 text-sm font-bold px-1.5 py-0.5 mt-0.5 flex-shrink-0">{stmt.questionNumber}</span>
+                                                <div className="flex-1">
+                                                    <p className="text-gray-800 leading-relaxed">
+                                                        {(stmt.text || '').split(/_{3,}/).map((part, pIdx, arr) => (
+                                                            <React.Fragment key={pIdx}>
+                                                                {part}
+                                                                {pIdx < arr.length - 1 && (
+                                                                    <span className="inline-flex items-center gap-1 mx-1 align-baseline">
+                                                                        <span className="border border-gray-300 rounded px-2 py-1 bg-green-50 min-w-[80px] h-7 inline-block text-xs text-green-700 font-medium leading-6 text-center">
+                                                                            {stmt.correctAnswer || "answer"}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                            </React.Fragment>
+                                                        ))}
+                                                    </p>
                                                 </div>
                                             </div>
                                         ))}

@@ -19,6 +19,25 @@ import { readingAPI, studentsAPI } from "@/lib/api";
 import ExamSecurity from "@/components/ExamSecurity";
 import TextHighlighter from "@/components/TextHighlighter";
 
+// ═══════════════════════════════════════════
+// Helper: Convert passage text to proper HTML
+// Handles \n newlines, double-newline paragraphs, and bold paragraph labels (A., B., etc.)
+// ═══════════════════════════════════════════
+function formatPassageHtml(text) {
+    if (!text) return '';
+    // Normalize: convert literal \n to actual newlines
+    let html = text.replace(/\\n/g, '\n');
+    // Split by double newline = paragraphs
+    const paragraphs = html.split(/\n\n+/);
+    return paragraphs.map(p => {
+        // Convert remaining single newlines to <br>
+        let content = p.trim().replace(/\n/g, '<br>');
+        // Bold paragraph labels like "A.<br>" or "A. "
+        content = content.replace(/^([A-Z])\.(<br>|\s)/, '<strong>$1.</strong>$2');
+        return `<p style="margin-bottom:14px;text-align:justify">${content}</p>`;
+    }).join('');
+}
+
 export default function ReadingExamPage() {
     const params = useParams();
     const router = useRouter();
@@ -661,7 +680,7 @@ export default function ReadingExamPage() {
                         <div 
                             className="reading-passage-content"
                             style={{ color: cs.text, lineHeight: '1.8', fontSize: `${16 * tScale}px` }}
-                            dangerouslySetInnerHTML={{ __html: currentPass.content }} 
+                            dangerouslySetInnerHTML={{ __html: formatPassageHtml(currentPass.content) }} 
                         />
                     </TextHighlighter>
                 </div >
@@ -855,6 +874,21 @@ export default function ReadingExamPage() {
                                                             <span>{opt.text}</span>
                                                         </div>
                                                     ))}
+                                                </div>
+                                            )}
+
+                                            {/* Headings List for matching-headings */}
+                                            {group.headingsList?.length > 0 && (
+                                                <div style={{ marginTop: '12px', marginBottom: '16px', background: contrastMode === 'black-on-white' ? '#f8fafc' : '#1e293b', border: `1px solid ${contrastMode === 'black-on-white' ? '#e2e8f0' : '#334155'}`, borderRadius: '8px', padding: '16px' }}>
+                                                    <p style={{ fontWeight: 'bold', color: cs.text, marginBottom: '8px', fontSize: `${15 * tScale}px` }}>List of Headings</p>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                        {group.headingsList.map(h => (
+                                                            <div key={h.numeral} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', paddingLeft: '8px' }}>
+                                                                <span style={{ fontWeight: 'bold', color: cs.text, minWidth: '28px', fontSize: `${14 * tScale}px` }}>{h.numeral}.</span>
+                                                                <span style={{ color: cs.text, fontSize: `${14 * tScale}px` }}>{h.text}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
 
@@ -1120,42 +1154,8 @@ export default function ReadingExamPage() {
                                     )}
 
                                     {/* â”€â”€ YES/NO/NOT GIVEN â”€â”€ */}
-                                    {group.groupType === "yes-no-not-given" && (
-                                        <div style={{ marginBottom: '20px' }}>
-                                            <p style={{ color: cs.text, marginBottom: '4px' }}>{group.mainInstruction}</p>
-                                            <p style={{ color: cs.text, marginBottom: '8px' }}>{group.subInstruction}</p>
-                                            <div style={{ paddingLeft: '16px', fontSize: `${13 * tScale}px`, marginBottom: '12px' }}>
-                                                {group.optionsExplanation?.map(opt => (
-                                                    <div key={opt.label} style={{ color: cs.text }}><b>{opt.label}</b> {opt.description}</div>
-                                                ))}
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                {group.statements?.map(stmt => (
-                                                    <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ paddingBottom: '8px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
-                                                            <span style={{ border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === stmt.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', borderRadius: '2px' }}>{stmt.questionNumber}</span>
-                                                            <span style={{ color: cs.text }}>{stmt.text}</span>
-                                                        </div>
-                                                        <div style={{ marginLeft: '32px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                            {["YES", "NO", "NOT GIVEN"].map((opt, oIdx) => {
-                                                                const letter = String.fromCharCode(65 + oIdx);
-                                                                const isSel = answers[stmt.questionNumber] === opt;
-                                                                return (
-                                                                    <div key={opt} onClick={() => handleAnswer(stmt.questionNumber, opt)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                                                                        <span style={{ fontWeight: 'bold', width: '16px', color: cs.text }}>{letter}</span>
-                                                                        <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
-                                                                            {isSel && <div style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%' }} />}
-                                                                        </div>
-                                                                        <span style={{ color: cs.text, fontWeight: isSel ? '600' : '400', fontSize: '14px' }}>{opt}</span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+
+
 
                                     {/* â”€â”€ MULTIPLE CHOICE FULL â”€â”€ */}
                                     {group.groupType === "multiple-choice-full" && (
