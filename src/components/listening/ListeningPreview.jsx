@@ -35,10 +35,12 @@ function buildRenderGroups(blocks) {
 // ══════════════════════════════════════════════════════════
 function NoteCompletionRow({ q }) {
     const raw = q.questionText || '';
-    const hasBlank = /_{2,}|\{blank\}|\[\d+\]/.test(raw);
+    const noBullet = raw.startsWith('~');
+    const displayText = noBullet ? raw.slice(1).trimStart() : raw;
+    const hasBlank = /_{2,}|\{blank\}|\[\d+\]/.test(displayText);
 
     if (hasBlank) {
-        const parts = raw.split(/_{2,}|\{blank\}|\[\d+\]/);
+        const parts = displayText.split(/_{2,}|\{blank\}|\[\d+\]/);
         const segments = [];
         parts.forEach((part, pIdx) => {
             if (part.trim()) segments.push(<span key={`t-${pIdx}`}>{part}</span>);
@@ -65,17 +67,17 @@ function NoteCompletionRow({ q }) {
         });
         return (
             <li style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '15px', color: '#1f2937', lineHeight: '2' }}>
-                <span style={{ marginTop: '4px', flexShrink: 0 }}>•</span>
+                {!noBullet && <span style={{ marginTop: '4px', flexShrink: 0 }}>•</span>}
                 <span style={{ flex: 1 }}>{segments}</span>
             </li>
         );
     }
 
     // No inline blank — show [N] + text + answer box
-    const cleanText = raw.replace(/_{1,}/g, '').replace(/\{blank\}/g, '').replace(/\[\d+\]/g, '').trim();
+    const cleanText = displayText.replace(/_{1,}/g, '').replace(/\{blank\}/g, '').replace(/\[\d+\]/g, '').trim();
     return (
         <li style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '15px', color: '#1f2937', lineHeight: '2' }}>
-            <span style={{ marginTop: '4px', flexShrink: 0 }}>•</span>
+            {!noBullet && <span style={{ marginTop: '4px', flexShrink: 0 }}>•</span>}
             <span style={{ flex: 1 }}>
                 {cleanText}
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', verticalAlign: 'middle', marginLeft: '6px' }}>

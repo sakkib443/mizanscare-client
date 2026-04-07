@@ -1529,8 +1529,12 @@ export default function ListeningExamPage() {
 function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFocused = false }) {
     const rawText = q.questionText || '';
 
+    // If text starts with ~ then suppress bullets (used for plain sentences like dentistry history)
+    const noBullet = rawText.startsWith('~');
+    const displayText = noBullet ? rawText.slice(1).trimStart() : rawText;
+
     // Handle header rows (e.g. "**Dining table**")
-    const isHeader = rawText.startsWith('**') && rawText.endsWith('**');
+    const isHeader = displayText.startsWith('**') && displayText.endsWith('**');
     if (isHeader) {
         return (
             <div style={{
@@ -1541,13 +1545,13 @@ function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFoc
                 color: textColor,
                 fontFamily: 'Arial, sans-serif'
             }}>
-                {rawText.replace(/\*\*/g, '')}
+                {displayText.replace(/\*\*/g, '')}
             </div>
         );
     }
 
     // Normalize: replace {blank} with ________
-    const normalizedText = rawText.replace(/\{blank\}/g, '________');
+    const normalizedText = displayText.replace(/\{blank\}/g, '________');
     const cleanedText = normalizedText.replace(/\[\d+\]/g, '').trim();
 
     // Single box input — number shows centered when empty, answer replaces it
@@ -1615,7 +1619,7 @@ function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFoc
     if (parts.length >= 2) {
         return (
             <div id={`q-${q.displayNumber}`} style={rowStyle}>
-                <span style={{ color: textColor, fontSize: '18px', marginRight: '10px' }}>•</span>
+                {!noBullet && <span style={{ color: textColor, fontSize: '18px', marginRight: '10px' }}>•</span>}
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ verticalAlign: 'middle' }}>{parts[0]}</span>
                     {InlineInput}
@@ -1627,7 +1631,7 @@ function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFoc
 
     return (
         <div id={`q-${q.displayNumber}`} style={rowStyle}>
-            <span style={{ color: textColor, fontSize: '18px', marginRight: '10px' }}>•</span>
+            {!noBullet && <span style={{ color: textColor, fontSize: '18px', marginRight: '10px' }}>•</span>}
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ verticalAlign: 'middle' }}>{cleanedText}</span>
                 {InlineInput}

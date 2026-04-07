@@ -11,6 +11,7 @@ import {
 import { listeningAPI, uploadAudio } from "@/lib/api";
 import ListeningPreview from "@/components/listening/ListeningPreview";
 import { ListeningGroupEditor } from "@/components/listening/ListeningGroupForms";
+import RawBlockEditor from "@/components/listening/RawBlockEditor";
 import {
     LISTENING_QUESTION_TYPES,
     createListeningGroupTemplate,
@@ -46,11 +47,10 @@ function AudioUploadBtn({ onUploaded, label = "Upload" }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// SECTION EDITOR (each Part)
+// SECTION EDITOR (each Part) — supports Visual Builder + Block Editor
 // ═══════════════════════════════════════════════════════
-function SectionEditor({ section, sectionIndex, onChange }) {
+function SectionEditor({ section, sectionIndex, onChange, editorMode }) {
     const [showTypeMenu, setShowTypeMenu] = useState(false);
-    const [collapsed, setCollapsed] = useState(false);
 
     const groups = section.questionGroups || [];
 
@@ -109,55 +109,65 @@ function SectionEditor({ section, sectionIndex, onChange }) {
                 </div>
             </div>
 
-            {/* Question Groups */}
-            <div>
-                <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-bold text-gray-700">
-                        📝 Question Groups
-                        <span className="ml-2 text-xs font-normal text-gray-400">({totalGroupQs} questions)</span>
-                    </h3>
+            {/* ═══ BLOCK EDITOR MODE ═══ */}
+            {editorMode === 'block' && (
+                <RawBlockEditor
+                    questions={section.questions || []}
+                    onChange={updatedQuestions => onChange({ ...section, questions: updatedQuestions })}
+                />
+            )}
+
+            {/* ═══ VISUAL BUILDER MODE ═══ */}
+            {editorMode === 'visual' && (
+                <div>
+                    <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-bold text-gray-700">
+                            📝 Question Groups
+                            <span className="ml-2 text-xs font-normal text-gray-400">({totalGroupQs} questions)</span>
+                        </h3>
+                    </div>
+
+                    <div className="space-y-3">
+                        {groups.length === 0 && (
+                            <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                                <FaHeadphones size={30} className="mx-auto text-gray-300 mb-3" />
+                                <p className="text-sm text-gray-400 mb-1">No question groups yet</p>
+                                <p className="text-xs text-gray-400">নিচের "Add Question Group" button থেকে যোগ করুন</p>
+                            </div>
+                        )}
+
+                        {groups.map((g, gIdx) => (
+                            <ListeningGroupEditor
+                                key={gIdx}
+                                group={g}
+                                index={gIdx}
+                                onUpdate={updated => updateGroup(gIdx, updated)}
+                                onRemove={() => removeGroup(gIdx)}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Add Question Group */}
+                    <div className="mt-3 relative">
+                        <button type="button" onClick={() => setShowTypeMenu(!showTypeMenu)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors w-full justify-center border-2 border-dashed border-indigo-200 cursor-pointer">
+                            <FaPlus size={12} /> Add Question Group
+                        </button>
+
+                        {showTypeMenu && (
+                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 p-2 grid grid-cols-2 gap-1">
+                                {LISTENING_QUESTION_TYPES.map(t => (
+                                    <button key={t.value} type="button" onClick={() => addQuestionGroup(t.value)}
+                                        className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer">
+                                        <span>{t.icon}</span>
+                                        <span className="text-gray-700">{t.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
-
-                <div className="space-y-3">
-                    {groups.length === 0 && (
-                        <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                            <FaHeadphones size={30} className="mx-auto text-gray-300 mb-3" />
-                            <p className="text-sm text-gray-400 mb-1">No question groups yet</p>
-                            <p className="text-xs text-gray-400">নিচের "Add Question Group" button থেকে যোগ করুন</p>
-                        </div>
-                    )}
-
-                    {groups.map((g, gIdx) => (
-                        <ListeningGroupEditor
-                            key={gIdx}
-                            group={g}
-                            index={gIdx}
-                            onUpdate={updated => updateGroup(gIdx, updated)}
-                            onRemove={() => removeGroup(gIdx)}
-                        />
-                    ))}
-                </div>
-
-                {/* Add Question Group */}
-                <div className="mt-3 relative">
-                    <button type="button" onClick={() => setShowTypeMenu(!showTypeMenu)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors w-full justify-center border-2 border-dashed border-indigo-200 cursor-pointer">
-                        <FaPlus size={12} /> Add Question Group
-                    </button>
-
-                    {showTypeMenu && (
-                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 p-2 grid grid-cols-2 gap-1">
-                            {LISTENING_QUESTION_TYPES.map(t => (
-                                <button key={t.value} type="button" onClick={() => addQuestionGroup(t.value)}
-                                    className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer">
-                                    <span>{t.icon}</span>
-                                    <span className="text-gray-700">{t.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+            )}
         </div>
     );
 }
@@ -177,6 +187,7 @@ function CreateListeningPageContent() {
     const [success, setSuccess] = useState("");
     const [showPreview, setShowPreview] = useState(true);
     const [activeTab, setActiveTab] = useState(0);
+    const [editorMode, setEditorMode] = useState('block'); // 'block' | 'visual'
 
     // JSON
     const [showJson, setShowJson] = useState(false);
@@ -226,15 +237,12 @@ function CreateListeningPageContent() {
                     });
                     if (data.sections?.length > 0) {
                         setSections(data.sections.map((s, i) => {
-                            // If questionGroups already exist, use them directly
-                            // Otherwise, convert flat questions[] to questionGroups[]
+                            // In Block Editor mode, we use questions[] directly — no conversion needed!
+                            // For Visual Builder mode, try to convert if needed
                             let qGroups = s.questionGroups || [];
-                            console.log(`Part ${i + 1} raw questions:`, s.questions?.length, JSON.stringify(s.questions?.slice(0, 2)));
-                            console.log(`Part ${i + 1} existing questionGroups:`, qGroups.length);
                             if (qGroups.length === 0 && s.questions?.length > 0) {
                                 try {
                                     qGroups = convertFlatQuestionsToGroups(s.questions);
-                                    console.log(`Part ${i + 1} converted groups:`, qGroups.length, JSON.stringify(qGroups.map(g => ({ type: g.groupType, start: g.startQuestion, end: g.endQuestion }))));
                                 } catch (convErr) {
                                     console.error(`Part ${i + 1} conversion error:`, convErr);
                                 }
@@ -265,13 +273,23 @@ function CreateListeningPageContent() {
         setSections(prev => prev.map((s, i) => i === idx ? updated : s));
     };
 
-    // ═══ Build preview sections ═══
     const previewSections = sections.map(s => {
+        // Block Editor mode: always use raw questions[] directly
+        if (editorMode === 'block') {
+            return { ...s, questions: s.questions || [] };
+        }
+        // Visual Builder mode: generate from questionGroups
         const groups = s.questionGroups || [];
         if (groups.length > 0) {
+            const generated = generateListeningQuestions(groups);
+            const rawInstrCount = (s.questions || []).filter(b => b.blockType === 'instruction').length;
+            const genInstrCount = generated.filter(b => b.blockType === 'instruction').length;
+            if (rawInstrCount > genInstrCount && s.questions?.length > 0) {
+                return { ...s, questions: s.questions };
+            }
             return {
                 ...s,
-                questions: generateListeningQuestions(groups),
+                questions: generated,
                 instructions: `Questions ${groups[0]?.startQuestion || 1}–${groups[groups.length - 1]?.endQuestion || 10}`
             };
         }
@@ -334,8 +352,15 @@ function CreateListeningPageContent() {
 
         try {
             const finalSections = sections.map(s => {
-                const groups = s.questionGroups || [];
-                const questions = groups.length > 0 ? generateListeningQuestions(groups) : (s.questions || []);
+                let questions;
+                if (editorMode === 'block') {
+                    // Block Editor: use raw questions directly
+                    questions = s.questions || [];
+                } else {
+                    // Visual Builder: generate from groups
+                    const groups = s.questionGroups || [];
+                    questions = groups.length > 0 ? generateListeningQuestions(groups) : (s.questions || []);
+                }
                 return {
                     sectionNumber: s.sectionNumber,
                     title: s.title,
@@ -408,6 +433,21 @@ function CreateListeningPageContent() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Editor Mode Toggle */}
+                    <div className="flex bg-gray-100 rounded-lg p-0.5">
+                        <button type="button" onClick={() => setEditorMode('block')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all ${editorMode === 'block'
+                                ? 'bg-white text-indigo-700 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'}`}>
+                            🧱 Block Editor
+                        </button>
+                        <button type="button" onClick={() => setEditorMode('visual')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all ${editorMode === 'visual'
+                                ? 'bg-white text-indigo-700 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'}`}>
+                            🎨 Visual Builder
+                        </button>
+                    </div>
                     <button type="button" onClick={() => setShowPreview(!showPreview)}
                         className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${showPreview
                             ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
@@ -521,6 +561,8 @@ function CreateListeningPageContent() {
                     <div className="flex gap-1 mb-4">
                         {sections.map((s, idx) => {
                             const partQs = (previewSections[idx]?.questions || []).filter(b => b.blockType === "question").length;
+                            const groupCount = (sections[idx].questionGroups || []).length;
+                            const blockCount = (sections[idx].questions || []).length;
                             return (
                                 <button key={idx} type="button" onClick={() => setActiveTab(idx)}
                                     className={`flex-1 py-3 px-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === idx
@@ -528,7 +570,7 @@ function CreateListeningPageContent() {
                                         : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>
                                     <div>Part {idx + 1}</div>
                                     <div className={`text-[10px] mt-0.5 ${activeTab === idx ? "text-indigo-200" : "text-gray-400"}`}>
-                                        {partQs}Q • {(sections[idx].questionGroups || []).length} groups
+                                        {partQs}Q • {editorMode === 'block' ? `${blockCount} blocks` : `${groupCount} groups`}
                                     </div>
                                 </button>
                             );
@@ -540,6 +582,7 @@ function CreateListeningPageContent() {
                         section={sections[activeTab]}
                         sectionIndex={activeTab}
                         onChange={updated => updateSection(activeTab, updated)}
+                        editorMode={editorMode}
                     />
 
                     {/* Bottom Save */}
