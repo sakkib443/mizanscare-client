@@ -19,24 +19,7 @@ import { readingAPI, studentsAPI } from "@/lib/api";
 import ExamSecurity from "@/components/ExamSecurity";
 import TextHighlighter from "@/components/TextHighlighter";
 
-// ═══════════════════════════════════════════
-// Helper: Convert passage text to proper HTML
-// Handles \n newlines, double-newline paragraphs, and bold paragraph labels (A., B., etc.)
-// ═══════════════════════════════════════════
-function formatPassageHtml(text) {
-    if (!text) return '';
-    // Normalize: convert literal \n to actual newlines
-    let html = text.replace(/\\n/g, '\n');
-    // Split by double newline = paragraphs
-    const paragraphs = html.split(/\n\n+/);
-    return paragraphs.map(p => {
-        // Convert remaining single newlines to <br>
-        let content = p.trim().replace(/\n/g, '<br>');
-        // Bold paragraph labels like "A.<br>" or "A. "
-        content = content.replace(/^([A-Z])\.(<br>|\s)/, '<strong>$1.</strong>$2');
-        return `<p style="margin-bottom:14px;text-align:justify">${content}</p>`;
-    }).join('');
-}
+
 
 function ReadingExamPageContent() {
     const params = useParams();
@@ -662,11 +645,9 @@ function ReadingExamPageContent() {
                     <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
                     {currentPass.source && <p style={{ fontSize: `${12 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text, marginBottom: '12px', fontStyle: 'italic' }}>{currentPass.source}</p>}
                     <TextHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
-                        <div 
-                            className="reading-passage-content"
-                            style={{ color: cs.text, lineHeight: '1.8', fontSize: `${16 * tScale}px` }}
-                            dangerouslySetInnerHTML={{ __html: formatPassageHtml(currentPass.content) }} 
-                        />
+                        {(currentPass.content || '').replace(/\\n/g, '\n').split('\n\n').map((para, index) => (
+                            <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>{para}</p>
+                        ))}
                     </TextHighlighter>
                 </div >
 
