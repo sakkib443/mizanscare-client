@@ -391,12 +391,9 @@ export function generateListeningQuestions(groups) {
             }
         }
     }
-    return questions.sort((a, b) => {
-        if (a.blockType === 'instruction' && b.blockType === 'instruction') return 0;
-        if (a.blockType === 'instruction') return -1;
-        if (b.blockType === 'instruction') return 1;
-        return (a.questionNumber || 0) - (b.questionNumber || 0);
-    });
+    // Return in build order — DO NOT sort! Sorting breaks the interleaved
+    // instruction↔question pattern that mirrors the actual test paper layout.
+    return questions;
 }
 
 // ═══════════════════════════════════════════
@@ -410,46 +407,92 @@ export function convertFlatQuestionsToGroups(flatQuestions) {
     if (!flatQuestions || flatQuestions.length === 0) return [];
 
     const groups = [];
-    // A question has blockType "question" OR has a questionNumber (blockType can be undefined)
-    const questionBlocks = flatQuestions.filter(b =>
-        b.blockType === "question" || (!b.blockType && b.questionNumber !== undefined) || (b.blockType !== "instruction" && b.questionNumber !== undefined)
-    );
-    const instructionBlocks = flatQuestions.filter(b => b.blockType === "instruction");
 
-    // Group consecutive questions of the same type
+    // Walk through blocks IN ORDER to preserve instruction-question associations
     let i = 0;
-    let instrIdx = 0;
-    while (i < questionBlocks.length) {
-        const q = questionBlocks[i];
-        const qType = q.questionType || "note-completion";
+    let pendingInstructions = []; // accumulate instruction blocks before questions
 
-        // Collect consecutive same-type questions
-        const sameTypeQs = [q];
+    while (i < flatQuestions.length) {
+        const block = flatQuestions[i];
+
+        // Collect instruction blocks
+        if (block.blockType === "instruction") {
+            pendingInstructions.push(block);
+            i++;
+            continue;
+        }
+
+        // If it's not a question block, skip
+        if (block.blockType !== "question" && block.questionNumber === undefined) {
+            i++;
+            continue;
+        }
+
+        // It's a question block — collect consecutive same-type questions
+        const qType = block.questionType || "note-completion";
+        const sameTypeQs = [block];
         let j = i + 1;
-        while (j < questionBlocks.length && questionBlocks[j].questionType === qType) {
-            sameTypeQs.push(questionBlocks[j]);
-            j++;
+
+        // For completion types, also collect interleaved instruction blocks
+        const isCompletionType = [
+            "note-completion", "form-completion", "sentence-completion",
+            "summary-completion", "flow-chart-completion"
+        ].includes(qType);
+
+        const interleavedInstructions = [];
+
+        while (j < flatQuestions.length) {
+            const next = flatQuestions[j];
+            if (next.blockType === "question" && (next.questionType || "note-completion") === qType) {
+                sameTypeQs.push(next);
+                j++;
+            } else if (next.blockType === "instruction" && isCompletionType) {
+                // Check if next question after this instruction is same type
+                let k = j + 1;
+                while (k < flatQuestions.length && flatQuestions[k].blockType === "instruction") k++;
+                if (k < flatQuestions.length && flatQuestions[k].blockType === "question"
+                    && (flatQuestions[k].questionType || "note-completion") === qType) {
+                    // This instruction is between same-type questions, collect it
+                    interleavedInstructions.push(next);
+                    j++;
+                } else {
+                    break; // instruction belongs to next group
+                }
+            } else {
+                break;
+            }
         }
 
         const startQ = sameTypeQs[0].questionNumber;
         const endQ = sameTypeQs[sameTypeQs.length - 1].questionNumber;
 
-        // Find instruction blocks that came before this set of questions
-        let instrForGroup = '';
-        // Try to extract instruction text from instruction blocks
-        for (const ib of instructionBlocks) {
+        // Extract mainHeading and passage from pending + interleaved instructions
+        let mainHeading = "";
+        let passageHtml = "";
+
+        // Separate header instruction (Questions N-M) from context instructions
+        const contextInstructions = [];
+        for (const ib of [...pendingInstructions, ...interleavedInstructions]) {
             const content = ib.content || '';
-            // Check if this instruction mentions questions in our range
-            const rangeMatch = content.match(/Questions?\s*(\d+)[–\-\s]*(\d+)/i);
-            if (rangeMatch) {
-                const iStart = parseInt(rangeMatch[1]);
-                const iEnd = parseInt(rangeMatch[2]);
-                if (iStart >= startQ && iEnd <= endQ) {
-                    instrForGroup = content;
-                    break;
-                }
+            const isHeader = /^<strong>Questions?\s*\d+/i.test(content);
+            if (isHeader) {
+                // Skip the "Questions 1-10... Complete the notes..." header
+                continue;
+            }
+            // Check if it's a title/heading (short, wrapped in <strong>)
+            if (!mainHeading && /^<strong>[^<]+<\/strong>$/.test(content.trim()) && content.length < 200) {
+                mainHeading = content.replace(/<\/?strong>/g, '').trim();
+            } else {
+                contextInstructions.push(content);
             }
         }
+
+        if (contextInstructions.length > 0) {
+            passageHtml = contextInstructions.join('<br/>');
+        }
+
+        // Clear pending instructions (consumed)
+        pendingInstructions = [];
 
         // Build group based on type
         switch (qType) {
@@ -476,7 +519,6 @@ export function convertFlatQuestionsToGroups(flatQuestions) {
             }
 
             case "multiple-choice-multi": {
-                // All multi-select questions with same questionText share one group
                 const firstQ = sameTypeQs[0];
                 groups.push({
                     groupType: "multiple-choice-multi",
@@ -500,7 +542,6 @@ export function convertFlatQuestionsToGroups(flatQuestions) {
             case "matching-headings":
             case "map-labeling":
             case "diagram-labeling": {
-                // Extract options from first question
                 const opts = (sameTypeQs[0].options || []).map((opt, oIdx) => {
                     if (typeof opt === 'string') {
                         const letter = opt.match(/^([A-Z])/)?.[1] || String.fromCharCode(65 + oIdx);
@@ -534,13 +575,21 @@ export function convertFlatQuestionsToGroups(flatQuestions) {
             }
 
             case "table-completion": {
+                // Try to find table HTML in context instructions
+                let tableHtml = "";
+                for (const ctx of contextInstructions) {
+                    if (ctx.includes('<table')) {
+                        tableHtml = ctx;
+                        break;
+                    }
+                }
                 groups.push({
                     groupType: "table-completion",
                     startQuestion: startQ,
                     endQuestion: endQ,
                     mainInstruction: "Complete the table below.",
                     subInstruction: "Write ONE WORD AND/OR A NUMBER for each answer.",
-                    tableHtml: "",
+                    tableHtml,
                     questions: sameTypeQs.map(sq => ({
                         questionNumber: sq.questionNumber,
                         questionText: sq.questionText || '',
@@ -584,8 +633,8 @@ export function convertFlatQuestionsToGroups(flatQuestions) {
                     endQuestion: endQ,
                     mainInstruction: defaultInstr.main,
                     subInstruction: defaultInstr.sub,
-                    mainHeading: "",
-                    passage: "",
+                    mainHeading: mainHeading,
+                    passage: passageHtml,
                     questions: sameTypeQs.map(sq => ({
                         questionNumber: sq.questionNumber,
                         textBefore: sq.questionText || '',

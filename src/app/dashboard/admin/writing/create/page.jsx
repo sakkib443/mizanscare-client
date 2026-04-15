@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -158,6 +158,38 @@ export default function CreateWritingPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [showPreview, setShowPreview] = useState(true);
+    const [editTestNumber, setEditTestNumber] = useState(null);
+    const [splitPercent, setSplitPercent] = useState(50);
+    const isDragging = useRef(false);
+    const containerRef = useRef(null);
+
+    // Drag handlers for resizable split
+    const handleMouseDown = (e) => {
+        e.preventDefault();
+        isDragging.current = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!isDragging.current || !containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            const pct = ((e.clientX - rect.left) / rect.width) * 100;
+            setSplitPercent(Math.min(80, Math.max(20, pct)));
+        };
+        const handleMouseUp = () => {
+            isDragging.current = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, []);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -208,6 +240,7 @@ export default function CreateWritingPage() {
                 if (response.success && response.data) {
                     const data = response.data;
                     setIsEditMode(true);
+                    setEditTestNumber(data.testNumber || null);
 
                     setFormData({
                         title: data.title || "",
@@ -344,9 +377,9 @@ export default function CreateWritingPage() {
                 </div>
             )}
 
-            <div className={`flex flex-col ${showPreview ? "lg:flex-row" : ""} gap-8 items-start`}>
-                {/* ========== LEFT: FORM ========== */}
-                <div className={`${showPreview ? "lg:w-1/2" : "w-full"} transition-all duration-500`}>
+            <div className="flex" ref={containerRef} style={{ gap: 0 }}>
+                {/* LEFT: FORM */}
+                <div style={{ width: showPreview ? `${splitPercent}%` : '100%', minWidth: 0, paddingRight: showPreview ? '10px' : 0, transition: isDragging.current ? 'none' : 'width 0.15s ease' }}>
                     <form onSubmit={handleSubmit} className="space-y-6">
 
                         {/* Basic Info Card */}
@@ -544,15 +577,62 @@ export default function CreateWritingPage() {
                     </form>
                 </div>
 
-                {/* ========== RIGHT: PREVIEW ========== */}
+                {/* DRAGGABLE DIVIDER */}
                 {showPreview && (
-                    <div className="lg:w-1/2 sticky top-4 transition-all duration-500">
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                            <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Live Preview</h3>
-                            <span className="text-xs text-gray-400 ml-auto">How students will see this</span>
+                    <div
+                        onMouseDown={handleMouseDown}
+                        style={{
+                            width: '6px', cursor: 'col-resize', flexShrink: 0,
+                            background: 'linear-gradient(to bottom, transparent, #d1d5db 20%, #d1d5db 80%, transparent)',
+                            borderRadius: '3px', position: 'relative', zIndex: 10,
+                        }}
+                        title="টেনে resize করুন"
+                    >
+                        <div style={{
+                            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                            width: '14px', height: '36px', borderRadius: '7px',
+                            background: '#e5e7eb', border: '1px solid #d1d5db',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px'
+                        }}>
+                            <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#9ca3af' }} />
+                            <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#9ca3af' }} />
+                            <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#9ca3af' }} />
                         </div>
-                        <LivePreview formData={formData} tasks={tasks} />
+                    </div>
+                )}
+
+                {/* RIGHT: PREVIEW */}
+                {showPreview && (
+                    <div style={{ width: `${100 - splitPercent}%`, minWidth: 0, paddingLeft: '10px', transition: isDragging.current ? 'none' : 'width 0.15s ease' }} className="sticky top-4 self-start">
+                        {isEditMode && editTestNumber ? (
+                            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                                <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100">
+                                    <span className="text-xs font-semibold text-orange-700 flex items-center gap-1.5">
+                                        🎯 Live Exam Preview
+                                    </span>
+                                    <a href={`/exam/admin-preview/writing?adminPreview=${editTestNumber}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="text-[10px] text-indigo-600 hover:underline cursor-pointer flex items-center gap-1">
+                                        Open in New Tab ↗
+                                    </a>
+                                </div>
+                                <iframe
+                                    src={`/exam/admin-preview/writing?adminPreview=${editTestNumber}`}
+                                    className="w-full border-0"
+                                    style={{ height: 'calc(100vh - 120px)', minHeight: '600px' }}
+                                    title="Exam Preview"
+                                />
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                                    <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Live Preview</h3>
+                                    <span className="text-xs text-gray-400 ml-auto">How students will see this</span>
+                                </div>
+                                <LivePreview formData={formData} tasks={tasks} />
+                            </>
+                        )}
                     </div>
                 )}
             </div>

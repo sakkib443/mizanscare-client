@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { useState, useEffect, useRef, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
     FaCheck,
     FaVolumeUp,
@@ -147,19 +147,23 @@ const InstructionWithPortals = React.memo(function InstructionWithPortals({ cont
     return prevProps.content === nextProps.content && prevProps.imageUrl === nextProps.imageUrl && prevProps.textColor === nextProps.textColor && prevProps.bgColor === nextProps.bgColor;
 });
 
-export default function ListeningExamPage() {
+function ListeningExamPageContent() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const adminPreviewTestNumber = searchParams.get('adminPreview');
+    const isAdminPreview = !!adminPreviewTestNumber;
 
     const [answers, setAnswers] = useState({});
     const [timeLeft, setTimeLeft] = useState(40 * 60);
     const [showSubmitModal, setShowSubmitModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showSoundTest, setShowSoundTest] = useState(true);        // Step 1: Audio Test (first thing)
-    const [showPlayOverlay, setShowPlayOverlay] = useState(false);   // Step 2: Overlay on exam page
+    const [showSoundTest, setShowSoundTest] = useState(!isAdminPreview);  // Skip sound test in admin preview
+    const [showPlayOverlay, setShowPlayOverlay] = useState(false);
     const [soundTestPlaying, setSoundTestPlaying] = useState(false);
-    const [soundTestResult, setSoundTestResult] = useState(null);    // null | 'ask' | 'yes' | 'no'
-    const [currentPage, setCurrentPage] = useState(0); // page index (10 qs/page)
+    const [soundTestResult, setSoundTestResult] = useState(null);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [adminScoreResult, setAdminScoreResult] = useState(null); // For admin preview score popup
     const [focusedQuestion, setFocusedQuestion] = useState(1); // currently focused question number
 
     // Options menu states
@@ -194,6 +198,19 @@ export default function ListeningExamPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
+                // ═══ ADMIN PREVIEW MODE ═══
+                if (isAdminPreview) {
+                    const response = await listeningAPI.getForExam(adminPreviewTestNumber);
+                    if (response.success && response.data) {
+                        setQuestionSet(response.data);
+                    } else {
+                        setLoadError("Failed to load listening test.");
+                    }
+                    setIsLoading(false);
+                    return;
+                }
+
+                // ═══ NORMAL STUDENT MODE ═══
                 const storedSession = localStorage.getItem("examSession");
                 if (!storedSession) {
                     setLoadError("No exam session found. Please start from the home page.");
@@ -229,7 +246,6 @@ export default function ListeningExamPage() {
                     }
                 }
 
-                // Use currentSetNumber (set on exam card click) or fallback to single set
                 const listeningSetNumber = parsed.currentSetNumber || parsed.assignedSets?.listeningSetNumber;
                 if (!listeningSetNumber) {
                     setLoadError("No listening test assigned for this exam.");
@@ -250,7 +266,7 @@ export default function ListeningExamPage() {
             }
         };
         loadData();
-    }, [params.examId]);
+    }, [params.examId, isAdminPreview, adminPreviewTestNumber]);
 
     // ── Build flat question list ──────────────────────────────────────────
     const sections = questionSet?.sections || [];
@@ -451,6 +467,15 @@ export default function ListeningExamPage() {
         const score = calculateScore();
         const band = getBandScore(score);
 
+        // ═══ ADMIN PREVIEW: Show score popup, don't save to DB ═══
+        if (isAdminPreview) {
+            setIsSubmitting(false);
+            setShowSubmitModal(false);
+            setAdminScoreResult({ score, total: totalMarks, band, answered: answeredCount });
+            return;
+        }
+
+        // ═══ NORMAL STUDENT: Save to DB ═══
         const detailedAnswers = allRealQuestions.map(q => {
             const ua = answers[q.displayNumber] || "";
             let cmp = ua.toString().trim();
@@ -1379,6 +1404,50 @@ export default function ListeningExamPage() {
                 }
 
                 {/* ══════════════════════════════════════
+                    ADMIN PREVIEW SCORE POPUP
+                ══════════════════════════════════════ */}
+                {
+                    adminScoreResult && (
+                        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '16px' }}>
+                            <div style={{ background: 'white', padding: '32px', maxWidth: '400px', width: '100%', borderRadius: '12px', boxShadow: '0 25px 50px rgba(0,0,0,0.3)', textAlign: 'center' }}>
+                                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                    <FaCheck style={{ fontSize: '28px', color: '#10b981' }} />
+                                </div>
+                                <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>Admin Preview Result</h2>
+                                <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>This is a preview — no data was saved.</p>
+
+                                <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '20px', marginBottom: '16px' }}>
+                                    <p style={{ fontSize: '42px', fontWeight: 'bold', color: '#1f2937' }}>
+                                        {adminScoreResult.score}<span style={{ fontSize: '20px', color: '#9ca3af' }}>/{adminScoreResult.total}</span>
+                                    </p>
+                                    <p style={{ color: '#6b7280', fontSize: '14px', marginTop: '4px' }}>Correct Answers</p>
+                                    <div style={{ marginTop: '12px', padding: '8px 16px', background: '#eef2ff', borderRadius: '6px', display: 'inline-block' }}>
+                                        <span style={{ fontSize: '14px', color: '#4338ca', fontWeight: '600' }}>Band Score: {adminScoreResult.band}</span>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: '#6b7280', justifyContent: 'center', marginBottom: '16px' }}>
+                                    <span>Answered: {adminScoreResult.answered}/{adminScoreResult.total}</span>
+                                    <span>•</span>
+                                    <span>Unanswered: {adminScoreResult.total - adminScoreResult.answered}</span>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button onClick={() => setAdminScoreResult(null)}
+                                        style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', borderRadius: '6px', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>
+                                        Continue Reviewing
+                                    </button>
+                                    <button onClick={() => window.close()}
+                                        style={{ flex: 1, padding: '10px', background: '#4f46e5', color: 'white', borderRadius: '6px', fontWeight: '600', fontSize: '13px', cursor: 'pointer', border: 'none' }}>
+                                        Close Preview
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* ══════════════════════════════════════
                     OPTIONS MENU — Inspera Style
                 ══════════════════════════════════════ */}
                 {
@@ -1529,8 +1598,12 @@ export default function ListeningExamPage() {
 function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFocused = false }) {
     const rawText = q.questionText || '';
 
+    // If text starts with ~ then suppress bullets (used for plain sentences like dentistry history)
+    const noBullet = rawText.startsWith('~');
+    const displayText = noBullet ? rawText.slice(1).trimStart() : rawText;
+
     // Handle header rows (e.g. "**Dining table**")
-    const isHeader = rawText.startsWith('**') && rawText.endsWith('**');
+    const isHeader = displayText.startsWith('**') && displayText.endsWith('**');
     if (isHeader) {
         return (
             <div style={{
@@ -1541,13 +1614,13 @@ function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFoc
                 color: textColor,
                 fontFamily: 'Arial, sans-serif'
             }}>
-                {rawText.replace(/\*\*/g, '')}
+                {displayText.replace(/\*\*/g, '')}
             </div>
         );
     }
 
     // Normalize: replace {blank} with ________
-    const normalizedText = rawText.replace(/\{blank\}/g, '________');
+    const normalizedText = displayText.replace(/\{blank\}/g, '________');
     const cleanedText = normalizedText.replace(/\[\d+\]/g, '').trim();
 
     // Single box input — number shows centered when empty, answer replaces it
@@ -1615,7 +1688,7 @@ function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFoc
     if (parts.length >= 2) {
         return (
             <div id={`q-${q.displayNumber}`} style={rowStyle}>
-                <span style={{ color: textColor, fontSize: '18px', marginRight: '10px' }}>•</span>
+                {!noBullet && <span style={{ color: textColor, fontSize: '18px', marginRight: '10px' }}>•</span>}
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ verticalAlign: 'middle' }}>{parts[0]}</span>
                     {InlineInput}
@@ -1627,11 +1700,24 @@ function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFoc
 
     return (
         <div id={`q-${q.displayNumber}`} style={rowStyle}>
-            <span style={{ color: textColor, fontSize: '18px', marginRight: '10px' }}>•</span>
+            {!noBullet && <span style={{ color: textColor, fontSize: '18px', marginRight: '10px' }}>•</span>}
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ verticalAlign: 'middle' }}>{cleanedText}</span>
                 {InlineInput}
             </div>
         </div>
+    );
+}
+
+// ═══ Suspense wrapper for useSearchParams ═══
+export default function ListeningExamPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-white flex items-center justify-center">
+                <FaSpinner className="animate-spin text-4xl text-gray-500" />
+            </div>
+        }>
+            <ListeningExamPageContent />
+        </Suspense>
     );
 }

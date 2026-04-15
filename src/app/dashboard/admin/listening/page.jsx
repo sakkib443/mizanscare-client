@@ -18,6 +18,7 @@ import {
     FaExclamationTriangle,
     FaVolumeUp,
     FaUpload,
+    FaEye,
 } from "react-icons/fa";
 import { listeningAPI } from "@/lib/api";
 
@@ -295,6 +296,15 @@ export default function ListeningListPage() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center justify-center gap-1">
+                                                    <a
+                                                        href={`/exam/admin-preview/listening?adminPreview=${test.testNumber}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="p-2 text-gray-400 hover:text-green-600 rounded-md transition-colors"
+                                                        title="Preview Exam"
+                                                    >
+                                                        <FaEye size={13} />
+                                                    </a>
                                                     <Link
                                                         href={`/dashboard/admin/listening/create?edit=${test._id}`}
                                                         className="p-2 text-gray-400 hover:text-indigo-600 rounded-md transition-colors"

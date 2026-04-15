@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
     FaBook,
     FaChevronLeft,
@@ -19,9 +19,14 @@ import { readingAPI, studentsAPI } from "@/lib/api";
 import ExamSecurity from "@/components/ExamSecurity";
 import TextHighlighter from "@/components/TextHighlighter";
 
-export default function ReadingExamPage() {
+
+
+function ReadingExamPageContent() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const adminPreviewTestNumber = searchParams.get('adminPreview');
+    const isAdminPreview = !!adminPreviewTestNumber;
 
     const [currentPassage, setCurrentPassage] = useState(0);
     const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -29,7 +34,8 @@ export default function ReadingExamPage() {
     const [timeLeft, setTimeLeft] = useState(60 * 60);
     const [showSubmitModal, setShowSubmitModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showInstructions, setShowInstructions] = useState(true);
+    const [showInstructions, setShowInstructions] = useState(!isAdminPreview);
+    const [adminScoreResult, setAdminScoreResult] = useState(null);
     const [fontSize, setFontSize] = useState(16);
     const [focusedQuestion, setFocusedQuestion] = useState(1);
     const [splitPercent, setSplitPercent] = useState(50); // left panel width %
@@ -93,7 +99,22 @@ export default function ReadingExamPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
-                // Get session from localStorage
+                // ═══ ADMIN PREVIEW MODE ═══
+                if (isAdminPreview) {
+                    const response = await readingAPI.getForExam(adminPreviewTestNumber);
+                    if (response.success && response.data) {
+                        const data = response.data;
+                        const sectionsData = data.sections || data.passages || (Array.isArray(data) ? data : []);
+                        data.sections = sectionsData;
+                        setQuestionSet(data);
+                    } else {
+                        setLoadError("Failed to load reading test.");
+                    }
+                    setIsLoading(false);
+                    return;
+                }
+
+                // ═══ NORMAL STUDENT MODE ═══
                 const storedSession = localStorage.getItem("examSession");
                 if (!storedSession) {
                     setLoadError("No exam session found. Please start from the home page.");
@@ -104,7 +125,6 @@ export default function ReadingExamPage() {
                 const parsed = JSON.parse(storedSession);
                 setSession(parsed);
 
-                // IMPORTANT: Fetch fresh completion status from DATABASE
                 try {
                     const verifyResponse = await studentsAPI.verifyExamId(parsed.examId);
                     if (verifyResponse.success && verifyResponse.data) {
@@ -133,7 +153,6 @@ export default function ReadingExamPage() {
                     }
                 }
 
-                // Use currentSetNumber (set on exam card click) or fallback to single set
                 const readingSetNumber = parsed.currentSetNumber || parsed.assignedSets?.readingSetNumber;
                 if (!readingSetNumber) {
                     setLoadError("No reading test assigned for this exam.");
@@ -141,22 +160,11 @@ export default function ReadingExamPage() {
                     return;
                 }
 
-                // Fetch question set from backend
                 const response = await readingAPI.getForExam(readingSetNumber);
-                console.log("Reading API Response:", response);
-
                 if (response.success && response.data) {
                     const data = response.data;
-                    console.log("Original Reading Data:", data);
-
-                    // Support both 'sections' and 'passages' format from backend
                     const sectionsData = data.sections || data.passages || (Array.isArray(data) ? data : []);
-                    console.log("Sections to process:", sectionsData);
-
-                    // Remove auto-numbering to trust DB provided numbers
-                    // Normalize data structure for frontend
                     data.sections = sectionsData;
-                    console.log("Final Processed Data:", data);
                     setQuestionSet(data);
                 } else {
                     setLoadError("Failed to load reading test questions.");
@@ -170,7 +178,7 @@ export default function ReadingExamPage() {
         };
 
         loadData();
-    }, [params.examId]);
+    }, [params.examId, isAdminPreview, adminPreviewTestNumber]);
 
     // Build passages from question set sections
     const passages = (questionSet?.sections || questionSet?.passages || []).map((section, index) => {
@@ -406,74 +414,53 @@ export default function ReadingExamPage() {
         const score = calculateScore();
         const bandScore = getBandScore(score);
 
-        // Prepare detailed answers for admin review
+        // ═══ ADMIN PREVIEW: Show score popup, don't save to DB ═══
+        if (isAdminPreview) {
+            setIsSubmitting(false);
+            setShowSubmitModal(false);
+            setAdminScoreResult({ score, total: totalMarks, band: bandScore, answered: answeredCount });
+            return;
+        }
+
+        // ═══ NORMAL STUDENT: Save to DB ═══
         const detailedAnswers = allQuestions.map(q => {
             const userAnswer = answers[q.questionNumber] || "";
-
-            // For MCQ/TFNG/matching, extract the letter or answer from selected option
             let studentAnswerForComparison = userAnswer.toString().trim();
             const qType = q.type || q.questionType || "";
-
             if ((qType === "multiple-choice" || qType === "mcq" || qType === "matching") && userAnswer) {
-                // Extract the first letter if it's like "A. Some text" or "B. Some text"
                 const letterMatch = userAnswer.toString().match(/^([A-Za-z])\./);
-                if (letterMatch) {
-                    studentAnswerForComparison = letterMatch[1].toUpperCase();
-                }
+                if (letterMatch) studentAnswerForComparison = letterMatch[1].toUpperCase();
             }
-
             return {
-                questionNumber: q.questionNumber,
-                questionText: q.text || q.questionText || "", // Include question text
-                questionType: qType || "fill-in-blank",
-                studentAnswer: studentAnswerForComparison, // Store extracted answer
-                studentAnswerFull: userAnswer, // Store full answer text for reference
-                correctAnswer: q.correctAnswer,
-                isCorrect: false // Will be recalculated on backend
+                questionNumber: q.questionNumber, questionText: q.text || q.questionText || "",
+                questionType: qType || "fill-in-blank", studentAnswer: studentAnswerForComparison,
+                studentAnswerFull: userAnswer, correctAnswer: q.correctAnswer, isCorrect: false
             };
         });
 
-        // Get session data from localStorage or state
         const storedSession = localStorage.getItem("examSession");
         let sessionData = storedSession ? JSON.parse(storedSession) : session;
         const examId = sessionData?.examId || session?.examId;
 
-        // Save to backend
         try {
             const currentSetNumber = sessionData?.currentSetNumber;
             const response = await studentsAPI.saveModuleScore(examId, "reading", {
-                score: score,
-                total: totalMarks,
-                band: bandScore,
-                answers: detailedAnswers,
-                setNumber: currentSetNumber
+                score, total: totalMarks, band: bandScore, answers: detailedAnswers, setNumber: currentSetNumber
             });
-            console.log("Reading data saved with answers");
-
-            // Update localStorage
             if (response.success && sessionData) {
                 sessionData.completedModules = response.data?.completedModules || [...(sessionData.completedModules || []), currentSetNumber ? `reading:${currentSetNumber}` : "reading"];
-                sessionData.scores = response.data?.scores || {
-                    ...(sessionData.scores || {}),
-                    reading: { band: bandScore, raw: score, correctAnswers: score, totalQuestions: totalMarks }
-                };
+                sessionData.scores = response.data?.scores || { ...(sessionData.scores || {}), reading: { band: bandScore, raw: score, correctAnswers: score, totalQuestions: totalMarks } };
                 localStorage.setItem("examSession", JSON.stringify(sessionData));
             }
         } catch (error) {
             console.error("Failed to save reading score:", error);
-            // Still update localStorage even if backend fails
             if (sessionData) {
                 const currentSetNumber = sessionData?.currentSetNumber;
                 sessionData.completedModules = [...(sessionData.completedModules || []), currentSetNumber ? `reading:${currentSetNumber}` : "reading"];
-                sessionData.scores = {
-                    ...(sessionData.scores || {}),
-                    reading: { band: bandScore, raw: score, correctAnswers: score, totalQuestions: totalMarks }
-                };
+                sessionData.scores = { ...(sessionData.scores || {}), reading: { band: bandScore, raw: score, correctAnswers: score, totalQuestions: totalMarks } };
                 localStorage.setItem("examSession", JSON.stringify(sessionData));
             }
         }
-
-        // Go back to exam selection page
         router.push(`/exam/${params.examId}`);
     };
 
@@ -658,11 +645,9 @@ export default function ReadingExamPage() {
                     <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
                     {currentPass.source && <p style={{ fontSize: `${12 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text, marginBottom: '12px', fontStyle: 'italic' }}>{currentPass.source}</p>}
                     <TextHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
-                        <div 
-                            className="reading-passage-content"
-                            style={{ color: cs.text, lineHeight: '1.8', fontSize: `${16 * tScale}px` }}
-                            dangerouslySetInnerHTML={{ __html: currentPass.content }} 
-                        />
+                        {(currentPass.content || '').replace(/\\n/g, '\n').split('\n\n').map((para, index) => (
+                            <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>{para}</p>
+                        ))}
                     </TextHighlighter>
                 </div >
 
@@ -855,6 +840,21 @@ export default function ReadingExamPage() {
                                                             <span>{opt.text}</span>
                                                         </div>
                                                     ))}
+                                                </div>
+                                            )}
+
+                                            {/* Headings List for matching-headings */}
+                                            {group.headingsList?.length > 0 && (
+                                                <div style={{ marginTop: '12px', marginBottom: '16px', background: contrastMode === 'black-on-white' ? '#f8fafc' : '#1e293b', border: `1px solid ${contrastMode === 'black-on-white' ? '#e2e8f0' : '#334155'}`, borderRadius: '8px', padding: '16px' }}>
+                                                    <p style={{ fontWeight: 'bold', color: cs.text, marginBottom: '8px', fontSize: `${15 * tScale}px` }}>List of Headings</p>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                        {group.headingsList.map(h => (
+                                                            <div key={h.numeral} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', paddingLeft: '8px' }}>
+                                                                <span style={{ fontWeight: 'bold', color: cs.text, minWidth: '28px', fontSize: `${14 * tScale}px` }}>{h.numeral}.</span>
+                                                                <span style={{ color: cs.text, fontSize: `${14 * tScale}px` }}>{h.text}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
 
@@ -1116,46 +1116,36 @@ export default function ReadingExamPage() {
                                                     )
                                                 ))}
                                             </div>
+
+                                            {/* Fallback: render statements with dropdowns for summary-with-options */}
+                                            {!group.summarySegments?.length && group.statements?.length > 0 && (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+                                                    {group.statements.map(stmt => (
+                                                        <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                                            <span style={{ border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === stmt.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', flexShrink: 0, borderRadius: '2px', marginTop: '2px' }}>{stmt.questionNumber}</span>
+                                                            <span style={{ flex: 1, color: cs.text, fontSize: '15px', lineHeight: '1.6' }}>
+                                                                {(stmt.text || '').split(/_{3,}/).map((part, pIdx, arr) => (
+                                                                    <span key={pIdx}>
+                                                                        {part}
+                                                                        {pIdx < arr.length - 1 && (
+                                                                            <select value={answers[stmt.questionNumber] || ""} onChange={e => handleAnswer(stmt.questionNumber, e.target.value)} style={{ border: `1px solid ${cs.text}`, padding: '4px 8px', fontSize: '14px', background: cs.bg, color: cs.text, cursor: 'pointer', width: '70px', textAlign: 'center', borderRadius: '2px', margin: '0 4px' }}>
+                                                                                <option value="">--</option>
+                                                                                {group.phraseList?.map(phrase => <option key={phrase.letter} value={phrase.letter}>{phrase.letter}</option>)}
+                                                                            </select>
+                                                                        )}
+                                                                    </span>
+                                                                ))}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
                                     {/* â”€â”€ YES/NO/NOT GIVEN â”€â”€ */}
-                                    {group.groupType === "yes-no-not-given" && (
-                                        <div style={{ marginBottom: '20px' }}>
-                                            <p style={{ color: cs.text, marginBottom: '4px' }}>{group.mainInstruction}</p>
-                                            <p style={{ color: cs.text, marginBottom: '8px' }}>{group.subInstruction}</p>
-                                            <div style={{ paddingLeft: '16px', fontSize: `${13 * tScale}px`, marginBottom: '12px' }}>
-                                                {group.optionsExplanation?.map(opt => (
-                                                    <div key={opt.label} style={{ color: cs.text }}><b>{opt.label}</b> {opt.description}</div>
-                                                ))}
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                {group.statements?.map(stmt => (
-                                                    <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ paddingBottom: '8px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
-                                                            <span style={{ border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === stmt.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', borderRadius: '2px' }}>{stmt.questionNumber}</span>
-                                                            <span style={{ color: cs.text }}>{stmt.text}</span>
-                                                        </div>
-                                                        <div style={{ marginLeft: '32px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                            {["YES", "NO", "NOT GIVEN"].map((opt, oIdx) => {
-                                                                const letter = String.fromCharCode(65 + oIdx);
-                                                                const isSel = answers[stmt.questionNumber] === opt;
-                                                                return (
-                                                                    <div key={opt} onClick={() => handleAnswer(stmt.questionNumber, opt)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                                                                        <span style={{ fontWeight: 'bold', width: '16px', color: cs.text }}>{letter}</span>
-                                                                        <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
-                                                                            {isSel && <div style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%' }} />}
-                                                                        </div>
-                                                                        <span style={{ color: cs.text, fontWeight: isSel ? '600' : '400', fontSize: '14px' }}>{opt}</span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+
+
 
                                     {/* â”€â”€ MULTIPLE CHOICE FULL â”€â”€ */}
                                     {group.groupType === "multiple-choice-full" && (
@@ -1394,6 +1384,31 @@ export default function ReadingExamPage() {
                 OPTIONS MENU â€” Inspera Style
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
             {
+                adminScoreResult && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '16px' }}>
+                        <div style={{ background: 'white', padding: '32px', maxWidth: '400px', width: '100%', borderRadius: '12px', boxShadow: '0 25px 50px rgba(0,0,0,0.3)', textAlign: 'center' }}>
+                            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                <FaCheck style={{ fontSize: '28px', color: '#10b981' }} />
+                            </div>
+                            <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>Admin Preview Result</h2>
+                            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>This is a preview — no data was saved.</p>
+                            <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '20px', marginBottom: '16px' }}>
+                                <p style={{ fontSize: '42px', fontWeight: 'bold', color: '#1f2937' }}>{adminScoreResult.score}<span style={{ fontSize: '20px', color: '#9ca3af' }}>/{adminScoreResult.total}</span></p>
+                                <p style={{ color: '#6b7280', fontSize: '14px', marginTop: '4px' }}>Correct Answers</p>
+                                <div style={{ marginTop: '12px', padding: '8px 16px', background: '#eef2ff', borderRadius: '6px', display: 'inline-block' }}>
+                                    <span style={{ fontSize: '14px', color: '#4338ca', fontWeight: '600' }}>Band Score: {adminScoreResult.band}</span>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button onClick={() => setAdminScoreResult(null)} style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', borderRadius: '6px', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Continue Reviewing</button>
+                                <button onClick={() => window.close()} style={{ flex: 1, padding: '10px', background: '#4f46e5', color: 'white', borderRadius: '6px', fontWeight: '600', fontSize: '13px', cursor: 'pointer', border: 'none' }}>Close Preview</button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {
                 showOptionsMenu && (
                     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, paddingTop: '60px' }}>
                         <div style={{ background: 'white', maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', borderRadius: '4px', overflow: 'hidden' }}>
@@ -1476,5 +1491,13 @@ export default function ReadingExamPage() {
             }
 
         </div >
+    );
+}
+
+export default function ReadingExamPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center"><FaSpinner className="animate-spin text-4xl text-blue-600" /></div>}>
+            <ReadingExamPageContent />
+        </Suspense>
     );
 }

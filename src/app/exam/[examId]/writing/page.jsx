@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
     FaPen,
     FaClock,
@@ -27,12 +27,15 @@ import TextHighlighter from "@/components/TextHighlighter";
 
 
 
-export default function WritingExamPage() {
+function WritingExamPageContent() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const adminPreviewTestNumber = searchParams.get('adminPreview');
+    const isAdminPreview = !!adminPreviewTestNumber;
 
     const [answers, setAnswers] = useState({ task1: "", task2: "" });
-    const [showInstructions, setShowInstructions] = useState(true);
+    const [showInstructions, setShowInstructions] = useState(!isAdminPreview);
     const [splitPercent, setSplitPercent] = useState(50);
 
     const [phase, setPhase] = useState("select");
@@ -49,6 +52,7 @@ export default function WritingExamPage() {
     const [loadError, setLoadError] = useState("");
     const [questionSet, setQuestionSet] = useState(null);
     const [session, setSession] = useState(null);
+    const [adminScoreResult, setAdminScoreResult] = useState(null);
 
     // Options menu
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
@@ -103,6 +107,22 @@ export default function WritingExamPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
+                // ═══ ADMIN PREVIEW MODE ═══
+                if (isAdminPreview) {
+                    const response = await writingAPI.getForExam(adminPreviewTestNumber);
+                    if (response.success && response.data) {
+                        setQuestionSet(response.data);
+                        const t = response.data.tasks || [];
+                        if (t[0]?.recommendedTime) setPart1Time(t[0].recommendedTime * 60);
+                        if (t[1]?.recommendedTime) setPart2Time(t[1].recommendedTime * 60);
+                    } else {
+                        setLoadError("Failed to load writing test.");
+                    }
+                    setIsLoading(false);
+                    return;
+                }
+
+                // ═══ NORMAL STUDENT MODE ═══
                 const storedSession = localStorage.getItem("examSession");
                 if (!storedSession) {
                     setLoadError("No exam session found. Please start from the home page.");
@@ -138,7 +158,6 @@ export default function WritingExamPage() {
                     }
                 }
 
-                // Use currentSetNumber (set on exam card click) or fallback to single set
                 const writingSetNumber = parsed.currentSetNumber || parsed.assignedSets?.writingSetNumber;
                 if (!writingSetNumber) {
                     setLoadError("No writing test assigned for this exam.");
@@ -161,7 +180,7 @@ export default function WritingExamPage() {
             }
         };
         loadData();
-    }, [params.examId]);
+    }, [params.examId, isAdminPreview, adminPreviewTestNumber]);
 
     // ===== BUILD TASKS =====
     const tasks = (questionSet?.tasks || []).map((task, index) => {
@@ -247,6 +266,15 @@ export default function WritingExamPage() {
         const task1Words = answers.task1?.trim().split(/\s+/).filter(Boolean).length || 0;
         const task2Words = answers.task2?.trim().split(/\s+/).filter(Boolean).length || 0;
         const bandScore = getWritingBandScore(task1Words, task2Words);
+
+        // ═══ ADMIN PREVIEW: Show score popup ═══
+        if (isAdminPreview) {
+            setIsSubmitting(false);
+            setAdminScoreResult({ band: bandScore, task1Words, task2Words });
+            return;
+        }
+
+        // ═══ NORMAL STUDENT: Save to DB ═══
         const storedSession = localStorage.getItem("examSession");
         const sessionData = storedSession ? JSON.parse(storedSession) : null;
         const examId = sessionData?.examId;
@@ -745,8 +773,40 @@ export default function WritingExamPage() {
     // Fallback
     return (
         <div style={{ minHeight: '100vh', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {adminScoreResult && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '16px' }}>
+                    <div style={{ background: 'white', padding: '32px', maxWidth: '400px', width: '100%', borderRadius: '12px', boxShadow: '0 25px 50px rgba(0,0,0,0.3)', textAlign: 'center' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                            <FaCheck style={{ fontSize: '28px', color: '#10b981' }} />
+                        </div>
+                        <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>Admin Preview Result</h2>
+                        <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>This is a preview — no data was saved.</p>
+                        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '20px', marginBottom: '16px' }}>
+                            <div style={{ marginBottom: '12px', padding: '8px 16px', background: '#eef2ff', borderRadius: '6px', display: 'inline-block' }}>
+                                <span style={{ fontSize: '18px', color: '#4338ca', fontWeight: '600' }}>Band Score: {adminScoreResult.band}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '12px' }}>
+                                <div><p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>{adminScoreResult.task1Words}</p><p style={{ color: '#6b7280', fontSize: '12px' }}>Task 1 Words</p></div>
+                                <div><p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>{adminScoreResult.task2Words}</p><p style={{ color: '#6b7280', fontSize: '12px' }}>Task 2 Words</p></div>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button onClick={() => { setAdminScoreResult(null); setPhase('select'); setCompletedParts([]); }} style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', borderRadius: '6px', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Restart Review</button>
+                            <button onClick={() => window.close()} style={{ flex: 1, padding: '10px', background: '#4f46e5', color: 'white', borderRadius: '6px', fontWeight: '600', fontSize: '13px', cursor: 'pointer', border: 'none' }}>Close Preview</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <FaSpinner style={{ fontSize: '24px', color: '#9ca3af', animation: 'spin 1s linear infinite' }} />
             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
+    );
+}
+
+export default function WritingExamPage() {
+    return (
+        <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FaSpinner style={{ fontSize: '24px', color: '#9ca3af', animation: 'spin 1s linear infinite' }} /></div>}>
+            <WritingExamPageContent />
+        </Suspense>
     );
 }

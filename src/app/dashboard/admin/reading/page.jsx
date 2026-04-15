@@ -16,6 +16,7 @@ import {
     FaChevronRight,
     FaTimes,
     FaExclamationTriangle,
+    FaEye,
 } from "react-icons/fa";
 import { readingAPI } from "@/lib/api";
 
@@ -255,6 +256,15 @@ export default function ReadingListPage() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center justify-center gap-1">
+                                                    <a
+                                                        href={`/exam/admin-preview/reading?adminPreview=${test.testNumber}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="p-2 text-gray-400 hover:text-green-600 rounded-md transition-colors"
+                                                        title="Preview Exam"
+                                                    >
+                                                        <FaEye />
+                                                    </a>
                                                     <Link
                                                         href={`/dashboard/admin/reading/create?edit=${test._id}`}
                                                         className="p-2 text-gray-400 hover:text-blue-600 rounded-md transition-colors"
