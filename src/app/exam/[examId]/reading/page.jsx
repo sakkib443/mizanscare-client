@@ -41,6 +41,14 @@ function ReadingExamPageContent() {
     const [splitPercent, setSplitPercent] = useState(50); // left panel width %
     const isDragging = useRef(false);
     const containerRef = useRef(null);
+    const passagePanelRef = useRef(null);
+    const questionsPanelRef = useRef(null);
+
+    // Reset scroll position of both panels whenever we switch passage (tab click / next / prev)
+    useEffect(() => {
+        passagePanelRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+        questionsPanelRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    }, [currentPassage]);
 
     // Splitter drag handlers
     const onSplitterMouseDown = useCallback((e) => {
@@ -641,13 +649,26 @@ function ReadingExamPageContent() {
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
             < div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
                 {/* LEFT: Passage Text */}
-                < div style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
+                < div ref={passagePanelRef} style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
                     <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
                     {currentPass.source && <p style={{ fontSize: `${12 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text, marginBottom: '12px', fontStyle: 'italic' }}>{currentPass.source}</p>}
                     <TextHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
-                        {(currentPass.content || '').replace(/\\n/g, '\n').split('\n\n').map((para, index) => (
-                            <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>{para}</p>
-                        ))}
+                        {(currentPass.content || '').replace(/\\n/g, '\n').split('\n\n').map((para, index) => {
+                            const labelMatch = para.match(/^([A-Z])\s+/);
+                            if (labelMatch) {
+                                return (
+                                    <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>
+                                        <span style={{ fontWeight: 'bold', fontSize: `${20 * tScale}px` }}>{labelMatch[1]}</span>{'  '}{para.slice(labelMatch[0].length)}
+                                    </p>
+                                );
+                            }
+                            // ── BOLD HEADING: **heading text** ── (NEW — does not affect existing passages)
+                            const boldHeadingMatch = para.match(/^\*\*(.*)\*\*$/);
+                            if (boldHeadingMatch) {
+                                return <h4 key={index} style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginTop: '20px', marginBottom: '8px' }}>{boldHeadingMatch[1]}</h4>;
+                            }
+                            return <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>{para}</p>;
+                        })}
                     </TextHighlighter>
                 </div >
 
@@ -665,25 +686,80 @@ function ReadingExamPageContent() {
                 </div>
 
                 {/* RIGHT: Questions */}
-                < div style={{ flex: 1, overflowY: 'auto', padding: '20px 30px 250px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif' }}>
+                < div ref={questionsPanelRef} style={{ flex: 1, overflowY: 'auto', padding: '20px 30px 250px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif' }}>
                     <TextHighlighter passageId={`reading_questions_${currentPassage}`} contrastMode={contrastMode}>
                         {currentPass.questionGroups && currentPass.questionGroups.length > 0 ? (
                             currentPass.questionGroups.map((group, gIdx) => (
                                 <div key={gIdx} style={{ marginBottom: '24px' }}>
 
                                     {/* â”€â”€ NOTE COMPLETION â”€â”€ */}
-                                    {(group.questionType === "note-completion" || group.groupType === "note-completion") && (
+                                    {(group.questionType === "note-completion" || group.groupType === "note-completion" || group.groupType === "table-completion") && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <div style={{ marginBottom: '12px' }}>
                                                 <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px', fontSize: `${16 * tScale}px` }}>{group.instructions || group.mainInstruction}</p>
-                                                <p style={{ color: cs.text, fontSize: `${13 * tScale}px`, fontStyle: 'italic' }}>
-                                                    Choose <b>ONE WORD ONLY</b> from the passage for each answer.
-                                                </p>
+                                                {group.subInstruction ? (
+                                                    <p style={{ color: cs.text, fontSize: `${13 * tScale}px`, fontStyle: 'italic' }}>{group.subInstruction}</p>
+                                                ) : (
+                                                    <p style={{ color: cs.text, fontSize: `${13 * tScale}px`, fontStyle: 'italic' }}>
+                                                        Choose <b>ONE WORD ONLY</b> from the passage for each answer.
+                                                    </p>
+                                                )}
                                             </div>
 
                                             {group.mainHeading && <h3 style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginBottom: '12px', borderBottom: `2px solid ${contrastMode === 'black-on-white' ? '#dbeafe' : cs.text}`, paddingBottom: '6px' }}>{group.mainHeading}</h3>}
 
-                                            {(group.passage || "").split('\n').map((line, lineIdx) => {
+                                            {/* ── TABLE FORMAT (notesTable) ── */}
+                                            {group.notesTable?.length > 0 && (() => {
+                                                const renderTableLine = (text) => {
+                                                    const parts = text.split(/(\d+\s*__________)/g);
+                                                    return parts.map((part, pIdx) => {
+                                                        const match = part.match(/(\d+)\s*__________/);
+                                                        if (match) {
+                                                            const qNum = parseInt(match[1]);
+                                                            const val = answers[qNum] || '';
+                                                            return (
+                                                                <span key={pIdx} id={`q-${qNum}`} style={{ display: 'inline-flex', alignItems: 'center', margin: '0 4px', verticalAlign: 'middle', position: 'relative', border: focusedQuestion === qNum ? '2.5px solid #2563eb' : `1.5px solid ${cs.text}`, background: 'transparent', width: '160px', height: '28px', justifyContent: 'center' }}>
+                                                                    {!val && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '13px', color: cs.text, pointerEvents: 'none', userSelect: 'none' }}>{qNum}</span>}
+                                                                    <input type="text" value={val} onChange={e => handleAnswer(qNum, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '14px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 6px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
+                                                                </span>
+                                                            );
+                                                        }
+                                                        return <span key={pIdx}>{part}</span>;
+                                                    });
+                                                };
+                                                return group.notesTable.map((tableSection, tsIdx) => (
+                                                    <div key={tsIdx} style={{ marginBottom: '16px' }}>
+                                                        {tableSection.title && (
+                                                            <div style={{ background: contrastMode === 'black-on-white' ? '#1e293b' : '#334155', color: '#fff', padding: '8px 14px', fontWeight: 'bold', fontSize: `${14 * tScale}px`, textAlign: 'center' }}>
+                                                                {tableSection.title}
+                                                            </div>
+                                                        )}
+                                                        <table style={{ width: '100%', borderCollapse: 'collapse', border: `1px solid ${contrastMode === 'black-on-white' ? '#cbd5e1' : '#555'}` }}>
+                                                            <tbody>
+                                                                {tableSection.rows.map((row, rIdx) => (
+                                                                    <tr key={rIdx} style={{ borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#e2e8f0' : '#444'}` }}>
+                                                                        <td style={{ padding: '10px 14px', fontWeight: 'bold', fontSize: `${14 * tScale}px`, color: cs.text, verticalAlign: 'top', width: '140px', borderRight: `1px solid ${contrastMode === 'black-on-white' ? '#e2e8f0' : '#444'}`, background: contrastMode === 'black-on-white' ? '#f8fafc' : '#1e293b', whiteSpace: 'nowrap' }}>
+                                                                            {row.label.includes('__________') ? renderTableLine(row.label) : row.label}
+                                                                        </td>
+                                                                        <td style={{ padding: '10px 14px', color: cs.text, fontSize: `${14 * tScale}px`, verticalAlign: 'top', lineHeight: '1.7' }}>
+                                                                            {row.content && <span>{renderTableLine(row.content)}</span>}
+                                                                            {row.bullets && row.bullets.map((bullet, bIdx) => (
+                                                                                <div key={bIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '3px' }}>
+                                                                                    <span style={{ marginTop: '3px', fontSize: '8px', flexShrink: 0 }}>•</span>
+                                                                                    <span style={{ flex: 1 }}>{renderTableLine(bullet)}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                ));
+                                            })()}
+
+                                            {/* ── PASSAGE FORMAT (existing, unchanged) ── */}
+                                            {!(group.notesTable?.length > 0) && (group.passage || "").split('\n').map((line, lineIdx) => {
                                                 const rawLine = line;
                                                 const trimmedLine = line.trim();
                                                 if (!trimmedLine) return <div key={lineIdx} style={{ height: '8px' }} />;
@@ -717,7 +793,7 @@ function ReadingExamPageContent() {
                                                 return <p key={lineIdx} style={{ color: cs.text, lineHeight: '1.6', marginBottom: '4px', marginLeft: '8px', whiteSpace: 'pre-wrap', fontFamily: rawLine.startsWith(' ') ? 'monospace' : 'inherit' }}>{renderLine(rawLine)}</p>;
                                             })}
 
-                                            {!group.passage && group.notesSections?.map((section, sIdx) => (
+                                            {!(group.notesTable?.length > 0) && !group.passage && group.notesSections?.map((section, sIdx) => (
                                                 <div key={sIdx} style={{ marginTop: '12px' }}>
                                                     <h4 style={{ fontWeight: 'bold', color: cs.text, marginBottom: '8px' }}>{section.subHeading}</h4>
                                                     <div style={{ paddingLeft: '16px' }}>
@@ -858,6 +934,19 @@ function ReadingExamPageContent() {
                                                 </div>
                                             )}
 
+                                            {/* Example answer (pre-filled, not a question) — e.g. "Paragraph B — iii" */}
+                                            {group.exampleItems?.length > 0 && (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px', marginBottom: '12px', padding: '10px 12px', background: contrastMode === 'black-on-white' ? '#f1f5f9' : '#0f172a', border: `1px dashed ${contrastMode === 'black-on-white' ? '#94a3b8' : '#475569'}`, borderRadius: '4px' }}>
+                                                    {group.exampleItems.map((ex, eIdx) => (
+                                                        <div key={eIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <span style={{ fontWeight: 'bold', color: cs.text, fontSize: `${13 * tScale}px`, fontStyle: 'italic', minWidth: '72px' }}>Example</span>
+                                                            <span style={{ flex: 1, color: cs.text, fontSize: '15px' }}>{ex.text}</span>
+                                                            <span style={{ border: `1px solid ${cs.text}`, padding: '2px 10px', fontWeight: 'bold', color: cs.text, background: cs.bg, width: '70px', textAlign: 'center', borderRadius: '2px', fontSize: '14px' }}>{ex.answer}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
                                                 {group.matchingItems?.map(item => (
                                                     <div key={item.questionNumber} id={`q-${item.questionNumber}`} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -868,6 +957,79 @@ function ReadingExamPageContent() {
                                                             {group.paragraphOptions?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                                         </select>
                                                     </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* ── FLOW-CHART COMPLETION (generic, data-driven) ── */}
+                                    {group.groupType === "flow-chart-completion" && group.flowchartStages?.length > 0 && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px', fontSize: `${16 * tScale}px` }}>{group.mainInstruction}</p>
+                                            {group.subInstruction && <p style={{ color: cs.text, fontSize: `${14 * tScale}px`, marginBottom: '16px', opacity: 0.9 }}>{group.subInstruction}</p>}
+
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', padding: '20px', background: contrastMode === 'black-on-white' ? '#f8fafc' : '#1e293b', borderRadius: '8px', border: `1px solid ${contrastMode === 'black-on-white' ? '#e2e8f0' : '#334155'}`, gap: '0' }}>
+                                                {group.flowchartStages.map((stage, stIdx) => (
+                                                    <React.Fragment key={stIdx}>
+                                                        <div style={{ border: `1px solid ${cs.text}`, padding: '14px 20px', width: '100%', maxWidth: '560px', background: cs.bg, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                            {stage.lines?.map((line, lIdx) => (
+                                                                <div key={lIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '4px', color: cs.text, fontSize: '15px', lineHeight: '1.6' }}>
+                                                                    {line.segments?.map((seg, sIdx) => {
+                                                                        if (seg.type === "text") {
+                                                                            const isFirstSegInLine = sIdx === 0;
+                                                                            const isStageLabel = isFirstSegInLine && lIdx === 0 && stage.label && seg.content?.startsWith(stage.label);
+                                                                            if (isStageLabel) {
+                                                                                return (
+                                                                                    <span key={sIdx}>
+                                                                                        <b>{stage.label}</b>{seg.content.slice(stage.label.length)}
+                                                                                    </span>
+                                                                                );
+                                                                            }
+                                                                            return <span key={sIdx}>{seg.content}</span>;
+                                                                        }
+                                                                        // blank input — support multi-part (subIndex) blanks for same qNum (e.g. "14 ___ and ___")
+                                                                        const qNum = seg.questionNumber;
+                                                                        const subIdx = seg.subIndex || 0;
+                                                                        const joinSep = group.joinSeparator || " and ";
+                                                                        const w = seg.width || 110;
+                                                                        const combined = answers[qNum] || '';
+                                                                        const parts = subIdx > 0 || combined.includes(joinSep) ? combined.split(joinSep) : [combined];
+                                                                        const partValue = parts[subIdx] || '';
+                                                                        const showPlaceholder = subIdx === 0 && !partValue;
+                                                                        return (
+                                                                            <span key={sIdx} id={subIdx === 0 ? `q-${qNum}` : undefined} style={{ display: 'inline-block', position: 'relative', verticalAlign: 'middle' }}>
+                                                                                {showPlaceholder && <span style={{ position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', fontSize: '12px', color: '#6b7280', pointerEvents: 'none' }}>{qNum}</span>}
+                                                                                <input
+                                                                                    id={`q-input-${qNum}-${sIdx}`}
+                                                                                    type="text"
+                                                                                    value={partValue}
+                                                                                    onChange={e => {
+                                                                                        const newVal = e.target.value;
+                                                                                        const current = answers[qNum] || '';
+                                                                                        const currentParts = current.includes(joinSep) ? current.split(joinSep) : [current];
+                                                                                        while (currentParts.length <= subIdx) currentParts.push('');
+                                                                                        currentParts[subIdx] = newVal;
+                                                                                        while (currentParts.length > 1 && currentParts[currentParts.length - 1] === '') currentParts.pop();
+                                                                                        handleAnswer(qNum, currentParts.join(joinSep));
+                                                                                    }}
+                                                                                    onFocus={() => { setFocusedQuestion(qNum); setFocusedGroup(gIdx); }}
+                                                                                    autoComplete="off"
+                                                                                    style={{ width: `${w}px`, height: '26px', borderBottom: `1.5px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none', padding: '0 6px' }}
+                                                                                />
+                                                                            </span>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        {stIdx < group.flowchartStages.length - 1 && (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '36px', justifyContent: 'center' }}>
+                                                                <div style={{ width: '2px', background: cs.text, flex: 1, minHeight: '14px' }} />
+                                                                <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `10px solid ${cs.text}` }} />
+                                                            </div>
+                                                        )}
+                                                    </React.Fragment>
                                                 ))}
                                             </div>
                                         </div>
@@ -917,7 +1079,12 @@ function ReadingExamPageContent() {
                                     {group.groupType === "choose-two-letters" && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ color: cs.text, fontStyle: 'italic', marginBottom: '12px' }}>{group.mainInstruction}</p>
-                                            {group.questionSets?.map((qSet, qsIdx) => (
+                                            {group.questionSets?.map((qSet, qsIdx) => {
+                                                const isSingleQ = qSet.questionNumbers?.length === 1;
+                                                const singleQNum = qSet.questionNumbers?.[0];
+                                                const maxSelections = qSet.correctAnswers?.length || 2;
+
+                                                return (
                                                 <div key={qsIdx} style={{ marginTop: '12px' }}>
                                                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
                                                         {qSet.questionNumbers?.map(qNum => (
@@ -927,9 +1094,30 @@ function ReadingExamPageContent() {
                                                     </div>
                                                     <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                                         {qSet.options?.map(opt => {
-                                                            const isSel = qSet.questionNumbers?.some(qNum => answers[qNum] === opt.letter);
+                                                            let isSel, handleClick;
+
+                                                            if (isSingleQ) {
+                                                                const currentSels = (answers[singleQNum] || "").split(",").filter(Boolean);
+                                                                isSel = currentSels.includes(opt.letter);
+                                                                handleClick = () => {
+                                                                    if (isSel) {
+                                                                        const newSels = currentSels.filter(a => a !== opt.letter);
+                                                                        handleAnswer(singleQNum, newSels.sort().join(","));
+                                                                    } else if (currentSels.length < maxSelections) {
+                                                                        const newSels = [...currentSels, opt.letter].sort();
+                                                                        handleAnswer(singleQNum, newSels.join(","));
+                                                                    }
+                                                                };
+                                                            } else {
+                                                                isSel = qSet.questionNumbers?.some(qNum => answers[qNum] === opt.letter);
+                                                                handleClick = () => {
+                                                                    const emp = qSet.questionNumbers?.find(qNum => !answers[qNum] || answers[qNum] === opt.letter);
+                                                                    if (emp) { answers[emp] === opt.letter ? handleAnswer(emp, "") : handleAnswer(emp, opt.letter); }
+                                                                };
+                                                            }
+
                                                             return (
-                                                                <div key={opt.letter} onClick={() => { const emp = qSet.questionNumbers?.find(qNum => !answers[qNum] || answers[qNum] === opt.letter); if (emp) { answers[emp] === opt.letter ? handleAnswer(emp, "") : handleAnswer(emp, opt.letter); } }} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                                                <div key={opt.letter} onClick={handleClick} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                                                                     <span style={{ fontWeight: 'bold', color: cs.text, width: '16px' }}>{opt.letter}</span>
                                                                     <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px' }}>
                                                                         {isSel && <svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="white" strokeWidth="2" fill="none" /></svg>}
@@ -940,7 +1128,8 @@ function ReadingExamPageContent() {
                                                         })}
                                                     </div>
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
 
