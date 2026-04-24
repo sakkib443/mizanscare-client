@@ -692,6 +692,17 @@ function ReadingExamPageContent() {
                             currentPass.questionGroups.map((group, gIdx) => (
                                 <div key={gIdx} style={{ marginBottom: '24px' }}>
 
+                                    {/* ── QUESTION GROUP HEADER (Questions X-Y) ── */}
+                                    {(group.startQuestion && group.endQuestion) && (
+                                        <div style={{ marginTop: gIdx === 0 ? '0' : '28px', marginBottom: '10px' }}>
+                                            <h3 style={{ fontWeight: '700', fontSize: `${17 * tScale}px`, color: cs.text, fontFamily: 'Arial, sans-serif' }}>
+                                                {group.startQuestion === group.endQuestion
+                                                    ? `Question ${group.startQuestion}`
+                                                    : `Questions ${group.startQuestion}-${group.endQuestion}`}
+                                            </h3>
+                                        </div>
+                                    )}
+
                                     {/* â”€â”€ NOTE COMPLETION â”€â”€ */}
                                     {(group.questionType === "note-completion" || group.groupType === "note-completion" || group.groupType === "table-completion") && (
                                         <div style={{ marginBottom: '20px' }}>
@@ -1395,8 +1406,8 @@ function ReadingExamPageContent() {
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                                 {group.statements?.map(stmt => (
                                                     <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                                        {stmt.text?.includes('_________') ? (
-                                                            stmt.text.split('_________').map((part, pIdx, arr) => (
+                                                        {/_{3,}/.test(stmt.text || '') ? (
+                                                            stmt.text.split(/_{3,}/).map((part, pIdx, arr) => (
                                                                 <React.Fragment key={pIdx}>
                                                                     <span style={{ color: cs.text }}>{part}</span>
                                                                     {pIdx < arr.length - 1 && (
