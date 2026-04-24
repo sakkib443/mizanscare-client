@@ -653,22 +653,36 @@ function ReadingExamPageContent() {
                     <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
                     {currentPass.source && <p style={{ fontSize: `${12 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text, marginBottom: '12px', fontStyle: 'italic' }}>{currentPass.source}</p>}
                     <TextHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
-                        {(currentPass.content || '').replace(/\\n/g, '\n').split('\n\n').map((para, index) => {
-                            const labelMatch = para.match(/^([A-Z])\s+/);
-                            if (labelMatch) {
-                                return (
-                                    <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>
-                                        <span style={{ fontWeight: 'bold', fontSize: `${20 * tScale}px` }}>{labelMatch[1]}</span>{'  '}{para.slice(labelMatch[0].length)}
-                                    </p>
-                                );
+                        {(() => {
+                            const allParas = (currentPass.content || '').replace(/\\n/g, '\n').split('\n\n');
+                            // Detect sequential A, B, C... paragraph labels. Only treat as labels if we find at least 3 in sequence (A, B, C).
+                            const labelIndices = new Map();
+                            let expectedCode = 'A'.charCodeAt(0);
+                            for (let i = 0; i < allParas.length; i++) {
+                                const m = allParas[i].match(/^([A-Z])\s+/);
+                                if (m && m[1].charCodeAt(0) === expectedCode) {
+                                    labelIndices.set(i, m);
+                                    expectedCode++;
+                                }
                             }
-                            // ── BOLD HEADING: **heading text** ── (NEW — does not affect existing passages)
-                            const boldHeadingMatch = para.match(/^\*\*(.*)\*\*$/);
-                            if (boldHeadingMatch) {
-                                return <h4 key={index} style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginTop: '20px', marginBottom: '8px' }}>{boldHeadingMatch[1]}</h4>;
-                            }
-                            return <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>{para}</p>;
-                        })}
+                            const hasLabels = labelIndices.size >= 3;
+                            return allParas.map((para, index) => {
+                                if (hasLabels && labelIndices.has(index)) {
+                                    const labelMatch = labelIndices.get(index);
+                                    return (
+                                        <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>
+                                            <span style={{ fontWeight: 'bold', fontSize: `${20 * tScale}px` }}>{labelMatch[1]}</span>{'  '}{para.slice(labelMatch[0].length)}
+                                        </p>
+                                    );
+                                }
+                                // ── BOLD HEADING: **heading text** ──
+                                const boldHeadingMatch = para.match(/^\*\*(.*)\*\*$/);
+                                if (boldHeadingMatch) {
+                                    return <h4 key={index} style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginTop: '20px', marginBottom: '8px' }}>{boldHeadingMatch[1]}</h4>;
+                                }
+                                return <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>{para}</p>;
+                            });
+                        })()}
                     </TextHighlighter>
                 </div >
 
