@@ -633,21 +633,21 @@ export const siteContentAPI = {
 // ================== USERS API (Admin only) ==================
 export const usersAPI = {
     getAll: async () => {
-        return await apiRequest("/v1/users");
+        return await apiRequest("/users");
     },
     create: async (userData) => {
-        return await apiRequest("/v1/users", {
+        return await apiRequest("/users", {
             method: "POST",
             body: JSON.stringify(userData),
         });
     },
     delete: async (id) => {
-        return await apiRequest(`/v1/users/${id}`, {
+        return await apiRequest(`/users/${id}`, {
             method: "DELETE",
         });
     },
     updateRole: async (id, role) => {
-        return await apiRequest(`/v1/users/${id}/role`, {
+        return await apiRequest(`/users/${id}/role`, {
             method: "PATCH",
             body: JSON.stringify({ role }),
         });
