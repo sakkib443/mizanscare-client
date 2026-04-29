@@ -150,7 +150,7 @@ function AdminLayoutContent({ children }) {
             }
 
             const user = JSON.parse(userStr);
-            if (user.role !== "admin") {
+            if (user.role !== "admin" && user.role !== "mentor") {
                 router.replace("/dashboard/student");
                 return;
             }
@@ -294,7 +294,13 @@ function AdminLayoutContent({ children }) {
 
                     <p className={`px-2 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider transition-opacity duration-300 ${!sidebarOpen && 'opacity-0'}`}>System</p>
                     <nav>
-                        {secondaryItems.map((item) => <NavItem key={item.href} item={item} />)}
+                        {secondaryItems
+                            .filter((item) => {
+                                // Mentors should not see Users (user management is admin-only)
+                                if (item.href === "/dashboard/admin/users" && adminInfo?.role === "mentor") return false;
+                                return true;
+                            })
+                            .map((item) => <NavItem key={item.href} item={item} />)}
                     </nav>
                 </div>
 

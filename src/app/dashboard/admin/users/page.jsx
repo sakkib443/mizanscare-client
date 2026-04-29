@@ -7,6 +7,7 @@ import {
     FaSpinner,
     FaUserShield,
     FaUser,
+    FaChalkboardTeacher,
     FaPlus,
     FaTrashAlt,
     FaTimes,
@@ -79,7 +80,8 @@ export default function UsersPage() {
         try {
             const response = await usersAPI.create(formData);
             if (response.success) {
-                setSuccess(`${formData.role === "admin" ? "Admin" : "User"} "${formData.name}" created successfully!`);
+                const roleLabel = formData.role === "admin" ? "Admin" : formData.role === "mentor" ? "Mentor" : "User";
+                setSuccess(`${roleLabel} "${formData.name}" created successfully!`);
                 setShowCreateModal(false);
                 setFormData({ name: "", email: "", phone: "", password: "", role: "admin" });
                 fetchUsers();
@@ -130,6 +132,7 @@ export default function UsersPage() {
 
     const roleConfig = {
         admin: { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-200", icon: FaUserShield, label: "Admin" },
+        mentor: { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200", icon: FaChalkboardTeacher, label: "Mentor" },
         user: { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-200", icon: FaUser, label: "User" },
     };
 
@@ -233,7 +236,9 @@ export default function UsersPage() {
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${user.role === "admin"
                                                         ? "bg-gradient-to-br from-purple-500 to-indigo-600"
-                                                        : "bg-gradient-to-br from-blue-400 to-cyan-500"
+                                                        : user.role === "mentor"
+                                                            ? "bg-gradient-to-br from-emerald-500 to-teal-600"
+                                                            : "bg-gradient-to-br from-blue-400 to-cyan-500"
                                                         }`}>
                                                         <span className="text-white font-semibold">
                                                             {user.name?.charAt(0).toUpperCase()}
@@ -271,6 +276,7 @@ export default function UsersPage() {
                                                                 className="text-xs border border-gray-200 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:border-cyan-400 cursor-pointer"
                                                             >
                                                                 <option value="admin">Admin</option>
+                                                                <option value="mentor">Mentor</option>
                                                                 <option value="user">User</option>
                                                             </select>
                                                             {/* Delete */}
@@ -307,6 +313,7 @@ export default function UsersPage() {
                     <span>Total: {users.length} users</span>
                     <div className="flex items-center gap-4">
                         <span className="flex items-center gap-1"><FaUserShield className="text-purple-500" /> {users.filter(u => u.role === "admin").length} Admin</span>
+                        <span className="flex items-center gap-1"><FaChalkboardTeacher className="text-emerald-500" /> {users.filter(u => u.role === "mentor").length} Mentor</span>
                         <span className="flex items-center gap-1"><FaUser className="text-blue-400" /> {users.filter(u => u.role === "user").length} User</span>
                     </div>
                 </div>
@@ -397,9 +404,10 @@ export default function UsersPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-3 gap-3">
                                     {[
                                         { value: "admin", label: "Admin", icon: FaUserShield, desc: "Full system access", color: "purple" },
+                                        { value: "mentor", label: "Mentor", icon: FaChalkboardTeacher, desc: "All access except user mgmt", color: "emerald" },
                                         { value: "user", label: "User", icon: FaUser, desc: "Standard account", color: "blue" },
                                     ].map((opt) => (
                                         <button
