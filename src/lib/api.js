@@ -590,6 +590,46 @@ export const statsAPI = {
     },
 };
 
+// ================== SITE CONTENT API (Design — Videos & Texts) ==================
+export const siteContentAPI = {
+    // Public — no auth
+    getByKey: async (key) => apiRequest(`/site-content/key/${encodeURIComponent(key)}`),
+    getBulk: async (keys) =>
+        apiRequest(`/site-content/bulk?keys=${encodeURIComponent((keys || []).join(","))}`),
+    getByCategory: async (category) =>
+        apiRequest(`/site-content/category/${encodeURIComponent(category)}`),
+
+    // Admin
+    getAll: async () => apiRequest("/site-content"),
+    update: async (key, payload) =>
+        apiRequest(`/site-content/key/${encodeURIComponent(key)}`, {
+            method: "PUT",
+            body: JSON.stringify(payload),
+        }),
+    uploadCloudinaryVideo: async (key, file) => {
+        const formData = new FormData();
+        formData.append("video", file);
+        const token = getAuthToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await fetch(
+            `${API_BASE_URL}/site-content/upload-cloudinary/${encodeURIComponent(key)}`,
+            { method: "POST", body: formData, headers }
+        );
+        return response.json();
+    },
+    uploadLocalVideo: async (key, file) => {
+        const formData = new FormData();
+        formData.append("video", file);
+        const token = getAuthToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await fetch(
+            `${API_BASE_URL}/site-content/upload-local/${encodeURIComponent(key)}`,
+            { method: "POST", body: formData, headers }
+        );
+        return response.json();
+    },
+};
+
 // ================== USERS API (Super Admin) ==================
 export const usersAPI = {
     getAll: async () => {
@@ -626,4 +666,5 @@ export default {
     upload: uploadAPI,
     stats: statsAPI,
     users: usersAPI,
+    siteContent: siteContentAPI,
 };

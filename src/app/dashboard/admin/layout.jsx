@@ -20,6 +20,9 @@ import {
     FaGlobe,
     FaChevronDown,
     FaMicrophone,
+    FaPalette,
+    FaVideo,
+    FaFont,
 } from "react-icons/fa";
 import Logo from "@/components/Logo";
 
@@ -60,6 +63,23 @@ const menuItems = [
         icon: FaChartBar,
         href: "/dashboard/admin/results",
     },
+    {
+        title: "Design",
+        icon: FaPalette,
+        href: "/dashboard/admin/design",
+        submenu: [
+            {
+                title: "Videos",
+                icon: FaVideo,
+                href: "/dashboard/admin/design/videos",
+            },
+            {
+                title: "Homepage Texts",
+                icon: FaFont,
+                href: "/dashboard/admin/design/homepage",
+            },
+        ],
+    },
 ];
 
 const secondaryItems = [
@@ -87,6 +107,17 @@ function AdminLayoutContent({ children }) {
 
     const currentType = searchParams?.get("type") || null;
     const isLoginPage = pathname === "/dashboard/admin";
+
+    // Auto-expand sidebar groups when on a child route
+    useEffect(() => {
+        const matched = menuItems.find(
+            (it) => it.submenu && pathname?.startsWith(it.href + "/")
+        );
+        if (matched && expandedMenu !== matched.title) {
+            setExpandedMenu(matched.title);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pathname]);
 
     useEffect(() => {
         if (isLoginPage) {
@@ -182,8 +213,10 @@ function AdminLayoutContent({ children }) {
                     {sidebarOpen && isExpanded && (
                         <div className="mt-1 ml-4 space-y-1 pl-2 border-l border-gray-200">
                             {item.submenu.map((sub) => {
-                                const subActive = pathname === "/dashboard/admin/question-sets" &&
-                                    ((sub.type === null && !currentType) || (sub.type === currentType));
+                                const subActive = sub.type !== undefined
+                                    ? (pathname === "/dashboard/admin/question-sets" &&
+                                        ((sub.type === null && !currentType) || (sub.type === currentType)))
+                                    : (pathname === sub.href || pathname?.startsWith(sub.href + "/"));
                                 return (
                                     <Link
                                         key={sub.href + (sub.type || 'all')}

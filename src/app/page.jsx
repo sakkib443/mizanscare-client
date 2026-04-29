@@ -25,6 +25,7 @@ import { LuGraduationCap, LuShieldCheck } from "react-icons/lu";
 import { HiOutlineDocumentText } from "react-icons/hi";
 import { studentsAPI } from "@/lib/api";
 import Logo from "@/components/Logo";
+import { useSiteContent, getVideoSrc, isYouTube, renderBoldMarkers } from "@/hooks/useSiteContent";
 
 // Toast Popup Component
 const ToastPopup = ({ message, type, onClose }) => {
@@ -88,6 +89,38 @@ export default function HomePage() {
     const router = useRouter();
     const [examId, setExamId] = useState("");
     const [toast, setToast] = useState(null);
+
+    // Dynamic site content (managed from Admin > Design)
+    const SC_KEYS = [
+        "video.home_welcome",
+        "text.hero_badge",
+        "text.hero_title_line1",
+        "text.hero_title_line2",
+        "text.hero_title_line3",
+        "text.hero_subtitle",
+    ];
+    const SC_DEFAULTS = {
+        "video.home_welcome": { videoSource: "local", videoUrl: "/video/IELTS on computer - Quick Guide.mp4" },
+        "text.hero_badge": { textValue: "100% AUTHENTIC EXAM EXPERIENCE" },
+        "text.hero_title_line1": { textValue: "Mizan's Care" },
+        "text.hero_title_line2": { textValue: "Online IELTS Mock Tests" },
+        "text.hero_title_line3": { textValue: "Examination System" },
+        "text.hero_subtitle": {
+            textValue:
+                "Prepare for your IELTS exam with our **Official-Style Computer-Based Mock Tests** — real exam format, instant results, anytime, anywhere!",
+        },
+    };
+    const { data: siteContent } = useSiteContent(SC_KEYS, SC_DEFAULTS);
+
+    const heroBadge = siteContent["text.hero_badge"]?.textValue || SC_DEFAULTS["text.hero_badge"].textValue;
+    const heroLine1 = siteContent["text.hero_title_line1"]?.textValue || SC_DEFAULTS["text.hero_title_line1"].textValue;
+    const heroLine2 = siteContent["text.hero_title_line2"]?.textValue || SC_DEFAULTS["text.hero_title_line2"].textValue;
+    const heroLine3 = siteContent["text.hero_title_line3"]?.textValue || SC_DEFAULTS["text.hero_title_line3"].textValue;
+    const heroSubtitleRaw = siteContent["text.hero_subtitle"]?.textValue || SC_DEFAULTS["text.hero_subtitle"].textValue;
+
+    const homeVideoEntry = siteContent["video.home_welcome"];
+    const homeVideoSrc = getVideoSrc(homeVideoEntry, "/video/IELTS on computer - Quick Guide.mp4");
+    const homeVideoIsYT = isYouTube(homeVideoEntry);
     const [isLoading, setIsLoading] = useState(false);
     const [agreed, setAgreed] = useState(false);
     const [showDemoVideo, setShowDemoVideo] = useState(false);
@@ -291,13 +324,24 @@ export default function HomePage() {
                                 </button>
                             </div>
                             <div className="relative w-full bg-black" style={{ paddingBottom: "56.25%" }}>
-                                <video
-                                    className="absolute inset-0 w-full h-full"
-                                    src="/video/IELTS on computer - Quick Guide.mp4"
-                                    controls
-                                    autoPlay
-                                    playsInline
-                                />
+                                {homeVideoIsYT ? (
+                                    <iframe
+                                        className="absolute inset-0 w-full h-full"
+                                        src={homeVideoSrc}
+                                        title="Exam Instruction"
+                                        frameBorder="0"
+                                        allow="autoplay; encrypted-media"
+                                        allowFullScreen
+                                    />
+                                ) : (
+                                    <video
+                                        className="absolute inset-0 w-full h-full"
+                                        src={homeVideoSrc}
+                                        controls
+                                        autoPlay
+                                        playsInline
+                                    />
+                                )}
                             </div>
                             <div className="px-5 py-3 bg-gray-50 flex items-center justify-between">
                                 <p className="text-gray-500 text-xs">Watch this video before starting your exam</p>
@@ -374,25 +418,26 @@ export default function HomePage() {
                             transition={{ delay: 0.2 }}
                             className="hidden lg:block"
                         >
-                            {/* Badge */}
+                            {/* Badge (dynamic) */}
                             <div className="inline-flex items-center gap-2 bg-red-50 border border-red-100 rounded-full px-4 py-1.5 mb-5">
                                 <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                                <span className="text-red-600 text-xs font-bold tracking-wider uppercase">100% Authentic Exam Experience</span>
+                                <span className="text-red-600 text-xs font-bold tracking-wider uppercase">{heroBadge}</span>
                             </div>
 
+                            {/* Title 3 lines (dynamic) */}
                             <h2 className="text-4xl font-extrabold text-slate-900 mb-2 outfit leading-tight">
-                                <span className="text-red-600">Mizan's Care</span>
+                                <span className="text-red-600">{heroLine1}</span>
                                 <br />
-                                Online IELTS Mock Tests
+                                {heroLine2}
                                 <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc2626] to-[#b91c1c]">
-                                    Examination System
+                                    {heroLine3}
                                 </span>
                             </h2>
+
+                            {/* Subtitle with **bold** marker support (dynamic) */}
                             <p className="text-slate-600 mb-8 text-lg font-medium leading-relaxed">
-                                Prepare for your IELTS exam with our <span className="text-red-600 font-bold">Official-Style
-                                    Computer-Based Mock Tests</span> — real exam format,
-                                instant results, anytime, anywhere!
+                                {renderBoldMarkers(heroSubtitleRaw, "span", "text-red-600 font-bold")}
                             </p>
 
                             {/* Exam Sections Preview */}

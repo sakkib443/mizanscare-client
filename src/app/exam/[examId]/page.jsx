@@ -20,6 +20,8 @@ import {
 } from "react-icons/fa";
 import { studentsAPI } from "@/lib/api";
 import Logo from "@/components/Logo";
+import { useSiteContent, getVideoSrc, isYouTube } from "@/hooks/useSiteContent";
+import { useSiteContent, getVideoSrc, isYouTube } from "@/hooks/useSiteContent";
 
 export default function ExamSelectionPage() {
     const params = useParams();
@@ -139,11 +141,44 @@ export default function ExamSelectionPage() {
         return [];
     };
 
-    // Local video files for each module
+    // Dynamic videos (managed from Admin > Design > Videos)
+    const VIDEO_KEYS = [
+        "video.exam_intro",
+        "video.listening_intro",
+        "video.reading_intro",
+        "video.writing_intro",
+    ];
+    const VIDEO_DEFAULTS = {
+        "video.exam_intro": { videoSource: "local", videoUrl: "/video/IELTS on computer - Quick Guide.mp4" },
+        "video.listening_intro": { videoSource: "local", videoUrl: "/video/listeining test instruction.mp4" },
+        "video.reading_intro": { videoSource: "local", videoUrl: "/video/reading instruction.mp4" },
+        "video.writing_intro": { videoSource: "local", videoUrl: "/video/writing instruction.mp4" },
+    };
+    const { data: dynamicVideos } = useSiteContent(VIDEO_KEYS, VIDEO_DEFAULTS);
+
+    const examIntroEntry = dynamicVideos["video.exam_intro"];
+    const examIntroSrc = getVideoSrc(examIntroEntry, "/video/IELTS on computer - Quick Guide.mp4");
+    const examIntroIsYT = isYouTube(examIntroEntry);
+
     const MODULE_VIDEOS = {
-        listening: { src: "/video/listeining test instruction.mp4", label: 'Listening' },
-        reading: { src: "/video/reading instruction.mp4", label: 'Reading' },
-        writing: { src: "/video/writing instruction.mp4", label: 'Writing' },
+        listening: {
+            entry: dynamicVideos["video.listening_intro"],
+            src: getVideoSrc(dynamicVideos["video.listening_intro"], "/video/listeining test instruction.mp4"),
+            isYT: isYouTube(dynamicVideos["video.listening_intro"]),
+            label: "Listening",
+        },
+        reading: {
+            entry: dynamicVideos["video.reading_intro"],
+            src: getVideoSrc(dynamicVideos["video.reading_intro"], "/video/reading instruction.mp4"),
+            isYT: isYouTube(dynamicVideos["video.reading_intro"]),
+            label: "Reading",
+        },
+        writing: {
+            entry: dynamicVideos["video.writing_intro"],
+            src: getVideoSrc(dynamicVideos["video.writing_intro"], "/video/writing instruction.mp4"),
+            isYT: isYouTube(dynamicVideos["video.writing_intro"]),
+            label: "Writing",
+        },
     };
 
     // Exam modules configuration
@@ -260,13 +295,24 @@ export default function ExamSelectionPage() {
                             </button>
                         </div>
                         <div className="relative w-full bg-black" style={{ paddingBottom: "56.25%" }}>
-                            <video
-                                className="absolute inset-0 w-full h-full"
-                                src="/video/IELTS on computer - Quick Guide.mp4"
-                                controls
-                                autoPlay
-                                playsInline
-                            />
+                            {examIntroIsYT ? (
+                                <iframe
+                                    className="absolute inset-0 w-full h-full"
+                                    src={examIntroSrc}
+                                    title="Exam Instruction"
+                                    frameBorder="0"
+                                    allow="autoplay; encrypted-media"
+                                    allowFullScreen
+                                />
+                            ) : (
+                                <video
+                                    className="absolute inset-0 w-full h-full"
+                                    src={examIntroSrc}
+                                    controls
+                                    autoPlay
+                                    playsInline
+                                />
+                            )}
                         </div>
                         <div className="px-5 py-3 bg-gray-50 flex items-center justify-between">
                             <p className="text-gray-500 text-xs">Watch this video to understand how the exam works</p>
@@ -308,13 +354,24 @@ export default function ExamSelectionPage() {
                                 </button>
                             </div>
                             <div className="relative w-full bg-black" style={{ paddingBottom: "56.25%" }}>
-                                <video
-                                    className="absolute inset-0 w-full h-full"
-                                    src={videoInfo.src}
-                                    controls
-                                    autoPlay
-                                    playsInline
-                                />
+                                {videoInfo.isYT ? (
+                                    <iframe
+                                        className="absolute inset-0 w-full h-full"
+                                        src={videoInfo.src}
+                                        title={`${videoInfo.label} Instruction`}
+                                        frameBorder="0"
+                                        allow="autoplay; encrypted-media"
+                                        allowFullScreen
+                                    />
+                                ) : (
+                                    <video
+                                        className="absolute inset-0 w-full h-full"
+                                        src={videoInfo.src}
+                                        controls
+                                        autoPlay
+                                        playsInline
+                                    />
+                                )}
                             </div>
                             <div className="px-5 py-3 bg-gray-50 flex items-center justify-between">
                                 <p className="text-gray-500 text-xs">Watch the {videoInfo.label.toLowerCase()} instruction before starting</p>
