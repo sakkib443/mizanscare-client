@@ -21,7 +21,6 @@ import {
 import { studentsAPI } from "@/lib/api";
 import Logo from "@/components/Logo";
 import { useSiteContent, getVideoSrc, isYouTube } from "@/hooks/useSiteContent";
-import { useSiteContent, getVideoSrc, isYouTube } from "@/hooks/useSiteContent";
 
 export default function ExamSelectionPage() {
     const params = useParams();
