@@ -22,6 +22,9 @@ import {
     FaExclamationTriangle,
     FaPlus,
     FaTrash,
+    FaVideo,
+    FaClock,
+    FaLink,
 } from "react-icons/fa";
 import { studentsAPI, listeningAPI, readingAPI, writingAPI, speakingAPI } from "@/lib/api";
 
@@ -203,6 +206,9 @@ export default function CreateStudentPage() {
         paymentAmount: 5000,
         paymentMethod: "cash",
         paymentReference: "",
+        speakingExamDate: "",
+        speakingExamTime: "",
+        speakingMeetingLink: "",
     });
 
     // Full Sets state (each full set = L+R+W)
@@ -279,6 +285,12 @@ export default function CreateStudentPage() {
             const studentData = {
                 ...formData,
                 examDate: new Date(formData.examDate).toISOString(),
+                // Speaking exam schedule
+                speakingExamDate: formData.speakingExamDate
+                    ? new Date(formData.speakingExamDate).toISOString()
+                    : undefined,
+                speakingExamTime: formData.speakingExamTime || undefined,
+                speakingMeetingLink: formData.speakingMeetingLink || undefined,
                 // Send Full Sets
                 fullSets: fullSets
                     .filter(fs => fs.listeningSetNumber || fs.readingSetNumber || fs.writingSetNumber)
@@ -493,6 +505,56 @@ export default function CreateStudentPage() {
                         <input type="date" name="examDate" value={formData.examDate} onChange={handleInputChange}
                             min={new Date().toISOString().split("T")[0]} className={getInputClass("examDate")} />
                         <FieldError error={fieldErrors.examDate} />
+                    </div>
+                </div>
+
+                {/* Speaking Exam Schedule */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    <h3 className="font-semibold text-gray-800 mb-1 flex items-center gap-2">
+                        <FaVideo className="text-purple-500" /> Speaking Exam Schedule
+                    </h3>
+                    <p className="text-sm text-gray-400 mb-4">Optional — শুধু Speaking Exam থাকলে পূরণ করুন</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <FaCalendar className="inline mr-1 text-gray-400" /> Speaking Exam Date
+                            </label>
+                            <input
+                                type="date"
+                                name="speakingExamDate"
+                                value={formData.speakingExamDate}
+                                onChange={handleInputChange}
+                                className={getInputClass("speakingExamDate")}
+                            />
+                            <FieldError error={fieldErrors.speakingExamDate} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <FaClock className="inline mr-1 text-gray-400" /> Speaking Exam Time
+                            </label>
+                            <input
+                                type="time"
+                                name="speakingExamTime"
+                                value={formData.speakingExamTime}
+                                onChange={handleInputChange}
+                                className={getInputClass("speakingExamTime")}
+                            />
+                            <FieldError error={fieldErrors.speakingExamTime} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <FaLink className="inline mr-1 text-gray-400" /> Meeting Link (Zoom / Meet)
+                            </label>
+                            <input
+                                type="url"
+                                name="speakingMeetingLink"
+                                value={formData.speakingMeetingLink}
+                                onChange={handleInputChange}
+                                className={getInputClass("speakingMeetingLink")}
+                                placeholder="https://zoom.us/j/..."
+                            />
+                            <FieldError error={fieldErrors.speakingMeetingLink} />
+                        </div>
                     </div>
                 </div>
 
