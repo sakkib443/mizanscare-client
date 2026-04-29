@@ -91,7 +91,7 @@ const initialState = {
   isAuthenticated: false,
   isLoading: false,
   error: null,
-  role: null, // 'student', 'instructor', 'admin', 'superadmin'
+  role: null, // 'student', 'instructor', 'admin'
 };
 
 // Check for existing auth on load

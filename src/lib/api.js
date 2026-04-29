@@ -630,7 +630,7 @@ export const siteContentAPI = {
     },
 };
 
-// ================== USERS API (Super Admin) ==================
+// ================== USERS API (Admin only) ==================
 export const usersAPI = {
     getAll: async () => {
         return await apiRequest("/v1/users");

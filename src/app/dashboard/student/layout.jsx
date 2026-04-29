@@ -79,7 +79,7 @@ function StudentLayoutContent({ children }) {
         try {
             const parsedUser = JSON.parse(user);
             // Admin should go to admin dashboard
-            if (parsedUser.role === "admin" || parsedUser.role === "super-admin") {
+            if (parsedUser.role === "admin") {
                 router.push("/dashboard/admin/dashboard");
                 return;
             }

@@ -10,7 +10,6 @@ import {
     FaPlus,
     FaTrashAlt,
     FaTimes,
-    FaCrown,
     FaCheckCircle,
     FaExclamationTriangle,
     FaEnvelope,
@@ -42,7 +41,7 @@ export default function UsersPage() {
         role: "admin",
     });
 
-    const isSuperAdmin = currentUserRole === "super-admin";
+    const isAdmin = currentUserRole === "admin";
 
     useEffect(() => {
         // Get current user info
@@ -66,8 +65,7 @@ export default function UsersPage() {
                 setUsers(response.data || []);
             }
         } catch (err) {
-            // If not super-admin, show permission message
-            setError("You don't have permission to manage users. Only Super Admin can access this feature.");
+            setError("You don't have permission to manage users. Only Admins can access this feature.");
         } finally {
             setLoading(false);
         }
@@ -81,7 +79,7 @@ export default function UsersPage() {
         try {
             const response = await usersAPI.create(formData);
             if (response.success) {
-                setSuccess(`${formData.role === "super-admin" ? "Super Admin" : "Admin"} "${formData.name}" created successfully!`);
+                setSuccess(`${formData.role === "admin" ? "Admin" : "User"} "${formData.name}" created successfully!`);
                 setShowCreateModal(false);
                 setFormData({ name: "", email: "", phone: "", password: "", role: "admin" });
                 fetchUsers();
@@ -131,7 +129,6 @@ export default function UsersPage() {
     };
 
     const roleConfig = {
-        "super-admin": { bg: "bg-amber-100", text: "text-amber-700", border: "border-amber-200", icon: FaCrown, label: "Super Admin" },
         admin: { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-200", icon: FaUserShield, label: "Admin" },
         user: { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-200", icon: FaUser, label: "User" },
     };
@@ -148,9 +145,9 @@ export default function UsersPage() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
-                    <p className="text-gray-500 mt-1">Manage admin and super admin accounts</p>
+                    <p className="text-gray-500 mt-1">Manage admin accounts</p>
                 </div>
-                {isSuperAdmin && (
+                {isAdmin && (
                     <button
                         onClick={() => setShowCreateModal(true)}
                         className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors cursor-pointer"
@@ -174,13 +171,13 @@ export default function UsersPage() {
             )}
 
             {/* Info Banner */}
-            {!isSuperAdmin && (
+            {!isAdmin && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
                     <FaLock className="text-amber-500 text-xl mt-0.5" />
                     <div>
                         <p className="text-amber-800 font-medium">View Only Access</p>
                         <p className="text-amber-600 text-sm">
-                            Only Super Admins can create, edit, or delete users. Contact a Super Admin for changes.
+                            Only Admins can create, edit, or delete users.
                         </p>
                     </div>
                 </div>
@@ -211,7 +208,7 @@ export default function UsersPage() {
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                                {isSuperAdmin && (
+                                {isAdmin && (
                                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 )}
                             </tr>
@@ -219,7 +216,7 @@ export default function UsersPage() {
                         <tbody className="divide-y divide-gray-200">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={isSuperAdmin ? 6 : 5} className="px-4 py-12 text-center">
+                                    <td colSpan={isAdmin ? 6 : 5} className="px-4 py-12 text-center">
                                         <FaSpinner className="animate-spin text-3xl text-cyan-500 mx-auto" />
                                         <p className="text-gray-500 mt-2">Loading users...</p>
                                     </td>
@@ -234,9 +231,9 @@ export default function UsersPage() {
                                         <tr key={user._id} className={`hover:bg-gray-50 transition-colors ${isCurrentUser ? "bg-blue-50/30" : ""}`}>
                                             <td className="px-4 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${user.role === "super-admin"
-                                                        ? "bg-gradient-to-br from-amber-500 to-orange-600"
-                                                        : "bg-gradient-to-br from-purple-500 to-indigo-600"
+                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${user.role === "admin"
+                                                        ? "bg-gradient-to-br from-purple-500 to-indigo-600"
+                                                        : "bg-gradient-to-br from-blue-400 to-cyan-500"
                                                         }`}>
                                                         <span className="text-white font-semibold">
                                                             {user.name?.charAt(0).toUpperCase()}
@@ -263,7 +260,7 @@ export default function UsersPage() {
                                             <td className="px-4 py-4 text-sm text-gray-500">
                                                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "-"}
                                             </td>
-                                            {isSuperAdmin && (
+                                            {isAdmin && (
                                                 <td className="px-4 py-4 text-center">
                                                     {!isCurrentUser ? (
                                                         <div className="flex items-center justify-center gap-2">
@@ -274,7 +271,6 @@ export default function UsersPage() {
                                                                 className="text-xs border border-gray-200 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:border-cyan-400 cursor-pointer"
                                                             >
                                                                 <option value="admin">Admin</option>
-                                                                <option value="super-admin">Super Admin</option>
                                                                 <option value="user">User</option>
                                                             </select>
                                                             {/* Delete */}
@@ -296,7 +292,7 @@ export default function UsersPage() {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={isSuperAdmin ? 6 : 5} className="px-4 py-12 text-center">
+                                    <td colSpan={isAdmin ? 6 : 5} className="px-4 py-12 text-center">
                                         <FaUsers className="text-gray-300 text-5xl mx-auto mb-4" />
                                         <p className="text-gray-500">No users found</p>
                                     </td>
@@ -310,8 +306,8 @@ export default function UsersPage() {
                 <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
                     <span>Total: {users.length} users</span>
                     <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1"><FaCrown className="text-amber-500" /> {users.filter(u => u.role === "super-admin").length} Super Admin</span>
                         <span className="flex items-center gap-1"><FaUserShield className="text-purple-500" /> {users.filter(u => u.role === "admin").length} Admin</span>
+                        <span className="flex items-center gap-1"><FaUser className="text-blue-400" /> {users.filter(u => u.role === "user").length} User</span>
                     </div>
                 </div>
             </div>
@@ -328,7 +324,7 @@ export default function UsersPage() {
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-bold text-gray-800">Create New User</h2>
-                                        <p className="text-xs text-gray-500">Add admin or super admin</p>
+                                        <p className="text-xs text-gray-500">Add an admin account</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setShowCreateModal(false)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg cursor-pointer">
@@ -403,20 +399,20 @@ export default function UsersPage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                                 <div className="grid grid-cols-2 gap-3">
                                     {[
-                                        { value: "admin", label: "Admin", icon: FaUserShield, desc: "Manage students & exams", color: "purple" },
-                                        { value: "super-admin", label: "Super Admin", icon: FaCrown, desc: "Full system access", color: "amber" },
+                                        { value: "admin", label: "Admin", icon: FaUserShield, desc: "Full system access", color: "purple" },
+                                        { value: "user", label: "User", icon: FaUser, desc: "Standard account", color: "blue" },
                                     ].map((opt) => (
                                         <button
                                             key={opt.value}
                                             type="button"
                                             onClick={() => setFormData({ ...formData, role: opt.value })}
                                             className={`p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${formData.role === opt.value
-                                                ? `border-${opt.color === "amber" ? "amber" : "purple"}-400 bg-${opt.color === "amber" ? "amber" : "purple"}-50`
+                                                ? `border-${opt.color}-400 bg-${opt.color}-50`
                                                 : "border-gray-200 hover:border-gray-300"
                                                 }`}
                                         >
                                             <div className="flex items-center gap-2 mb-1">
-                                                <opt.icon className={`text-sm ${formData.role === opt.value ? (opt.color === "amber" ? "text-amber-600" : "text-purple-600") : "text-gray-400"}`} />
+                                                <opt.icon className={`text-sm ${formData.role === opt.value ? `text-${opt.color}-600` : "text-gray-400"}`} />
                                                 <span className="text-sm font-medium text-gray-800">{opt.label}</span>
                                             </div>
                                             <p className="text-[11px] text-gray-500">{opt.desc}</p>
