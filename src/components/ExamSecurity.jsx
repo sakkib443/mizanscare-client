@@ -1,419 +1,190 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { FaExclamationTriangle, FaTimes, FaShieldAlt, FaEyeSlash } from "react-icons/fa";
-import { studentsAPI } from "@/lib/api";
+import { FaExpandArrowsAlt, FaLock } from "react-icons/fa";
 
 /**
- * Exam Security Component - HIGHLY SECURE
- * - Detects and reports tab switching
- * - Detects fullscreen exit
- * - Blocks copy, cut, paste
- * - Blocks right-click
- * - Blocks keyboard shortcuts (Ctrl+C, Ctrl+V, F12, etc.)
- * - Blocks text selection (except TextHighlighter areas)
- * - Blocks print screen
- * - Shows warning overlay
- * - Reports violations to backend
+ * Exam Security Component — Fullscreen Lock Only
  * 
- * ⚠️ DEV_MODE: Set to true to disable security during development.
- *    Set to false for production/deployment.
+ * ✅ What it does:
+ * - Forces fullscreen mode when exam starts
+ * - If student exits fullscreen (ESC), immediately shows overlay + re-requests fullscreen
+ * - Hides browser chrome (address bar, tabs, close button)
+ * - Shows "beforeunload" warning if student tries to close browser
+ * - Content is hidden until student returns to fullscreen
+ * 
+ * ❌ What it does NOT block:
+ * - Right-click, copy, paste, text selection — all allowed
+ * - Keyboard shortcuts — all allowed (except leaving page)
+ * - Dev tools — allowed
  */
-const DEV_MODE = true; // 🔧 Toggle this: true = security OFF, false = security ON
-
 export default function ExamSecurity({ examId, onViolationLimit = () => { } }) {
-    const [violations, setViolations] = useState(0);
-    const [showWarning, setShowWarning] = useState(false);
-    const [warningType, setWarningType] = useState("");
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const MAX_VIOLATIONS = 3;
+    const [hasEnteredFullscreen, setHasEnteredFullscreen] = useState(false);
 
-    // Report violation to backend
-    const reportViolation = useCallback(async (type) => {
+    // Request fullscreen
+    const requestFullscreen = useCallback(async () => {
         try {
-            if (examId) {
-                await studentsAPI.reportViolation(examId, type);
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                await elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) {
+                await elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                await elem.msRequestFullscreen();
             }
         } catch (err) {
-            console.error("Failed to report violation:", err);
+            console.log("Fullscreen request failed:", err);
         }
-    }, [examId]);
+    }, []);
 
-    // Handle visibility change (tab switch)
-    const handleVisibilityChange = useCallback(() => {
-        if (document.hidden) {
-            setViolations(prev => {
-                const newCount = prev + 1;
-                if (newCount >= MAX_VIOLATIONS) {
-                    onViolationLimit();
-                }
-                return newCount;
-            });
-            setWarningType("tab-switch");
-            setShowWarning(true);
-            reportViolation("tab-switch");
-        }
-    }, [reportViolation, onViolationLimit]);
-
-    // Handle fullscreen change
+    // Track fullscreen changes
     const handleFullscreenChange = useCallback(() => {
-        const isNowFullscreen = !!document.fullscreenElement;
+        const isNowFullscreen = !!(
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.msFullscreenElement
+        );
         setIsFullscreen(isNowFullscreen);
-
-        if (!isNowFullscreen) {
-            setViolations(prev => {
-                const newCount = prev + 1;
-                if (newCount >= MAX_VIOLATIONS) {
-                    onViolationLimit();
-                }
-                return newCount;
-            });
-            setWarningType("fullscreen-exit");
-            setShowWarning(true);
-            reportViolation("fullscreen-exit");
-        } else {
-            // If they returned to fullscreen, we can hide the warning
-            setShowWarning(false);
-        }
-    }, [violations, reportViolation, onViolationLimit]);
-
-    // Detect right-click
-    const handleContextMenu = useCallback((e) => {
-        e.preventDefault();
-        setWarningType("right-click");
-        setShowWarning(true);
-        // Automatically hide transient warnings like right-click after 3 seconds
-        setTimeout(() => setShowWarning(prev => {
-            if (["right-click", "copy-paste", "keyboard-shortcut", "screenshot", "print"].includes(warningType)) {
-                return false;
-            }
-            return prev;
-        }), 3000);
-        return false;
-    }, [warningType]);
-
-    // Detect copy/cut/paste
-    const handleCopyPaste = useCallback((e) => {
-        e.preventDefault();
-        setWarningType("copy-paste");
-        setShowWarning(true);
-        setTimeout(() => setShowWarning(prev => {
-            if (["right-click", "copy-paste", "keyboard-shortcut", "screenshot", "print"].includes(warningType)) {
-                return false;
-            }
-            return prev;
-        }), 3000);
-        return false;
-    }, [warningType]);
-
-    // Block text selection (except in TextHighlighter and inputs)
-    const handleSelectStart = useCallback((e) => {
-        // Allow selection in input/textarea
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-            return true;
-        }
-        // Allow selection in TextHighlighter container for highlight feature
-        if (e.target.closest('.text-highlighter-container')) {
-            return true;
-        }
-        e.preventDefault();
-        return false;
-    }, []);
-
-    // Detect keyboard shortcuts
-    const handleKeyDown = useCallback((e) => {
-        // Block Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A
-        if (e.ctrlKey && ['c', 'v', 'x', 'a', 'u', 's', 'p'].includes(e.key.toLowerCase())) {
-            e.preventDefault();
-            setWarningType("keyboard-shortcut");
-            setShowWarning(true);
-            return false;
-        }
-        // Block Ctrl+Shift+I (Dev Tools)
-        if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i') {
-            e.preventDefault();
-            setViolations(prev => prev + 1);
-            setWarningType("dev-tools");
-            setShowWarning(true);
-            reportViolation("dev-tools");
-            return false;
-        }
-        // Block Ctrl+Shift+J (Console)
-        if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'j') {
-            e.preventDefault();
-            setViolations(prev => prev + 1);
-            setWarningType("dev-tools");
-            setShowWarning(true);
-            reportViolation("dev-tools");
-            return false;
-        }
-        // Block Ctrl+Tab
-        if (e.ctrlKey && e.key === 'Tab') {
-            e.preventDefault();
-            return false;
-        }
-        // Block Alt+Tab (limited browser support)
-        if (e.altKey && e.key === 'Tab') {
-            e.preventDefault();
-            return false;
-        }
-        // Block F12 (Dev Tools)
-        if (e.key === 'F12') {
-            e.preventDefault();
-            setViolations(prev => prev + 1);
-            setWarningType("dev-tools");
-            setShowWarning(true);
-            reportViolation("dev-tools");
-            return false;
-        }
-        // Block Print Screen
-        if (e.key === 'PrintScreen') {
-            e.preventDefault();
-            setWarningType("screenshot");
-            setShowWarning(true);
-            return false;
-        }
-        // Block Ctrl+P (Print)
-        if (e.ctrlKey && e.key.toLowerCase() === 'p') {
-            e.preventDefault();
-            setWarningType("print");
-            setShowWarning(true);
-            return false;
-        }
-    }, [reportViolation]);
-
-    // Detect blur (window loses focus)
-    const handleBlur = useCallback(() => {
-        // Slight delay to distinguish from normal interactions
-        setTimeout(() => {
-            if (!document.hasFocus()) {
-                setViolations(prev => {
-                    const newCount = prev + 1;
-                    if (newCount >= MAX_VIOLATIONS) {
-                        onViolationLimit();
-                    }
-                    return newCount;
-                });
-                setWarningType("window-blur");
-                setShowWarning(true);
-                reportViolation("window-blur");
-            }
-        }, 100);
-    }, [reportViolation, onViolationLimit]);
-
-    // Request fullscreen on mount
-    const requestFullscreen = useCallback(() => {
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch((err) => {
-                console.log("Fullscreen request failed:", err);
-            });
+        if (isNowFullscreen) {
+            setHasEnteredFullscreen(true);
         }
     }, []);
 
-    // Disable text selection via CSS (except in TextHighlighter)
+    // Setup fullscreen listener + auto-enter fullscreen
     useEffect(() => {
-        if (DEV_MODE) return; // Skip in dev mode
-
-        const style = document.createElement('style');
-        style.id = 'exam-security-style';
-        style.textContent = `
-            .exam-secure-container {
-                -webkit-user-select: none !important;
-                -moz-user-select: none !important;
-                -ms-user-select: none !important;
-                user-select: none !important;
-                -webkit-touch-callout: none !important;
-            }
-            .exam-secure-container input,
-            .exam-secure-container textarea,
-            .exam-secure-container .text-highlighter-container,
-            .exam-secure-container .text-highlighter-container * {
-                -webkit-user-select: text !important;
-                -moz-user-select: text !important;
-                -ms-user-select: text !important;
-                user-select: text !important;
-            }
-        `;
-        document.head.appendChild(style);
-        document.body.classList.add('exam-secure-container');
-
-        return () => {
-            const styleEl = document.getElementById('exam-security-style');
-            if (styleEl) styleEl.remove();
-            document.body.classList.remove('exam-secure-container');
-        };
-    }, []);
-
-    // Setup event listeners
-    useEffect(() => {
-        if (DEV_MODE) return; // Skip in dev mode
-
-        // Add event listeners
-        document.addEventListener("visibilitychange", handleVisibilityChange);
         document.addEventListener("fullscreenchange", handleFullscreenChange);
-        document.addEventListener("contextmenu", handleContextMenu);
-        document.addEventListener("copy", handleCopyPaste);
-        document.addEventListener("cut", handleCopyPaste);
-        document.addEventListener("paste", handleCopyPaste);
-        document.addEventListener("keydown", handleKeyDown);
-        document.addEventListener("selectstart", handleSelectStart);
-        window.addEventListener("blur", handleBlur);
+        document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
 
-        // Request fullscreen after a short delay
+        // Auto-enter fullscreen after a brief delay
         const timer = setTimeout(() => {
             requestFullscreen();
-        }, 1000);
+        }, 500);
 
-        // Cleanup
         return () => {
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
             document.removeEventListener("fullscreenchange", handleFullscreenChange);
-            document.removeEventListener("contextmenu", handleContextMenu);
-            document.removeEventListener("copy", handleCopyPaste);
-            document.removeEventListener("cut", handleCopyPaste);
-            document.removeEventListener("paste", handleCopyPaste);
-            document.removeEventListener("keydown", handleKeyDown);
-            document.removeEventListener("selectstart", handleSelectStart);
-            window.removeEventListener("blur", handleBlur);
+            document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
             clearTimeout(timer);
         };
-    }, [handleVisibilityChange, handleFullscreenChange, handleContextMenu, handleCopyPaste, handleKeyDown, handleSelectStart, handleBlur, requestFullscreen]);
+    }, [handleFullscreenChange, requestFullscreen]);
 
-    // Force warning if not in fullscreen and not in dev mode
+    // Prevent page close / refresh — show browser warning
     useEffect(() => {
-        if (!DEV_MODE && !isFullscreen) {
-            setWarningType("fullscreen-exit");
-            setShowWarning(true);
-        }
-    }, [isFullscreen]);
+        const handleBeforeUnload = (e) => {
+            e.preventDefault();
+            e.returnValue = "Your exam is in progress. Are you sure you want to leave?";
+            return e.returnValue;
+        };
 
-    // In DEV_MODE, skip rendering security UI
-    if (DEV_MODE) return null;
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, []);
 
-    // Warning messages
-    const getWarningMessage = () => {
-        switch (warningType) {
-            case "tab-switch":
-                return {
-                    title: "⚠️ Tab Switch Detected!",
-                    message: "You left the exam window. This has been recorded as a violation.",
-                    icon: <FaEyeSlash className="text-4xl" />
-                };
-            case "window-blur":
-                return {
-                    title: "⚠️ Window Focus Lost!",
-                    message: "You switched to another window. This has been recorded.",
-                    icon: <FaEyeSlash className="text-4xl" />
-                };
-            case "fullscreen-exit":
-                return {
-                    title: "⚠️ Fullscreen Exited!",
-                    message: "You exited fullscreen mode. Please stay in fullscreen during the exam.",
-                    icon: <FaExclamationTriangle className="text-4xl" />
-                };
-            case "right-click":
-                return {
-                    title: "🚫 Right-Click Disabled",
-                    message: "Right-clicking is not allowed during the exam.",
-                    icon: <FaShieldAlt className="text-4xl" />
-                };
-            case "copy-paste":
-                return {
-                    title: "🚫 Copy/Paste Disabled",
-                    message: "Copy, cut, and paste are not allowed during the exam.",
-                    icon: <FaShieldAlt className="text-4xl" />
-                };
-            case "keyboard-shortcut":
-                return {
-                    title: "🚫 Shortcuts Blocked",
-                    message: "Keyboard shortcuts are disabled during the exam.",
-                    icon: <FaShieldAlt className="text-4xl" />
-                };
-            case "dev-tools":
-                return {
-                    title: "⚠️ Developer Tools Detected!",
-                    message: "Opening developer tools is a serious violation.",
-                    icon: <FaExclamationTriangle className="text-4xl" />
-                };
-            case "screenshot":
-                return {
-                    title: "🚫 Screenshot Blocked",
-                    message: "Taking screenshots is not allowed during the exam.",
-                    icon: <FaShieldAlt className="text-4xl" />
-                };
-            case "print":
-                return {
-                    title: "🚫 Print Blocked",
-                    message: "Printing is not allowed during the exam.",
-                    icon: <FaShieldAlt className="text-4xl" />
-                };
-            default:
-                return {
-                    title: "⚠️ Warning",
-                    message: "Please follow exam rules.",
-                    icon: <FaExclamationTriangle className="text-4xl" />
-                };
-        }
-    };
-
-    const warning = getWarningMessage();
-
-    return (
-        <>
-            {/* Violation Counter (Always Visible) */}
-            {violations > 0 && (
-                <div className="fixed top-4 right-4 z-[9999] bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-                    <FaExclamationTriangle />
-                    <span className="font-bold">Violations: {violations}/{MAX_VIOLATIONS}</span>
-                </div>
-            )}
-
-            {/* Warning Overlay */}
-            {showWarning && (
-                <div className="fixed inset-0 z-[99999] bg-black/90 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-2xl animate-pulse">
-                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 text-red-600">
-                            {warning.icon}
-                        </div>
-
-                        <h2 className="text-2xl font-bold text-red-600 mb-3">
-                            {warning.title}
-                        </h2>
-
-                        <p className="text-gray-600 mb-4">
-                            {warning.message}
-                        </p>
-
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                            <p className="text-red-700 font-semibold text-lg">
-                                {warningType === "fullscreen-exit" ? "Action Required" : `Violation Count: ${violations} of ${MAX_VIOLATIONS}`}
-                            </p>
-                            <p className="text-red-600 text-sm mt-1">
-                                {warningType === "fullscreen-exit"
-                                    ? "Full screen is mandatory during the exam. Content is hidden until you return to full screen."
-                                    : (violations >= MAX_VIOLATIONS
-                                        ? "Maximum violations reached. Your exam may be terminated."
-                                        : `${MAX_VIOLATIONS - violations} more violation(s) will result in exam termination.`)
-                                }
-                            </p>
-                        </div>
-
-                        <button
-                            onClick={() => {
-                                requestFullscreen();
-                                if (document.fullscreenElement) {
-                                    setShowWarning(false);
-                                }
-                            }}
-                            className="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-red-700 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
-                        >
-                            <FaShieldAlt />
-                            {warningType === "fullscreen-exit" ? "Re-enter Full Screen" : "Acknowledge & Continue"}
-                        </button>
+    // If not in fullscreen, show overlay that forces re-entry
+    if (!isFullscreen) {
+        return (
+            <div
+                style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 999999,
+                    backgroundColor: "rgba(0, 0, 0, 0.95)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "20px",
+                }}
+            >
+                <div
+                    style={{
+                        backgroundColor: "#fff",
+                        borderRadius: "16px",
+                        padding: "40px",
+                        maxWidth: "420px",
+                        width: "100%",
+                        textAlign: "center",
+                        boxShadow: "0 25px 50px rgba(0,0,0,0.3)",
+                    }}
+                >
+                    {/* Lock Icon */}
+                    <div
+                        style={{
+                            width: "70px",
+                            height: "70px",
+                            backgroundColor: "#fee2e2",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            margin: "0 auto 20px",
+                        }}
+                    >
+                        <FaLock style={{ fontSize: "28px", color: "#dc2626" }} />
                     </div>
+
+                    <h2
+                        style={{
+                            fontSize: "22px",
+                            fontWeight: "bold",
+                            color: "#1f2937",
+                            marginBottom: "10px",
+                        }}
+                    >
+                        Fullscreen Required
+                    </h2>
+
+                    <p
+                        style={{
+                            fontSize: "14px",
+                            color: "#6b7280",
+                            marginBottom: "8px",
+                            lineHeight: "1.6",
+                        }}
+                    >
+                        This exam must be taken in fullscreen mode.
+                        Please click the button below to continue your exam.
+                    </p>
+
+                    <p
+                        style={{
+                            fontSize: "12px",
+                            color: "#ef4444",
+                            marginBottom: "24px",
+                            fontWeight: "600",
+                        }}
+                    >
+                        ⚠️ Do not close or leave this page until you submit your exam.
+                    </p>
+
+                    <button
+                        onClick={requestFullscreen}
+                        style={{
+                            width: "100%",
+                            backgroundColor: "#dc2626",
+                            color: "white",
+                            padding: "14px 24px",
+                            borderRadius: "12px",
+                            fontWeight: "bold",
+                            fontSize: "16px",
+                            border: "none",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "10px",
+                            transition: "background-color 0.2s",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#b91c1c")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#dc2626")}
+                    >
+                        <FaExpandArrowsAlt style={{ fontSize: "16px" }} />
+                        Enter Fullscreen & Continue Exam
+                    </button>
                 </div>
-            )}
-        </>
-    );
+            </div>
+        );
+    }
+
+    // In fullscreen — render nothing (exam page shows normally)
+    return null;
 }
