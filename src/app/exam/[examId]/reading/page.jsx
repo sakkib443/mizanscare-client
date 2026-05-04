@@ -154,6 +154,64 @@ function ReadingExamPageContent() {
         }, 2000);
         return () => clearTimeout(t);
     }, [answers]);
+    // ── Emergency auto-submit on tab/browser close (5+ answers) ─────────
+    const submittedRef = useRef(false);
+
+    useEffect(() => {
+        if (isAdminPreview) return;
+
+        const emergencySubmit = () => {
+            if (submittedRef.current) return;
+            const answeredKeys = Object.keys(answers).filter(k => answers[k] !== "");
+            if (answeredKeys.length < 5) return;
+
+            const storedSession = localStorage.getItem("examSession");
+            if (!storedSession) return;
+            const sd = JSON.parse(storedSession);
+            const examId = sd?.examId;
+            if (!examId) return;
+
+            const currentSetNumber = sd?.currentSetNumber;
+            const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api") + "/students/save-module-score";
+
+            const answerEntries = answeredKeys.map(qNum => ({
+                questionNumber: parseInt(qNum),
+                studentAnswer: answers[qNum]?.toString().trim() || "",
+                questionType: "auto-submitted"
+            }));
+
+            const payload = {
+                examId,
+                module: "reading",
+                scoreData: {
+                    score: 0, total: 40, band: 0,
+                    answers: answerEntries,
+                    setNumber: currentSetNumber,
+                    autoSubmitted: true,
+                    answeredCount: answeredKeys.length
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+            navigator.sendBeacon(apiUrl, blob);
+
+            sd.completedModules = [...(sd.completedModules || []), currentSetNumber ? `reading:${currentSetNumber}` : "reading"];
+            sd.scores = { ...(sd.scores || {}), reading: { band: 0, raw: 0, autoSubmitted: true } };
+            localStorage.setItem("examSession", JSON.stringify(sd));
+            try { localStorage.removeItem(autoSaveKey); } catch (e) { /* ignore */ }
+            submittedRef.current = true;
+        };
+
+        const handlePageHide = (e) => { if (!e.persisted) emergencySubmit(); };
+        const handleVisibilityChange = () => { if (document.visibilityState === "hidden") emergencySubmit(); };
+
+        window.addEventListener("pagehide", handlePageHide);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            window.removeEventListener("pagehide", handlePageHide);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [answers, isAdminPreview]);
 
     // Load session and question set
     useEffect(() => {
@@ -468,6 +526,7 @@ function ReadingExamPageContent() {
     };
 
     const handleSubmit = async () => {
+        submittedRef.current = true; // Prevent emergency submit from firing
         setIsSubmitting(true);
         await new Promise((resolve) => setTimeout(resolve, 1500));
 

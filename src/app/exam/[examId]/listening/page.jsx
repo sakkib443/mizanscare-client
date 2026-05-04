@@ -246,6 +246,80 @@ function ListeningExamPageContent() {
         return () => clearTimeout(t);
     }, [answers]);
 
+    // ── Emergency auto-submit on tab/browser close (5+ answers) ─────────
+    const submittedRef = useRef(false);
+
+    useEffect(() => {
+        if (isAdminPreview) return;
+
+        const emergencySubmit = () => {
+            if (submittedRef.current) return;
+            const answeredKeys = Object.keys(answers).filter(k => answers[k] !== "");
+            if (answeredKeys.length < 5) return; // Less than 5 answers, don't auto-submit
+
+            const storedSession = localStorage.getItem("examSession");
+            if (!storedSession) return;
+            const sd = JSON.parse(storedSession);
+            const examId = sd?.examId;
+            if (!examId) return;
+
+            const currentSetNumber = sd?.currentSetNumber;
+            const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api") + "/students/save-module-score";
+
+            // Build minimal answer data
+            const answerEntries = answeredKeys.map(qNum => ({
+                questionNumber: parseInt(qNum),
+                studentAnswer: answers[qNum]?.toString().trim() || "",
+                questionType: "auto-submitted"
+            }));
+
+            const payload = {
+                examId,
+                module: "listening",
+                scoreData: {
+                    score: 0, total: 40, band: 0,
+                    answers: answerEntries,
+                    setNumber: currentSetNumber,
+                    autoSubmitted: true,
+                    answeredCount: answeredKeys.length
+                }
+            };
+
+            // sendBeacon guarantees delivery even during page unload
+            const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+            navigator.sendBeacon(apiUrl, blob);
+
+            // Mark module as completed in localStorage
+            sd.completedModules = [...(sd.completedModules || []), currentSetNumber ? `listening:${currentSetNumber}` : "listening"];
+            sd.scores = { ...(sd.scores || {}), listening: { band: 0, raw: 0, autoSubmitted: true } };
+            localStorage.setItem("examSession", JSON.stringify(sd));
+
+            // Clear auto-save draft
+            try { localStorage.removeItem(autoSaveKey); } catch (e) { /* ignore */ }
+            submittedRef.current = true;
+        };
+
+        const handlePageHide = (e) => {
+            if (!e.persisted) emergencySubmit(); // Page is actually being unloaded
+        };
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "hidden") emergencySubmit();
+        };
+
+        window.addEventListener("pagehide", handlePageHide);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener("pagehide", handlePageHide);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [answers, isAdminPreview]);
+
+    // Mark as submitted when normal submit happens
+    useEffect(() => {
+        // This is set in handleSubmit to prevent double-submit
+    }, []);
+
     // ── Load exam data ───────────────────────────────────────────────────
     useEffect(() => {
         const loadData = async () => {
@@ -514,6 +588,7 @@ function ListeningExamPageContent() {
     };
 
     const handleSubmit = async () => {
+        submittedRef.current = true; // Prevent emergency submit from firing
         setIsSubmitting(true);
         await new Promise(r => setTimeout(r, 1200));
         const score = calculateScore();

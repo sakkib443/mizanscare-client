@@ -158,6 +158,58 @@ function WritingExamPageContent() {
         }, 2000);
         return () => clearTimeout(t);
     }, [answers]);
+    // ── Emergency auto-submit on tab/browser close (5+ words written) ────
+    const submittedRef = useRef(false);
+
+    useEffect(() => {
+        if (isAdminPreview) return;
+
+        const emergencySubmit = () => {
+            if (submittedRef.current) return;
+            const task1Words = answers.task1?.trim().split(/\s+/).filter(Boolean).length || 0;
+            const task2Words = answers.task2?.trim().split(/\s+/).filter(Boolean).length || 0;
+            if (task1Words + task2Words < 5) return; // Less than 5 words total, don't submit
+
+            const storedSession = localStorage.getItem("examSession");
+            if (!storedSession) return;
+            const sd = JSON.parse(storedSession);
+            const examId = sd?.examId;
+            if (!examId) return;
+
+            const currentSetNumber = sd?.currentSetNumber;
+            const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api") + "/students/save-module-score";
+
+            const payload = {
+                examId,
+                module: "writing",
+                scoreData: {
+                    band: 0, task1Words, task2Words,
+                    answers: { task1: answers.task1, task2: answers.task2 },
+                    setNumber: currentSetNumber,
+                    autoSubmitted: true
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+            navigator.sendBeacon(apiUrl, blob);
+
+            sd.completedModules = [...(sd.completedModules || []), currentSetNumber ? `writing:${currentSetNumber}` : "writing"];
+            sd.scores = { ...(sd.scores || {}), writing: { overallBand: 0, autoSubmitted: true } };
+            localStorage.setItem("examSession", JSON.stringify(sd));
+            try { localStorage.removeItem(autoSaveKey); } catch (e) { /* ignore */ }
+            submittedRef.current = true;
+        };
+
+        const handlePageHide = (e) => { if (!e.persisted) emergencySubmit(); };
+        const handleVisibilityChange = () => { if (document.visibilityState === "hidden") emergencySubmit(); };
+
+        window.addEventListener("pagehide", handlePageHide);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            window.removeEventListener("pagehide", handlePageHide);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [answers, isAdminPreview]);
 
     // ===== LOAD DATA =====
     useEffect(() => {
@@ -317,6 +369,7 @@ function WritingExamPageContent() {
     };
 
     const handleFinalSubmit = async () => {
+        submittedRef.current = true; // Prevent emergency submit from firing
         setIsSubmitting(true);
         setPhase("done");
         const task1Words = answers.task1?.trim().split(/\s+/).filter(Boolean).length || 0;
