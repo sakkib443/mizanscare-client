@@ -182,6 +182,22 @@ export default function EditStudentPage() {
         setSaving(true);
 
         try {
+            // Build fullSets from the multi-set selections
+            // We group L+R+W into one full set (matching the first of each)
+            const maxLen = Math.max(
+                listeningSelectedSets.length,
+                readingSelectedSets.length,
+                writingSelectedSets.length
+            );
+            const fullSets = [];
+            for (let i = 0; i < maxLen; i++) {
+                const fs = { label: `Full Set ${i + 1}` };
+                if (listeningSelectedSets[i]) fs.listeningSetNumber = listeningSelectedSets[i];
+                if (readingSelectedSets[i]) fs.readingSetNumber = readingSelectedSets[i];
+                if (writingSelectedSets[i]) fs.writingSetNumber = writingSelectedSets[i];
+                fullSets.push(fs);
+            }
+
             const updateData = {
                 nameEnglish: formData.nameEnglish,
                 nameBengali: formData.nameBengali || undefined,
@@ -192,12 +208,14 @@ export default function EditStudentPage() {
                 paymentAmount: formData.paymentAmount,
                 paymentMethod: formData.paymentMethod,
                 paymentReference: formData.paymentReference || undefined,
-                // Primary set (first in array, backward compatible)
+                // Send fullSets so server updates assignedSets.fullSets + legacy fields
+                fullSets: fullSets.length > 0 ? fullSets : [],
+                extraSets: [],
+                // Also send legacy fields as fallback
                 listeningSetNumber: listeningSelectedSets[0] || undefined,
                 readingSetNumber: readingSelectedSets[0] || undefined,
                 writingSetNumber: writingSelectedSets[0] || undefined,
                 speakingSetNumber: speakingSelectedSets[0] || undefined,
-                // Multi-set arrays
                 listeningSetNumbers: listeningSelectedSets.length > 0 ? listeningSelectedSets : undefined,
                 readingSetNumbers: readingSelectedSets.length > 0 ? readingSelectedSets : undefined,
                 writingSetNumbers: writingSelectedSets.length > 0 ? writingSelectedSets : undefined,
