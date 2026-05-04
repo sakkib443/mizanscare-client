@@ -33,6 +33,59 @@ export default function StudentsListPage() {
     const [resetModal, setResetModal] = useState({ show: false, student: null });
     const [copiedId, setCopiedId] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [bulkModal, setBulkModal] = useState({ show: false, action: null });
+
+    // Bulk selection helpers
+    const isAllSelected = students.length > 0 && selectedIds.length === students.length;
+    const isSomeSelected = selectedIds.length > 0;
+
+    const toggleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(students.map(s => s._id));
+        }
+    };
+
+    const toggleSelect = (id) => {
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
+
+    const handleBulkReset = async () => {
+        try {
+            setActionLoading(true);
+            const selected = students.filter(s => selectedIds.includes(s._id));
+            for (const student of selected) {
+                if (student.examId) {
+                    await studentsAPI.resetExam(student.examId);
+                }
+            }
+            setBulkModal({ show: false, action: null });
+            setSelectedIds([]);
+            fetchStudents();
+        } catch (error) {
+            alert("Failed to reset some exams: " + error.message);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        try {
+            setActionLoading(true);
+            for (const id of selectedIds) {
+                await studentsAPI.delete(id);
+            }
+            setBulkModal({ show: false, action: null });
+            setSelectedIds([]);
+            fetchStudents();
+        } catch (error) {
+            alert("Failed to delete some students: " + error.message);
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
     useEffect(() => {
         fetchStudents();
@@ -214,6 +267,9 @@ export default function StudentsListPage() {
                     <table className="w-full">
                         <thead className="bg-gray-50">
                             <tr>
+                                <th className="px-4 py-3 w-10">
+                                    <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500 cursor-pointer" />
+                                </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Student
                                 </th>
@@ -243,14 +299,17 @@ export default function StudentsListPage() {
                         <tbody className="divide-y divide-gray-200">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-12 text-center">
+                                    <td colSpan={9} className="px-4 py-12 text-center">
                                         <FaSpinner className="animate-spin text-3xl text-cyan-500 mx-auto" />
                                         <p className="text-gray-500 mt-2">Loading students...</p>
                                     </td>
                                 </tr>
                             ) : students.length > 0 ? (
                                 students.map((student) => (
-                                    <tr key={student._id} className="hover:bg-gray-50 transition-colors">
+                                    <tr key={student._id} className={`hover:bg-gray-50 transition-colors ${selectedIds.includes(student._id) ? 'bg-cyan-50' : ''}`}>
+                                        <td className="px-4 py-4">
+                                            <input type="checkbox" checked={selectedIds.includes(student._id)} onChange={() => toggleSelect(student._id)} className="w-4 h-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500 cursor-pointer" />
+                                        </td>
                                         <td className="px-4 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center flex-shrink-0">
@@ -347,7 +406,7 @@ export default function StudentsListPage() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-12 text-center">
+                                    <td colSpan={9} className="px-4 py-12 text-center">
                                         <div className="text-gray-400 text-5xl mb-4">👥</div>
                                         <p className="text-gray-500">No students found</p>
                                         <Link
@@ -393,6 +452,50 @@ export default function StudentsListPage() {
                     </div>
                 )}
             </div>
+
+            {/* Bulk Action Bar */}
+            {isSomeSelected && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-4 z-50 animate-slide-up">
+                    <span className="text-sm font-medium">{selectedIds.length} student{selectedIds.length > 1 ? 's' : ''} selected</span>
+                    <div className="w-px h-6 bg-gray-600"></div>
+                    <button onClick={() => setBulkModal({ show: true, action: 'reset' })} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors">
+                        <FaRedo className="text-xs" /> Reset Exam
+                    </button>
+                    <button onClick={() => setBulkModal({ show: true, action: 'delete' })} className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition-colors">
+                        <FaTrash className="text-xs" /> Delete
+                    </button>
+                    <button onClick={() => setSelectedIds([])} className="ml-2 text-gray-400 hover:text-white text-sm">✕</button>
+                    <style>{`@keyframes slide-up { from { transform: translateX(-50%) translateY(100px); opacity:0; } to { transform: translateX(-50%) translateY(0); opacity:1; } } .animate-slide-up { animation: slide-up 0.3s ease-out; }`}</style>
+                </div>
+            )}
+
+            {/* Bulk Action Modal */}
+            {bulkModal.show && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                            {bulkModal.action === 'delete' ? 'Delete Students' : 'Reset Exams'}
+                        </h3>
+                        <p className="text-gray-600 mb-4">
+                            {bulkModal.action === 'delete'
+                                ? `Are you sure you want to delete ${selectedIds.length} student(s)? This cannot be undone.`
+                                : `Are you sure you want to reset exams for ${selectedIds.length} student(s)? They will be able to take exams again.`
+                            }
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button onClick={() => setBulkModal({ show: false, action: null })} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                            <button
+                                onClick={bulkModal.action === 'delete' ? handleBulkDelete : handleBulkReset}
+                                disabled={actionLoading}
+                                className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 flex items-center gap-2 ${bulkModal.action === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'}`}
+                            >
+                                {actionLoading && <FaSpinner className="animate-spin" />}
+                                {bulkModal.action === 'delete' ? `Delete ${selectedIds.length}` : `Reset ${selectedIds.length}`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Delete Modal */}
             {deleteModal.show && (
