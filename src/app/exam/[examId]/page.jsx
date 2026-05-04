@@ -34,6 +34,23 @@ export default function ExamSelectionPage() {
     const [moduleScores, setModuleScores] = useState(null);
     const [showDemoVideo, setShowDemoVideo] = useState(false);
     const [showModuleVideo, setShowModuleVideo] = useState(null); // { moduleId, setNumber }
+
+    // Dynamic videos (managed from Admin > Design > Videos)
+    // NOTE: All hooks MUST be called before any early returns to satisfy React Rules of Hooks
+    const VIDEO_KEYS = [
+        "video.exam_intro",
+        "video.listening_intro",
+        "video.reading_intro",
+        "video.writing_intro",
+    ];
+    const VIDEO_DEFAULTS = {
+        "video.exam_intro": { videoSource: "local", videoUrl: "/video/IELTS on computer - Quick Guide.mp4" },
+        "video.listening_intro": { videoSource: "local", videoUrl: "/video/listeining test instruction.mp4" },
+        "video.reading_intro": { videoSource: "local", videoUrl: "/video/reading instruction.mp4" },
+        "video.writing_intro": { videoSource: "local", videoUrl: "/video/writing instruction.mp4" },
+    };
+    const { data: dynamicVideos } = useSiteContent(VIDEO_KEYS, VIDEO_DEFAULTS);
+
     useEffect(() => {
         const loadSessionAndVerify = async () => {
             const storedSession = localStorage.getItem("examSession");
@@ -139,21 +156,6 @@ export default function ExamSelectionPage() {
         }
         return [];
     };
-
-    // Dynamic videos (managed from Admin > Design > Videos)
-    const VIDEO_KEYS = [
-        "video.exam_intro",
-        "video.listening_intro",
-        "video.reading_intro",
-        "video.writing_intro",
-    ];
-    const VIDEO_DEFAULTS = {
-        "video.exam_intro": { videoSource: "local", videoUrl: "/video/IELTS on computer - Quick Guide.mp4" },
-        "video.listening_intro": { videoSource: "local", videoUrl: "/video/listeining test instruction.mp4" },
-        "video.reading_intro": { videoSource: "local", videoUrl: "/video/reading instruction.mp4" },
-        "video.writing_intro": { videoSource: "local", videoUrl: "/video/writing instruction.mp4" },
-    };
-    const { data: dynamicVideos } = useSiteContent(VIDEO_KEYS, VIDEO_DEFAULTS);
 
     const examIntroEntry = dynamicVideos["video.exam_intro"];
     const examIntroSrc = getVideoSrc(examIntroEntry, "/video/IELTS on computer - Quick Guide.mp4");
