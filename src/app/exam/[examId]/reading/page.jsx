@@ -103,6 +103,58 @@ function ReadingExamPageContent() {
     const [questionSet, setQuestionSet] = useState(null);
     const [session, setSession] = useState(null);
 
+    // ── Auto-save key for crash recovery ──────────────────────────────────
+    const autoSaveKey = `exam_draft_reading_${params.examId}`;
+
+    // ── Restore saved answers on mount ─────────────────────────────────────
+    useEffect(() => {
+        if (isAdminPreview) return;
+        try {
+            const saved = localStorage.getItem(autoSaveKey);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.answers && Object.keys(parsed.answers).length > 0) {
+                    setAnswers(parsed.answers);
+                }
+                if (parsed.timeLeft && parsed.timeLeft > 0) {
+                    setTimeLeft(parsed.timeLeft);
+                }
+                if (parsed.currentPassage != null) {
+                    setCurrentPassage(parsed.currentPassage);
+                }
+                console.log('[AutoSave] Restored reading answers from localStorage');
+            }
+        } catch (e) {
+            console.error('[AutoSave] Failed to restore:', e);
+        }
+    }, []);
+
+    // ── Auto-save answers every 15 seconds ─────────────────────────────────
+    useEffect(() => {
+        if (isAdminPreview || isLoading) return;
+        const interval = setInterval(() => {
+            try {
+                localStorage.setItem(autoSaveKey, JSON.stringify({
+                    answers, timeLeft, currentPassage, savedAt: Date.now()
+                }));
+            } catch (e) { /* ignore quota errors */ }
+        }, 15000);
+        return () => clearInterval(interval);
+    }, [answers, timeLeft, currentPassage, isAdminPreview, isLoading]);
+
+    // ── Save on every answer change (debounced) ───────────────────────────
+    useEffect(() => {
+        if (isAdminPreview || Object.keys(answers).length === 0) return;
+        const t = setTimeout(() => {
+            try {
+                localStorage.setItem(autoSaveKey, JSON.stringify({
+                    answers, timeLeft, currentPassage, savedAt: Date.now()
+                }));
+            } catch (e) { /* ignore */ }
+        }, 2000);
+        return () => clearTimeout(t);
+    }, [answers]);
+
     // Load session and question set
     useEffect(() => {
         const loadData = async () => {
@@ -469,6 +521,8 @@ function ReadingExamPageContent() {
                 localStorage.setItem("examSession", JSON.stringify(sessionData));
             }
         }
+        // Clear auto-save after successful submit
+        try { localStorage.removeItem(autoSaveKey); } catch (e) { /* ignore */ }
         router.push(`/exam/${params.examId}`);
     };
 

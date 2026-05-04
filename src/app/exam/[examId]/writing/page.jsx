@@ -103,6 +103,62 @@ function WritingExamPageContent() {
     const cs = contrastSchemes[contrastMode];
     const tScale = textSizeMode === 'large' ? 1.15 : textSizeMode === 'extra-large' ? 1.3 : 1;
 
+    // ── Auto-save key for crash recovery ──────────────────────────────────
+    const autoSaveKey = `exam_draft_writing_${params.examId}`;
+
+    // ── Restore saved answers on mount ─────────────────────────────────────
+    useEffect(() => {
+        if (isAdminPreview) return;
+        try {
+            const saved = localStorage.getItem(autoSaveKey);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.answers) {
+                    setAnswers(parsed.answers);
+                }
+                if (parsed.part1Time && parsed.part1Time > 0) {
+                    setPart1Time(parsed.part1Time);
+                }
+                if (parsed.part2Time && parsed.part2Time > 0) {
+                    setPart2Time(parsed.part2Time);
+                }
+                if (parsed.completedParts && parsed.completedParts.length > 0) {
+                    setCompletedParts(parsed.completedParts);
+                }
+                console.log('[AutoSave] Restored writing answers from localStorage');
+            }
+        } catch (e) {
+            console.error('[AutoSave] Failed to restore:', e);
+        }
+    }, []);
+
+    // ── Auto-save answers every 15 seconds ─────────────────────────────────
+    useEffect(() => {
+        if (isAdminPreview || isLoading) return;
+        const interval = setInterval(() => {
+            try {
+                localStorage.setItem(autoSaveKey, JSON.stringify({
+                    answers, part1Time, part2Time, completedParts, savedAt: Date.now()
+                }));
+            } catch (e) { /* ignore quota errors */ }
+        }, 15000);
+        return () => clearInterval(interval);
+    }, [answers, part1Time, part2Time, completedParts, isAdminPreview, isLoading]);
+
+    // ── Save on every text change (debounced) ─────────────────────────────
+    useEffect(() => {
+        if (isAdminPreview) return;
+        if (!answers.task1 && !answers.task2) return;
+        const t = setTimeout(() => {
+            try {
+                localStorage.setItem(autoSaveKey, JSON.stringify({
+                    answers, part1Time, part2Time, completedParts, savedAt: Date.now()
+                }));
+            } catch (e) { /* ignore */ }
+        }, 2000);
+        return () => clearTimeout(t);
+    }, [answers]);
+
     // ===== LOAD DATA =====
     useEffect(() => {
         const loadData = async () => {
@@ -299,6 +355,8 @@ function WritingExamPageContent() {
                 localStorage.setItem("examSession", JSON.stringify(sessionData));
             }
         }
+        // Clear auto-save after successful submit
+        try { localStorage.removeItem(autoSaveKey); } catch (e) { /* ignore */ }
         router.push(`/exam/${params.examId}`);
     };
 
