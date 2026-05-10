@@ -19,6 +19,7 @@ import {
     FaTimes,
 } from "react-icons/fa";
 import { studentsAPI } from "@/lib/api";
+import { prefetchModule } from "@/lib/examPrefetch";
 import Logo from "@/components/Logo";
 import { useSiteContent, getVideoSrc, isYouTube } from "@/hooks/useSiteContent";
 
@@ -228,6 +229,14 @@ export default function ExamSelectionPage() {
 
 
     const handleStartModule = (moduleId, setNumber) => {
+        // Kick off background prefetch IMMEDIATELY when the instruction video opens.
+        // By the time the user clicks "Skip"/"Continue", the exam data is usually
+        // already cached → the module page can render almost instantly.
+        // This call is fire-and-forget; it never throws.
+        if (setNumber != null) {
+            prefetchModule(moduleId, setNumber);
+        }
+
         // Show module-specific instruction video before navigating
         setShowModuleVideo({ moduleId, setNumber });
     };

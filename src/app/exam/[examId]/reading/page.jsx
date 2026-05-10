@@ -16,6 +16,8 @@ import {
     FaVolumeUp
 } from "react-icons/fa";
 import { readingAPI, studentsAPI } from "@/lib/api";
+import { getPrefetched, fetchModuleData } from "@/lib/examPrefetch";
+import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import ExamSecurity from "@/components/ExamSecurity";
 import TextHighlighter from "@/components/TextHighlighter";
 
@@ -214,14 +216,21 @@ function ReadingExamPageContent() {
     }, [answers, isAdminPreview]);
 
     // Load session and question set
+    // Optimized: prefetch cache (populated when video popup opened) eliminates
+    // the API round-trip for most students. Redundant verifyExamId removed —
+    // completion check uses the localStorage data refreshed on /exam/[examId].
     useEffect(() => {
         const loadData = async () => {
             try {
                 // ═══ ADMIN PREVIEW MODE ═══
                 if (isAdminPreview) {
-                    const response = await readingAPI.getForExam(adminPreviewTestNumber);
-                    if (response.success && response.data) {
-                        const data = response.data;
+                    const cached = getPrefetched("reading", adminPreviewTestNumber);
+                    let data = cached;
+                    if (!data) {
+                        const response = await readingAPI.getForExam(adminPreviewTestNumber);
+                        if (response.success && response.data) data = response.data;
+                    }
+                    if (data) {
                         const sectionsData = data.sections || data.passages || (Array.isArray(data) ? data : []);
                         data.sections = sectionsData;
                         setQuestionSet(data);
@@ -243,32 +252,14 @@ function ReadingExamPageContent() {
                 const parsed = JSON.parse(storedSession);
                 setSession(parsed);
 
-                try {
-                    const verifyResponse = await studentsAPI.verifyExamId(parsed.examId);
-                    if (verifyResponse.success && verifyResponse.data) {
-                        const dbCompletedModules = verifyResponse.data.completedModules || [];
-                        const setNum = parsed.currentSetNumber;
-                        const isThisSetDone = setNum
-                            ? (dbCompletedModules.includes(`reading:${setNum}`) || dbCompletedModules.includes("reading"))
-                            : dbCompletedModules.includes("reading");
-
-                        if (isThisSetDone) {
-                            parsed.completedModules = dbCompletedModules;
-                            localStorage.setItem("examSession", JSON.stringify(parsed));
-                            router.push(`/exam/${params.examId}`);
-                            return;
-                        }
-                    }
-                } catch (apiError) {
-                    console.error("Failed to verify completion from DB, using localStorage:", apiError);
-                    const setNum = parsed.currentSetNumber;
-                    const isThisSetDone = setNum
-                        ? (parsed.completedModules?.includes(`reading:${setNum}`) || parsed.completedModules?.includes("reading"))
-                        : parsed.completedModules?.includes("reading");
-                    if (isThisSetDone) {
-                        router.push(`/exam/${params.examId}`);
-                        return;
-                    }
+                // Completion check from localStorage (already fresh from selection page)
+                const setNum = parsed.currentSetNumber;
+                const isThisSetDone = setNum
+                    ? (parsed.completedModules?.includes(`reading:${setNum}`) || parsed.completedModules?.includes("reading"))
+                    : parsed.completedModules?.includes("reading");
+                if (isThisSetDone) {
+                    router.push(`/exam/${params.examId}`);
+                    return;
                 }
 
                 const readingSetNumber = parsed.currentSetNumber || parsed.assignedSets?.readingSetNumber;
@@ -278,9 +269,9 @@ function ReadingExamPageContent() {
                     return;
                 }
 
-                const response = await readingAPI.getForExam(readingSetNumber);
-                if (response.success && response.data) {
-                    const data = response.data;
+                // Use prefetched data if available; otherwise fetch (and cache).
+                const data = await fetchModuleData("reading", readingSetNumber);
+                if (data) {
                     const sectionsData = data.sections || data.passages || (Array.isArray(data) ? data : []);
                     data.sections = sectionsData;
                     setQuestionSet(data);
@@ -614,12 +605,12 @@ function ReadingExamPageContent() {
     // Loading state
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
-                <div className="text-center">
-                    <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto mb-4" />
-                    <p className="text-gray-600">Loading reading test...</p>
-                </div>
-            </div>
+            <ExamLoadingOverlay
+                active={true}
+                done={false}
+                label="Preparing Reading Test"
+                subLabel="Loading passages and questions..."
+            />
         );
     }
 

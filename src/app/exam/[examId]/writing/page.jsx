@@ -22,6 +22,8 @@ import {
     FaCheckCircle,
 } from "react-icons/fa";
 import { writingAPI, studentsAPI } from "@/lib/api";
+import { getPrefetched, fetchModuleData } from "@/lib/examPrefetch";
+import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import ExamSecurity from "@/components/ExamSecurity";
 import TextHighlighter from "@/components/TextHighlighter";
 
@@ -212,17 +214,28 @@ function WritingExamPageContent() {
     }, [answers, isAdminPreview]);
 
     // ===== LOAD DATA =====
+    // Optimized: uses prefetched cache when available; redundant verifyExamId
+    // call removed (completion check uses localStorage refreshed on selection page).
     useEffect(() => {
+        const applyTaskTimes = (tasks) => {
+            if (!Array.isArray(tasks)) return;
+            if (tasks[0]?.recommendedTime) setPart1Time(tasks[0].recommendedTime * 60);
+            if (tasks[1]?.recommendedTime) setPart2Time(tasks[1].recommendedTime * 60);
+        };
+
         const loadData = async () => {
             try {
                 // ═══ ADMIN PREVIEW MODE ═══
                 if (isAdminPreview) {
-                    const response = await writingAPI.getForExam(adminPreviewTestNumber);
-                    if (response.success && response.data) {
-                        setQuestionSet(response.data);
-                        const t = response.data.tasks || [];
-                        if (t[0]?.recommendedTime) setPart1Time(t[0].recommendedTime * 60);
-                        if (t[1]?.recommendedTime) setPart2Time(t[1].recommendedTime * 60);
+                    const cached = getPrefetched("writing", adminPreviewTestNumber);
+                    let data = cached;
+                    if (!data) {
+                        const response = await writingAPI.getForExam(adminPreviewTestNumber);
+                        if (response.success && response.data) data = response.data;
+                    }
+                    if (data) {
+                        setQuestionSet(data);
+                        applyTaskTimes(data.tasks);
                     } else {
                         setLoadError("Failed to load writing test.");
                     }
@@ -240,30 +253,14 @@ function WritingExamPageContent() {
                 const parsed = JSON.parse(storedSession);
                 setSession(parsed);
 
-                try {
-                    const verifyResponse = await studentsAPI.verifyExamId(parsed.examId);
-                    if (verifyResponse.success && verifyResponse.data) {
-                        const dbCompletedModules = verifyResponse.data.completedModules || [];
-                        const setNum = parsed.currentSetNumber;
-                        const isThisSetDone = setNum
-                            ? (dbCompletedModules.includes(`writing:${setNum}`) || dbCompletedModules.includes("writing"))
-                            : dbCompletedModules.includes("writing");
-                        if (isThisSetDone) {
-                            parsed.completedModules = dbCompletedModules;
-                            localStorage.setItem("examSession", JSON.stringify(parsed));
-                            router.push(`/exam/${params.examId}`);
-                            return;
-                        }
-                    }
-                } catch (apiError) {
-                    const setNum = parsed.currentSetNumber;
-                    const isThisSetDone = setNum
-                        ? (parsed.completedModules?.includes(`writing:${setNum}`) || parsed.completedModules?.includes("writing"))
-                        : parsed.completedModules?.includes("writing");
-                    if (isThisSetDone) {
-                        router.push(`/exam/${params.examId}`);
-                        return;
-                    }
+                // Completion check from localStorage (already fresh from selection page)
+                const setNum = parsed.currentSetNumber;
+                const isThisSetDone = setNum
+                    ? (parsed.completedModules?.includes(`writing:${setNum}`) || parsed.completedModules?.includes("writing"))
+                    : parsed.completedModules?.includes("writing");
+                if (isThisSetDone) {
+                    router.push(`/exam/${params.examId}`);
+                    return;
                 }
 
                 const writingSetNumber = parsed.currentSetNumber || parsed.assignedSets?.writingSetNumber;
@@ -272,12 +269,11 @@ function WritingExamPageContent() {
                     setIsLoading(false);
                     return;
                 }
-                const response = await writingAPI.getForExam(writingSetNumber);
-                if (response.success && response.data) {
-                    setQuestionSet(response.data);
-                    const t = response.data.tasks || [];
-                    if (t[0]?.recommendedTime) setPart1Time(t[0].recommendedTime * 60);
-                    if (t[1]?.recommendedTime) setPart2Time(t[1].recommendedTime * 60);
+
+                const data = await fetchModuleData("writing", writingSetNumber);
+                if (data) {
+                    setQuestionSet(data);
+                    applyTaskTimes(data.tasks);
                 } else {
                     setLoadError("Failed to load writing test questions.");
                 }
@@ -416,13 +412,12 @@ function WritingExamPageContent() {
     // ==================== LOADING ====================
     if (isLoading) {
         return (
-            <div style={{ minHeight: '100vh', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Arial, sans-serif' }}>
-                <div style={{ textAlign: 'center' }}>
-                    <FaSpinner style={{ fontSize: '24px', color: '#9ca3af', margin: '0 auto 12px', animation: 'spin 1s linear infinite' }} />
-                    <p style={{ color: '#9ca3af', fontSize: '14px' }}>Loading writing test...</p>
-                    <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-                </div>
-            </div>
+            <ExamLoadingOverlay
+                active={true}
+                done={false}
+                label="Preparing Writing Test"
+                subLabel="Loading tasks..."
+            />
         );
     }
 

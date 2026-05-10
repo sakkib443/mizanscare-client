@@ -14,6 +14,8 @@ import {
     FaHeadphones
 } from "react-icons/fa";
 import { listeningAPI, studentsAPI } from "@/lib/api";
+import { getPrefetched, fetchModuleData } from "@/lib/examPrefetch";
+import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import ExamSecurity from "@/components/ExamSecurity";
 
 const QUESTIONS_PER_PAGE = 10;
@@ -321,11 +323,21 @@ function ListeningExamPageContent() {
     }, []);
 
     // ── Load exam data ───────────────────────────────────────────────────
+    // Optimized: uses prefetch cache (populated when the instruction video opened)
+    // and skips the redundant verifyExamId call — completion check is done via
+    // the localStorage `completedModules` field that was refreshed on the
+    // selection page (/exam/[examId]). No behavior change.
     useEffect(() => {
         const loadData = async () => {
             try {
                 // ═══ ADMIN PREVIEW MODE ═══
                 if (isAdminPreview) {
+                    const cached = getPrefetched("listening", adminPreviewTestNumber);
+                    if (cached) {
+                        setQuestionSet(cached);
+                        setIsLoading(false);
+                        return;
+                    }
                     const response = await listeningAPI.getForExam(adminPreviewTestNumber);
                     if (response.success && response.data) {
                         setQuestionSet(response.data);
@@ -346,30 +358,14 @@ function ListeningExamPageContent() {
                 const parsed = JSON.parse(storedSession);
                 setSession(parsed);
 
-                try {
-                    const verifyResponse = await studentsAPI.verifyExamId(parsed.examId);
-                    if (verifyResponse.success && verifyResponse.data) {
-                        const dbMods = verifyResponse.data.completedModules || [];
-                        const setNum = parsed.currentSetNumber;
-                        const isThisSetDone = setNum
-                            ? (dbMods.includes(`listening:${setNum}`) || dbMods.includes("listening"))
-                            : dbMods.includes("listening");
-                        if (isThisSetDone) {
-                            parsed.completedModules = dbMods;
-                            localStorage.setItem("examSession", JSON.stringify(parsed));
-                            router.push(`/exam/${params.examId}`);
-                            return;
-                        }
-                    }
-                } catch {
-                    const setNum = parsed.currentSetNumber;
-                    const isThisSetDone = setNum
-                        ? (parsed.completedModules?.includes(`listening:${setNum}`) || parsed.completedModules?.includes("listening"))
-                        : parsed.completedModules?.includes("listening");
-                    if (isThisSetDone) {
-                        router.push(`/exam/${params.examId}`);
-                        return;
-                    }
+                // Completion check from localStorage (already refreshed on selection page)
+                const setNum = parsed.currentSetNumber;
+                const isThisSetDone = setNum
+                    ? (parsed.completedModules?.includes(`listening:${setNum}`) || parsed.completedModules?.includes("listening"))
+                    : parsed.completedModules?.includes("listening");
+                if (isThisSetDone) {
+                    router.push(`/exam/${params.examId}`);
+                    return;
                 }
 
                 const listeningSetNumber = parsed.currentSetNumber || parsed.assignedSets?.listeningSetNumber;
@@ -379,9 +375,11 @@ function ListeningExamPageContent() {
                     return;
                 }
 
-                const response = await listeningAPI.getForExam(listeningSetNumber);
-                if (response.success && response.data) {
-                    setQuestionSet(response.data);
+                // Use prefetched data if available (set when video popup opened);
+                // otherwise fetch (will also cache for future).
+                const data = await fetchModuleData("listening", listeningSetNumber);
+                if (data) {
+                    setQuestionSet(data);
                 } else {
                     setLoadError("Failed to load listening test questions.");
                 }
@@ -644,12 +642,12 @@ function ListeningExamPageContent() {
     // RENDER: Loading
     // ─────────────────────────────────────────────────────────────────────
     if (isLoading) return (
-        <div className="min-h-screen bg-white flex items-center justify-center">
-            <div className="text-center">
-                <FaSpinner className="animate-spin text-4xl text-gray-500 mx-auto mb-3" />
-                <p className="text-gray-600 text-sm">Loading listening test...</p>
-            </div>
-        </div>
+        <ExamLoadingOverlay
+            active={true}
+            done={false}
+            label="Preparing Listening Test"
+            subLabel="Loading questions and audio..."
+        />
     );
 
     if (loadError) return (
