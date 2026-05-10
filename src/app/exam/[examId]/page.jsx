@@ -21,6 +21,7 @@ import {
 import { studentsAPI } from "@/lib/api";
 import { prefetchModule } from "@/lib/examPrefetch";
 import Logo from "@/components/Logo";
+import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import { useSiteContent, getVideoSrc, isYouTube } from "@/hooks/useSiteContent";
 
 export default function ExamSelectionPage() {
@@ -35,6 +36,9 @@ export default function ExamSelectionPage() {
     const [moduleScores, setModuleScores] = useState(null);
     const [showDemoVideo, setShowDemoVideo] = useState(false);
     const [showModuleVideo, setShowModuleVideo] = useState(null); // { moduleId, setNumber }
+    // Shown immediately when the user clicks Skip/Continue, so the 0-100%
+    // progress bar appears before the new exam route's chunk finishes loading.
+    const [navigatingTo, setNavigatingTo] = useState(null); // { label, subLabel } | null
 
     // Dynamic videos (managed from Admin > Design > Videos)
     // NOTE: All hooks MUST be called before any early returns to satisfy React Rules of Hooks
@@ -241,6 +245,12 @@ export default function ExamSelectionPage() {
         setShowModuleVideo({ moduleId, setNumber });
     };
 
+    const MODULE_LABELS = {
+        listening: { label: "Preparing Listening Test", subLabel: "Loading questions and audio..." },
+        reading: { label: "Preparing Reading Test", subLabel: "Loading passages and questions..." },
+        writing: { label: "Preparing Writing Test", subLabel: "Loading tasks..." },
+    };
+
     const proceedToModule = () => {
         if (!showModuleVideo) return;
         const { moduleId, setNumber } = showModuleVideo;
@@ -252,6 +262,9 @@ export default function ExamSelectionPage() {
             localStorage.setItem("examSession", JSON.stringify(sessionData));
         }
         setShowModuleVideo(null);
+        // Show the 0-100% loading overlay IMMEDIATELY so the user sees feedback
+        // before Next.js finishes loading the new route's JS chunk.
+        setNavigatingTo(MODULE_LABELS[moduleId] || { label: "Preparing exam...", subLabel: "" });
         router.push(`/exam/${sessionId}/${moduleId}`);
     };
 
@@ -261,11 +274,24 @@ export default function ExamSelectionPage() {
 
     const proceedToFullExam = () => {
         setShowDemoVideo(false);
+        setNavigatingTo({ label: "Preparing Full Exam", subLabel: "Loading exam modules..." });
         router.push(`/exam/${sessionId}/full`);
     };
 
     return (
         <div className="min-h-screen bg-white transition-colors duration-300">
+            {/* Immediate transition overlay — shown the moment Skip/Continue
+                is clicked, until the new route's loading.jsx (or the page
+                itself) takes over. Prevents any blank-screen perception. */}
+            {navigatingTo && (
+                <ExamLoadingOverlay
+                    active={true}
+                    done={false}
+                    label={navigatingTo.label}
+                    subLabel={navigatingTo.subLabel}
+                />
+            )}
+
             {/* Header */}
             <header className="bg-white border-b border-gray-200 py-3 px-4">
                 <div className="max-w-4xl mx-auto flex items-center justify-between">
