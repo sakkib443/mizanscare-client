@@ -484,14 +484,14 @@ function ListeningExamPageContent() {
     }, []);
 
     useEffect(() => {
-        if (audioRef.current && !showSoundTest && !showPlayOverlay && audioUrl && !hasStarted.current) {
+        if (audioRef.current && !showSoundTest && !showPlayOverlay && !isLoading && audioUrl && !hasStarted.current) {
             audioRef.current.src = audioUrl;
             audioRef.current.load();
             audioRef.current.play().catch(err => console.log("Auto-play blocked:", err));
             setIsPlaying(true);
             hasStarted.current = true;
         }
-    }, [showSoundTest, showPlayOverlay, audioUrl]);
+    }, [showSoundTest, showPlayOverlay, audioUrl, isLoading]);
 
     const togglePlay = () => {
         if (!audioRef.current) return;
@@ -1039,11 +1039,14 @@ function ListeningExamPageContent() {
                         <span style={{ fontWeight: '900', color: '#cc0000', fontSize: '32px', letterSpacing: '-0.5px', fontFamily: 'Arial, sans-serif' }}>IELTS</span>
                         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
                             <span style={{ fontSize: '16px', fontWeight: '600', color: cs.text }}>Test taker ID</span>
-                            <span style={{ fontSize: '13px', color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text }}>{Math.floor(timeLeft / 60)} minutes remaining</span>
                         </div>
                     </div>
-                    {/* Right: WiFi + Bell + Menu icons */}
+                    {/* Right: Timer + WiFi + Bell + Menu icons */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: timeLeft < 300 ? '#dc2626' : cs.text, fontWeight: '700', fontSize: '18px', fontFamily: 'monospace' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                            {formatTime(timeLeft)}
+                        </div>
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12.55a11 11 0 0 1 14.08 0" />
                             <path d="M1.42 9a16 16 0 0 1 21.16 0" />
