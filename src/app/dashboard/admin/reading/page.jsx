@@ -24,7 +24,7 @@ export default function ReadingListPage() {
     const router = useRouter();
     const [tests, setTests] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
+    const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
     const [searchTerm, setSearchTerm] = useState("");
     const [difficultyFilter, setDifficultyFilter] = useState("");
     const [testTypeFilter, setTestTypeFilter] = useState("");
