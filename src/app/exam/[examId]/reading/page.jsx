@@ -706,7 +706,7 @@ function ReadingExamPageContent() {
             )}
 
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                TOP HEADER â€” Inspera IELTS Clone
+                TOP HEADER â€" Inspera IELTS Clone
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
             <header style={{ backgroundColor: cs.bg, borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}`, height: '56px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '0 16px' }}>
@@ -718,22 +718,22 @@ function ReadingExamPageContent() {
                         </div>
                     </div>
                     {/* Right */}
-                    <div style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘24px’ }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
                         {/* Timer */}
-                        <div style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘6px’, color: timeLeft < 300 ? ‘#dc2626’ : cs.text, fontWeight: ‘700’, fontSize: ‘18px’, fontFamily: ‘monospace’ }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: timeLeft < 300 ? '#dc2626' : cs.text, fontWeight: '700', fontSize: '18px', fontFamily: 'monospace' }}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                             {formatTime(timeLeft)}
                         </div>
                         {/* WiFi */}
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === ‘black-on-white’ ? ‘#374151’ : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" />
                         </svg>
                         {/* Bell icon */}
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === ‘black-on-white’ ? ‘#374151’ : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
                         </svg>
-                        {/* Hamburger â†’ Options */}
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={contrastMode === ‘black-on-white’ ? ‘#374151’ : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: ‘pointer’ }} onClick={() => { setShowOptionsMenu(true); setOptionsView(‘main’); }}>
+                        {/* Hamburger â†' Options */}
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: 'pointer' }} onClick={() => { setShowOptionsMenu(true); setOptionsView('main'); }}>
                             <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
                         </svg>
                     </div>
@@ -741,7 +741,7 @@ function ReadingExamPageContent() {
             </header >
 
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                PASSAGE BANNER â€” Inspera Style
+                PASSAGE BANNER â€" Inspera Style
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
             < div style={{ backgroundColor: cs.partBg, borderBottom: `1px solid ${cs.partBorder}`, padding: '8px 40px', flexShrink: 0, fontFamily: 'Arial, sans-serif' }
             }>
@@ -754,7 +754,7 @@ function ReadingExamPageContent() {
             </div >
 
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                MAIN CONTENT â€” Two Column Layout
+                MAIN CONTENT â€" Two Column Layout
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
             < div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
                 {/* LEFT: Passage Text */}
@@ -826,7 +826,7 @@ function ReadingExamPageContent() {
                                         </div>
                                     )}
 
-                                    {/* â”€â”€ NOTE COMPLETION â”€â”€ */}
+                                    {/* â"€â"€ NOTE COMPLETION â"€â"€ */}
                                     {(group.questionType === "note-completion" || group.groupType === "note-completion" || group.groupType === "table-completion") && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <div style={{ marginBottom: '12px' }}>
@@ -954,7 +954,7 @@ function ReadingExamPageContent() {
                                         </div>
                                     )}
 
-                                    {/* â”€â”€ TRUE/FALSE/NOT GIVEN â”€â”€ */}
+                                    {/* â"€â"€ TRUE/FALSE/NOT GIVEN â"€â"€ */}
                                     {(group.questionType === "true-false-not-given" || group.groupType === "true-false-not-given" || group.questionType === "true-false-ng") && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <div style={{ marginBottom: '12px' }}>
@@ -1034,7 +1034,7 @@ function ReadingExamPageContent() {
                                         </div>
                                     )}
 
-                                    {/* â”€â”€ MATCHING â”€â”€ */}
+                                    {/* â"€â"€ MATCHING â"€â"€ */}
                                     {(group.groupType === "matching-information" || group.groupType === "matching-features" || group.groupType === "matching-headings") && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ color: cs.text, marginBottom: '4px' }}>{group.mainInstruction}</p>
@@ -1192,7 +1192,7 @@ function ReadingExamPageContent() {
                                         </div>
                                     )}
 
-                                    {/* â”€â”€ SUMMARY COMPLETION â”€â”€ */}
+                                    {/* â"€â"€ SUMMARY COMPLETION â"€â"€ */}
                                     {group.groupType === "summary-completion" && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ color: cs.text, fontStyle: 'italic', marginBottom: '4px' }}>{group.mainInstruction}</p>
@@ -1211,7 +1211,7 @@ function ReadingExamPageContent() {
                                         </div>
                                     )}
 
-                                    {/* â”€â”€ CHOOSE TWO LETTERS â”€â”€ */}
+                                    {/* â"€â"€ CHOOSE TWO LETTERS â"€â"€ */}
                                     {group.groupType === "choose-two-letters" && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ color: cs.text, fontStyle: 'italic', marginBottom: '12px' }}>{group.mainInstruction}</p>
@@ -1418,7 +1418,7 @@ function ReadingExamPageContent() {
                                         </div>
                                     )}
 
-                                    {/* â”€â”€ SUMMARY WITH OPTIONS â”€â”€ */}
+                                    {/* â"€â"€ SUMMARY WITH OPTIONS â"€â"€ */}
                                     {group.groupType === "summary-with-options" && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ color: cs.text, marginBottom: '4px' }}>{group.mainInstruction}</p>
@@ -1468,11 +1468,11 @@ function ReadingExamPageContent() {
                                         </div>
                                     )}
 
-                                    {/* â”€â”€ YES/NO/NOT GIVEN â”€â”€ */}
+                                    {/* â"€â"€ YES/NO/NOT GIVEN â"€â"€ */}
 
 
 
-                                    {/* â”€â”€ MULTIPLE CHOICE FULL â”€â”€ */}
+                                    {/* â"€â"€ MULTIPLE CHOICE FULL â"€â"€ */}
                                     {group.groupType === "multiple-choice-full" && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ color: cs.text, fontStyle: 'italic', marginBottom: '4px' }}>{group.mainInstruction}</p>
@@ -1504,7 +1504,7 @@ function ReadingExamPageContent() {
                                         </div>
                                     )}
 
-                                    {/* â”€â”€ SHORT ANSWER â”€â”€ */}
+                                    {/* â"€â"€ SHORT ANSWER â"€â"€ */}
                                     {(group.questionType === "short-answer" || group.groupType === "short-answer") && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px' }}>{group.mainInstruction}</p>
@@ -1523,7 +1523,7 @@ function ReadingExamPageContent() {
                                         </div>
                                     )}
 
-                                    {/* â”€â”€ SENTENCE COMPLETION â”€â”€ */}
+                                    {/* â"€â"€ SENTENCE COMPLETION â"€â"€ */}
                                     {(group.questionType === "sentence-completion" || group.groupType === "sentence-completion") && (
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px' }}>{group.mainInstruction}</p>
@@ -1578,7 +1578,7 @@ function ReadingExamPageContent() {
             </div >
 
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                BOTTOM NAV â€” Inspera Clone
+                BOTTOM NAV â€" Inspera Clone
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
             <div style={{
                 position: 'fixed', bottom: 0, left: 0, right: 0,
@@ -1706,7 +1706,7 @@ function ReadingExamPageContent() {
             }
 
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                OPTIONS MENU â€” Inspera Style
+                OPTIONS MENU â€" Inspera Style
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
             {
                 adminScoreResult && (
