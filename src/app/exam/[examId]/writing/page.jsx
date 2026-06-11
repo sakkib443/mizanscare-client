@@ -579,7 +579,7 @@ function WritingExamPageContent() {
                 {/* ═══════════════════════════════════
                     TOP HEADER — Inspera Style
                 ═══════════════════════════════════ */}
-                <header style={{ backgroundColor: cs.bg, borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}`, height: '56px', flexShrink: 0 }}>
+                <header style={{ backgroundColor: (activePart === 1 ? part1Time : part2Time) <= 60 ? (contrastMode === 'black-on-white' ? '#fde8e8' : '#3a0d0d') : cs.bg, borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}`, height: '56px', flexShrink: 0, transition: 'background-color 0.5s ease' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '0 16px' }}>
                         {/* Left */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
