@@ -204,14 +204,15 @@ function ReadingExamPageContent() {
             submittedRef.current = true;
         };
 
+        // NOTE: Auto-submit only on real page unload (close/navigate away).
+        // Tab-switch / screen-hide (visibilitychange) must NOT auto-submit —
+        // it falsely completed exams with a 0 score. Cheating is handled
+        // separately by the ExamSecurity component, which grades real answers.
         const handlePageHide = (e) => { if (!e.persisted) emergencySubmit(); };
-        const handleVisibilityChange = () => { if (document.visibilityState === "hidden") emergencySubmit(); };
 
         window.addEventListener("pagehide", handlePageHide);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
         return () => {
             window.removeEventListener("pagehide", handlePageHide);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
     }, [answers, isAdminPreview]);
 
