@@ -95,15 +95,23 @@ export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
         };
     }, [handleFullscreenChange, handleVisibility, handleBlur, requestFullscreen]);
 
-    // While locked: any keypress tries to re-enter fullscreen.
+    // While locked: the FIRST interaction of any kind (click / tap / key)
+    // instantly re-enters fullscreen. pointerdown fires earlier than click,
+    // so it snaps back the moment the student touches the screen.
     useEffect(() => {
         if (!locked) return;
-        const onKey = (e) => {
-            e.preventDefault();
+        const reenter = (e) => {
+            if (e.type === "keydown") e.preventDefault();
             requestFullscreen();
         };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
+        window.addEventListener("pointerdown", reenter, { capture: true });
+        window.addEventListener("touchstart", reenter, { capture: true });
+        window.addEventListener("keydown", reenter, { capture: true });
+        return () => {
+            window.removeEventListener("pointerdown", reenter, { capture: true });
+            window.removeEventListener("touchstart", reenter, { capture: true });
+            window.removeEventListener("keydown", reenter, { capture: true });
+        };
     }, [locked, requestFullscreen]);
 
     // Warn before closing / refreshing the tab.
@@ -147,7 +155,9 @@ export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
                 position: "fixed",
                 inset: 0,
                 zIndex: 2147483647,
-                backgroundColor: "rgba(0, 0, 0, 0.98)",
+                backgroundColor: "rgba(244, 246, 251, 0.96)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -155,7 +165,7 @@ export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
                 userSelect: "none",
             }}
         >
-            <div style={{ textAlign: "center", color: "white", pointerEvents: "none", padding: "24px" }}>
+            <div style={{ textAlign: "center", color: "#1f2937", pointerEvents: "none", padding: "24px" }}>
                 <div
                     style={{
                         fontSize: "56px",
@@ -163,16 +173,16 @@ export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
                         animation: "examLockPulse 1.5s ease-in-out infinite",
                     }}
                 >
-                    🔒
+                    ⛶
                 </div>
                 <p style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "10px" }}>
-                    Exam locked
+                    Tap to return to fullscreen
                 </p>
-                <p style={{ fontSize: "15px", marginBottom: "6px" }}>
-                    Click anywhere to return to the exam.
+                <p style={{ fontSize: "15px", marginBottom: "6px", color: "#374151" }}>
+                    The exam must stay in fullscreen.
                 </p>
-                <p style={{ fontSize: "13px", color: "#9ca3af" }}>
-                    You must stay in fullscreen. The timer is still running.
+                <p style={{ fontSize: "13px", color: "#6b7280" }}>
+                    Your timer is still running.
                 </p>
                 <style>{`
                     @keyframes examLockPulse {
