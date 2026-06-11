@@ -3,115 +3,142 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 /**
- * Exam Security — Seamless Fullscreen Lock
- * 
- * ✅ Auto-enters fullscreen silently on mount (no overlay on first load)
- * ✅ Only shows overlay if user actively exits fullscreen
- * ✅ Click anywhere or keypress to re-enter fullscreen
- * ✅ Works seamlessly when navigating between exam parts
+ * Exam Security — Fullscreen Lock
+ *
+ * ⚠️ BROWSER LIMITATION (important, read this):
+ * No website can remove the browser's own "Exit fullscreen" UI or block the
+ * Esc / F11 keys. That is a hard browser security rule — if a page could trap
+ * you in fullscreen forever, every malicious site would. So the browser ALWAYS
+ * guarantees an escape. There is no code that disables it.
+ *
+ * What we CAN do (and what this does) is make leaving pointless:
+ * the instant the student leaves fullscreen — OR switches tab / app / window —
+ * an opaque lock covers the entire exam. They cannot see or answer anything
+ * until they return to fullscreen. The exam timer keeps running behind the
+ * lock, so leaving only wastes their own time.
+ *
+ * For a TRUE no-exit exam (kiosk mode), you need a dedicated locked browser
+ * such as "Safe Exam Browser" (a desktop app), not a website.
  */
-export default function ExamSecurity({ examId, onViolationLimit = () => { } }) {
-    const [showOverlay, setShowOverlay] = useState(false);
-    const retryTimerRef = useRef(null);
+export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
+    const [locked, setLocked] = useState(false);
     const hasBeenFullscreenRef = useRef(false);
     const mountedRef = useRef(false);
 
-    // Request fullscreen
-    const requestFullscreen = useCallback(async () => {
-        try {
-            const elem = document.documentElement;
-            if (document.fullscreenElement || document.webkitFullscreenElement) return true;
-            if (elem.requestFullscreen) {
-                await elem.requestFullscreen();
-            } else if (elem.webkitRequestFullscreen) {
-                await elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) {
-                await elem.msRequestFullscreen();
-            }
-            return true;
-        } catch (err) {
-            return false;
-        }
-    }, []);
-
-    // Track fullscreen changes
-    const handleFullscreenChange = useCallback(() => {
-        const isNowFullscreen = !!(
+    const isFullscreen = () =>
+        !!(
             document.fullscreenElement ||
             document.webkitFullscreenElement ||
             document.msFullscreenElement
         );
 
-        if (isNowFullscreen) {
+    // Request fullscreen (cross-browser). Needs a user gesture the first time.
+    const requestFullscreen = useCallback(async () => {
+        try {
+            if (isFullscreen()) return true;
+            const el = document.documentElement;
+            if (el.requestFullscreen) await el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+            else if (el.msRequestFullscreen) await el.msRequestFullscreen();
+            return true;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    // Left fullscreen → lock instantly. Re-entering clears the lock.
+    const handleFullscreenChange = useCallback(() => {
+        if (isFullscreen()) {
             hasBeenFullscreenRef.current = true;
-            setShowOverlay(false);
+            setLocked(false);
         } else if (hasBeenFullscreenRef.current && mountedRef.current) {
-            // User actively exited fullscreen — try auto re-enter first
-            if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-            retryTimerRef.current = setTimeout(async () => {
-                const success = await requestFullscreen();
-                if (!success) {
-                    setShowOverlay(true); // Only show overlay if auto re-enter failed
-                }
-            }, 100);
+            setLocked(true);          // lock immediately — nothing visible outside fullscreen
+            requestFullscreen();      // opportunistic silent recovery (works in some browsers)
         }
     }, [requestFullscreen]);
 
-    // Auto-enter fullscreen on mount (silently, no overlay)
+    // Switched tab / minimized → lock (covers the case where they peek elsewhere).
+    const handleVisibility = useCallback(() => {
+        if (document.visibilityState === "hidden" && hasBeenFullscreenRef.current) {
+            setLocked(true);
+        }
+    }, []);
+
+    // Window lost focus (alt-tab to another app) → lock.
+    const handleBlur = useCallback(() => {
+        if (hasBeenFullscreenRef.current && mountedRef.current) setLocked(true);
+    }, []);
+
+    // Mount: auto-enter fullscreen + wire all detectors.
     useEffect(() => {
         mountedRef.current = true;
 
         document.addEventListener("fullscreenchange", handleFullscreenChange);
         document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+        document.addEventListener("visibilitychange", handleVisibility);
+        window.addEventListener("blur", handleBlur);
 
-        // Silent fullscreen entry — retry a few times if needed
         const tryFullscreen = async (attempts = 0) => {
-            if (document.fullscreenElement || document.webkitFullscreenElement) return;
-            const success = await requestFullscreen();
-            if (!success && attempts < 3) {
-                setTimeout(() => tryFullscreen(attempts + 1), 500);
-            }
+            if (isFullscreen()) return;
+            const ok = await requestFullscreen();
+            if (!ok && attempts < 4) setTimeout(() => tryFullscreen(attempts + 1), 400);
         };
-
-        // Small delay to let page render first
-        const timer = setTimeout(() => tryFullscreen(), 200);
+        const timer = setTimeout(() => tryFullscreen(), 150);
 
         return () => {
             mountedRef.current = false;
             document.removeEventListener("fullscreenchange", handleFullscreenChange);
             document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+            document.removeEventListener("visibilitychange", handleVisibility);
+            window.removeEventListener("blur", handleBlur);
             clearTimeout(timer);
-            if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
         };
-    }, [handleFullscreenChange, requestFullscreen]);
+    }, [handleFullscreenChange, handleVisibility, handleBlur, requestFullscreen]);
 
-    // When overlay is showing: any keypress re-enters fullscreen
+    // While locked: any keypress tries to re-enter fullscreen.
     useEffect(() => {
-        if (!showOverlay) return;
-
-        const handleKeyDown = (e) => {
+        if (!locked) return;
+        const onKey = (e) => {
             e.preventDefault();
             requestFullscreen();
         };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [locked, requestFullscreen]);
 
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [showOverlay, requestFullscreen]);
-
-    // Prevent page close / refresh
+    // Warn before closing / refreshing the tab.
     useEffect(() => {
-        const handleBeforeUnload = (e) => {
+        const onBeforeUnload = (e) => {
             e.preventDefault();
             e.returnValue = "Your exam is in progress. Are you sure you want to leave?";
             return e.returnValue;
         };
-
-        window.addEventListener("beforeunload", handleBeforeUnload);
-        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+        window.addEventListener("beforeunload", onBeforeUnload);
+        return () => window.removeEventListener("beforeunload", onBeforeUnload);
     }, []);
 
-    // Only show overlay when user actively exited fullscreen
-    if (!showOverlay) return null;
+    // Deter inspecting: block right-click and dev-tools shortcuts.
+    useEffect(() => {
+        const onContextMenu = (e) => e.preventDefault();
+        const onKeyDown = (e) => {
+            const k = (e.key || "").toUpperCase();
+            if (
+                e.key === "F12" ||
+                (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(k)) ||
+                (e.ctrlKey && k === "U")
+            ) {
+                e.preventDefault();
+            }
+        };
+        document.addEventListener("contextmenu", onContextMenu);
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            document.removeEventListener("contextmenu", onContextMenu);
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, []);
+
+    if (!locked) return null;
 
     return (
         <div
@@ -119,8 +146,8 @@ export default function ExamSecurity({ examId, onViolationLimit = () => { } }) {
             style={{
                 position: "fixed",
                 inset: 0,
-                zIndex: 999999,
-                backgroundColor: "rgba(0, 0, 0, 0.97)",
+                zIndex: 2147483647,
+                backgroundColor: "rgba(0, 0, 0, 0.98)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -128,27 +155,32 @@ export default function ExamSecurity({ examId, onViolationLimit = () => { } }) {
                 userSelect: "none",
             }}
         >
-            <div style={{ textAlign: "center", color: "white", pointerEvents: "none" }}>
-                <div style={{
-                    fontSize: "48px",
-                    marginBottom: "16px",
-                    animation: "pulse 1.5s ease-in-out infinite",
-                }}>
+            <div style={{ textAlign: "center", color: "white", pointerEvents: "none", padding: "24px" }}>
+                <div
+                    style={{
+                        fontSize: "56px",
+                        marginBottom: "16px",
+                        animation: "examLockPulse 1.5s ease-in-out infinite",
+                    }}
+                >
                     🔒
                 </div>
-                <p style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "8px" }}>
-                    Click anywhere to continue exam
+                <p style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "10px" }}>
+                    Exam locked
+                </p>
+                <p style={{ fontSize: "15px", marginBottom: "6px" }}>
+                    Click anywhere to return to the exam.
                 </p>
                 <p style={{ fontSize: "13px", color: "#9ca3af" }}>
-                    Fullscreen mode is required during the exam
+                    You must stay in fullscreen. The timer is still running.
                 </p>
+                <style>{`
+                    @keyframes examLockPulse {
+                        0%, 100% { opacity: 1; transform: scale(1); }
+                        50% { opacity: 0.65; transform: scale(1.12); }
+                    }
+                `}</style>
             </div>
-            <style>{`
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; transform: scale(1); }
-                    50% { opacity: 0.7; transform: scale(1.1); }
-                }
-            `}</style>
         </div>
     );
 }
