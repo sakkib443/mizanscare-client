@@ -329,6 +329,16 @@ function AdminLayoutContent({ children }) {
                         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden lg:flex p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                             <FaBars />
                         </button>
+
+                        {/* Go to website homepage */}
+                        <Link
+                            href="/"
+                            title="Go to website homepage"
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            <FaHome className="text-base" />
+                            <span className="hidden sm:inline">Home</span>
+                        </Link>
                     </div>
 
                     {/* Right Side Icons & Profile */}

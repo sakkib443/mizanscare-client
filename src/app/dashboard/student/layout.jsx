@@ -196,6 +196,16 @@ function StudentLayoutContent({ children }) {
                         <h1 className="text-gray-800 font-semibold text-sm hidden sm:block">
                             Student Portal
                         </h1>
+
+                        {/* Go to website homepage */}
+                        <Link
+                            href="/"
+                            title="Go to website homepage"
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-md transition-colors"
+                        >
+                            <FaHome className="text-base" />
+                            <span className="hidden sm:inline">Home</span>
+                        </Link>
                     </div>
 
                     <div className="flex items-center gap-3">
