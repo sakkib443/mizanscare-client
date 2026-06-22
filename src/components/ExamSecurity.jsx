@@ -125,23 +125,40 @@ export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
         return () => window.removeEventListener("beforeunload", onBeforeUnload);
     }, []);
 
-    // Deter inspecting: block right-click and dev-tools shortcuts.
+    // Deter inspecting & copying: block right-click, dev-tools shortcuts, and
+    // copy / cut / paste. Blocking the native copy/cut/paste events covers every
+    // trigger — keyboard, the (already-blocked) right-click menu, the browser's
+    // Edit menu, and programmatic calls — so pre-written essays can't be pasted
+    // and questions/passages can't be copied out.
     useEffect(() => {
         const onContextMenu = (e) => e.preventDefault();
+        const onCopyCutPaste = (e) => e.preventDefault();
         const onKeyDown = (e) => {
             const k = (e.key || "").toUpperCase();
+            // Dev-tools / view-source shortcuts.
             if (
                 e.key === "F12" ||
                 (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(k)) ||
                 (e.ctrlKey && k === "U")
             ) {
                 e.preventDefault();
+                return;
+            }
+            // Copy / cut / paste shortcuts (Ctrl on Windows/Linux, Cmd on Mac).
+            if ((e.ctrlKey || e.metaKey) && ["C", "V", "X"].includes(k)) {
+                e.preventDefault();
             }
         };
         document.addEventListener("contextmenu", onContextMenu);
+        document.addEventListener("copy", onCopyCutPaste);
+        document.addEventListener("cut", onCopyCutPaste);
+        document.addEventListener("paste", onCopyCutPaste);
         document.addEventListener("keydown", onKeyDown);
         return () => {
             document.removeEventListener("contextmenu", onContextMenu);
+            document.removeEventListener("copy", onCopyCutPaste);
+            document.removeEventListener("cut", onCopyCutPaste);
+            document.removeEventListener("paste", onCopyCutPaste);
             document.removeEventListener("keydown", onKeyDown);
         };
     }, []);
