@@ -18,6 +18,8 @@ import { FaHighlighter, FaEraser, FaStickyNote } from "react-icons/fa";
  */
 const HL_COLOR = "#D8B4FE";   // official-IELTS-style light purple
 const HL_TEXT = "#1a1a1a";    // keep highlighted text readable in every contrast mode
+const NOTE_COLOR = "#93C5FD"; // blue — marks text that has a note attached
+const NOTE_TEXT = "#1a1a1a";
 
 // Character offset (text length) from the container's start to a boundary point.
 function offsetFromStart(container, node, nodeOffset) {
@@ -74,9 +76,12 @@ function caretCharOffsetFromPoint(container, x, y) {
 export default function RangeHighlighter({ children, passageId = "default", contrastMode = "black-on-white", onAddNote = null }) {
     // Unique CSS-highlight name per instance so multiple highlighters on one page
     // (e.g. Reading's passage + questions) don't overwrite each other.
-    const HL_NAME = `exam-hl-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+    const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+    const HL_NAME = `exam-hl-${instanceId}`;        // manual highlights (purple)
+    const HL_NOTE_NAME = `exam-note-${instanceId}`; // text a note was taken on (blue)
     const containerRef = useRef(null);
     const storeRef = useRef({});          // { [passageId]: [{start, end}] }
+    const noteStoreRef = useRef({});      // { [passageId]: [{start, end}] } — noted text
     const savedRangeRef = useRef(null);
     const [showToolbar, setShowToolbar] = useState(false);
     const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0 });
@@ -97,6 +102,16 @@ export default function RangeHighlighter({ children, passageId = "default", cont
         }
         if (ranges.length === 0) CSS.highlights.delete(HL_NAME);
         else CSS.highlights.set(HL_NAME, new Highlight(...ranges));
+
+        // Blue highlights for text that has a note attached.
+        const noteItems = noteStoreRef.current[passageId] || [];
+        const noteRanges = [];
+        for (const it of noteItems) {
+            const r = rangeFromOffsets(containerRef.current, it.start, it.end);
+            if (r) noteRanges.push(r);
+        }
+        if (noteRanges.length === 0) CSS.highlights.delete(HL_NOTE_NAME);
+        else CSS.highlights.set(HL_NOTE_NAME, new Highlight(...noteRanges));
     }, [supported, passageId]);
 
     // Re-apply this passage's highlights after EVERY render, so they survive
@@ -117,7 +132,7 @@ export default function RangeHighlighter({ children, passageId = "default", cont
 
     // Remove the CSS highlight when this highlighter unmounts.
     useEffect(() => {
-        return () => { if (supported) CSS.highlights.delete(HL_NAME); };
+        return () => { if (supported) { CSS.highlights.delete(HL_NAME); CSS.highlights.delete(HL_NOTE_NAME); } };
     }, [supported]);
 
     const onMouseUp = useCallback((e) => {
@@ -189,13 +204,25 @@ export default function RangeHighlighter({ children, passageId = "default", cont
         setShowToolbar(false);
     }, [passageId, rebuild]);
 
-    // Send the selected text up to the module to create a note card
+    // Send the selected text up to the module to create a note card, and keep
+    // the noted text marked with a blue highlight so the student can see it.
     const addNote = useCallback(() => {
-        const text = savedRangeRef.current ? savedRangeRef.current.toString().trim() : '';
+        const range = savedRangeRef.current;
+        const c = containerRef.current;
+        const text = range ? range.toString().trim() : '';
+        if (range && c && !range.collapsed) {
+            const start = offsetFromStart(c, range.startContainer, range.startOffset);
+            const end = offsetFromStart(c, range.endContainer, range.endOffset);
+            if (end > start) {
+                const list = noteStoreRef.current[passageId] || [];
+                noteStoreRef.current[passageId] = [...list, { start, end }];
+                rebuild();
+            }
+        }
         if (text && onAddNote) onAddNote(text);
         window.getSelection()?.removeAllRanges();
         setShowToolbar(false);
-    }, [onAddNote]);
+    }, [passageId, rebuild, onAddNote]);
 
     return (
         <div ref={containerRef} onMouseUp={onMouseUp} onClick={onClick} style={{ userSelect: "text", WebkitUserSelect: "text", position: "relative" }}>
@@ -252,7 +279,7 @@ export default function RangeHighlighter({ children, passageId = "default", cont
                 </div>
             )}
 
-            <style>{`::highlight(${HL_NAME}){ background-color:${HL_COLOR}; color:${HL_TEXT}; }`}</style>
+            <style>{`::highlight(${HL_NAME}){ background-color:${HL_COLOR}; color:${HL_TEXT}; } ::highlight(${HL_NOTE_NAME}){ background-color:${NOTE_COLOR}; color:${NOTE_TEXT}; }`}</style>
         </div>
     );
 }

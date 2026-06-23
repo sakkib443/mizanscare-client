@@ -30,11 +30,19 @@ export default function NotesSidebar({ open, notes = [], onUpdate, onDelete, onC
 
     return (
         <div style={{
-            position: "fixed", top: "56px", right: 0, bottom: 0, width: "340px", maxWidth: "85vw",
+            position: "fixed", top: "56px", right: 0, bottom: "44px", width: "340px", maxWidth: "85vw",
             zIndex: 400, background: panelBg, borderLeft: `1px solid ${borderCol}`,
             boxShadow: "-8px 0 28px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column",
-            fontFamily: "Arial, sans-serif",
+            fontFamily: "Arial, sans-serif", animation: "notesSlideIn 0.22s ease",
         }}>
+            <style>{`
+                @keyframes notesSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+                .notes-scroll { scrollbar-width: thin; scrollbar-color: #2563eb rgba(127,127,127,0.2); }
+                .notes-scroll::-webkit-scrollbar { width: 10px; }
+                .notes-scroll::-webkit-scrollbar-track { background: rgba(127,127,127,0.15); border-radius: 6px; }
+                .notes-scroll::-webkit-scrollbar-thumb { background: #2563eb; border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+                .notes-scroll::-webkit-scrollbar-thumb:hover { background: #1d4ed8; background-clip: padding-box; }
+            `}</style>
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: `1px solid ${borderCol}`, flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "16px", color: titleCol }}>
@@ -46,7 +54,7 @@ export default function NotesSidebar({ open, notes = [], onUpdate, onDelete, onC
             </div>
 
             {/* Notes list */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div className="notes-scroll" style={{ flex: 1, overflowY: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "12px" }}>
                 {notes.length === 0 ? (
                     <p style={{ color: "#9ca3af", fontSize: "13px", textAlign: "center", lineHeight: 1.6, marginTop: "24px" }}>
                         Select any word, sentence or letter in the test and press the note button to add a note here.
