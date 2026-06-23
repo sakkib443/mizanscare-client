@@ -579,65 +579,61 @@ function WritingExamPageContent() {
                 </div>
 
                 {/* ═══════════════════════════════════
-                    BOTTOM NAV — Inspera Style
+                    BOTTOM NAV — same as Reading/Listening, Part 1 / Part 2 across full width
                 ═══════════════════════════════════ */}
                 <div style={{
                     position: 'fixed', bottom: 0, left: 0, right: 0,
                     background: cs.bg,
-                    display: 'flex', alignItems: 'stretch',
-                    height: '44px', padding: '0', zIndex: 100,
-                    borderTop: `1px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : '#555'}`
+                    display: 'flex', alignItems: 'center',
+                    height: '44px', padding: '0', zIndex: 100
                 }}>
-                    {/* Review label */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px', flexShrink: 0 }}>
-                        <span style={{ fontSize: '13px', color: cs.text }}>Review</span>
-                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', flex: 1, height: '100%' }}>
+                        {/* Review label (left) */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px', height: '100%', flexShrink: 0 }}>
+                            <span style={{ fontSize: '13px', color: cs.text }}>Review</span>
+                        </div>
 
-                    {/* Part tabs — span the full width; click to switch between Part 1 and Part 2 anytime */}
-                    <div style={{ display: 'flex', flex: 1, height: '100%' }}>
+                        {/* Part tabs — span the full width; click to switch between Part 1 and Part 2 anytime */}
                         {displayTasks.map((task) => {
                             const isActive = task.partNumber === activePart;
                             return (
                                 <div key={task.id}
                                     onClick={() => setActivePart(task.partNumber)}
                                     style={{
-                                        flex: 1, position: 'relative', height: '100%', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        borderLeft: `1px solid ${contrastMode === 'black-on-white' ? '#e5e7eb' : '#555'}`,
-                                        background: isActive ? (contrastMode === 'black-on-white' ? '#eff6ff' : '#243044') : 'transparent',
-                                        transition: 'background 0.15s ease'
+                                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        gap: '6px', height: '100%', padding: '0 12px',
+                                        cursor: 'pointer', borderRadius: '4px', overflow: 'hidden'
                                     }}
-                                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = contrastMode === 'black-on-white' ? '#f3f4f6' : '#333'; }}
-                                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                 >
-                                    {/* Big top indicator line — spans the full tab width */}
-                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '5px', background: isActive ? '#2563eb' : (contrastMode === 'black-on-white' ? '#d1d5db' : '#666') }}></div>
-                                    <span style={{
-                                        fontSize: '15px', fontWeight: isActive ? 'bold' : '500',
-                                        color: isActive ? (contrastMode === 'black-on-white' ? '#2563eb' : cs.text) : '#888',
-                                        fontFamily: 'Arial, sans-serif', letterSpacing: '0.3px'
-                                    }}>
-                                        Part {task.partNumber}
-                                    </span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                        <div style={{ width: '18px', height: '3px', background: isActive ? '#2563eb' : '#c0c0c0', marginBottom: '3px', borderRadius: '1px' }}></div>
+                                        <span style={{
+                                            fontSize: '14px', fontWeight: 'bold',
+                                            color: isActive ? cs.text : '#888',
+                                            fontFamily: 'Arial, sans-serif', whiteSpace: 'nowrap'
+                                        }}>
+                                            Part {task.partNumber}
+                                        </span>
+                                    </div>
                                 </div>
                             );
                         })}
                     </div>
 
-
-
-                    {/* Submit checkmark button */}
+                    {/* Submit checkmark button — same as Reading */}
                     <button
                         onClick={() => setShowSubmitPartModal(true)}
                         onMouseEnter={e => e.currentTarget.style.background = '#c8c8c8'}
                         onMouseLeave={e => e.currentTarget.style.background = '#e5e7eb'}
                         style={{
-                            width: '72px', height: '44px', cursor: 'pointer',
+                            width: '48px', height: '44px', cursor: 'pointer',
                             background: '#e5e7eb', border: 'none',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             flexShrink: 0, borderRadius: 0
                         }}>
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12" />
                         </svg>
                     </button>
