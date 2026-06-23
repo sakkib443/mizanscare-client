@@ -484,8 +484,8 @@ function ReadingExamPageContent() {
             const el = document.getElementById(`q-${qNum}`);
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                const inp = el.querySelector('input') || el.querySelector('select');
-                if (inp) { inp.focus(); if (inp.select) inp.select(); }
+                const inp = el.querySelector('input') || el.querySelector('select') || el.querySelector('textarea');
+                if (inp) { inp.focus({ preventScroll: true }); if (inp.select) inp.select(); }
             }
         }, 200);
     };
@@ -980,7 +980,7 @@ function ReadingExamPageContent() {
                                                                 const isSel = answers[stmt.questionNumber] === opt;
                                                                 return (
                                                                     <div key={opt} onClick={() => handleAnswer(stmt.questionNumber, opt)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                                                                        <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '14px', color: cs.text }}>{letter}</span>
+                                                                        <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '16px', color: cs.text }}>{letter}</span>
                                                                         <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
                                                                             {isSel && <div style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%' }} />}
                                                                         </div>
@@ -1020,7 +1020,7 @@ function ReadingExamPageContent() {
                                                                 const isSel = answers[stmt.questionNumber] === opt;
                                                                 return (
                                                                     <div key={opt} onClick={() => handleAnswer(stmt.questionNumber, opt)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                                                                        <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '14px', color: cs.text }}>{letter}</span>
+                                                                        <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '16px', color: cs.text }}>{letter}</span>
                                                                         <div style={{ width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`, background: isSel ? '#1f2937' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
                                                                             {isSel && <div style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%' }} />}
                                                                         </div>
@@ -1061,7 +1061,7 @@ function ReadingExamPageContent() {
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                                         {group.headingsList.map(h => (
                                                             <div key={h.numeral} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', paddingLeft: '8px' }}>
-                                                                <span style={{ fontWeight: 'bold', color: cs.text, minWidth: '28px', fontSize: `${14 * tScale}px` }}>{h.numeral}.</span>
+                                                                <span style={{ fontWeight: 'bold', color: cs.text, minWidth: '28px', fontSize: `${16 * tScale}px` }}>{h.numeral}.</span>
                                                                 <span style={{ color: cs.text, fontSize: `${14 * tScale}px` }}>{h.text}</span>
                                                             </div>
                                                         ))}

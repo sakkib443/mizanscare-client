@@ -1221,7 +1221,7 @@ function ListeningExamPageContent() {
                                                     return (
                                                         <div key={oIdx} onClick={() => handleSel(qNumbers[0], letter)}
                                                             style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
-                                                            <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '14px', color: cs.text }}>{letter}</span>
+                                                            <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '16px', color: cs.text }}>{letter}</span>
                                                             <div style={{
                                                                 width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`,
                                                                 background: isSel ? '#1f2937' : 'white', flexShrink: 0, marginTop: '1px',
@@ -1266,7 +1266,7 @@ function ListeningExamPageContent() {
                                                         return (
                                                             <div key={oIdx} onClick={() => handleSel(q.displayNumber, letter)}
                                                                 style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
-                                                                <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '14px', color: cs.text }}>{letter}</span>
+                                                                <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '16px', color: cs.text }}>{letter}</span>
                                                                 <div style={{
                                                                     width: '18px', height: '18px', border: `1px solid ${isSel ? '#1f2937' : '#d1d5db'}`,
                                                                     background: isSel ? '#1f2937' : 'white', flexShrink: 0, marginTop: '1px',
@@ -1302,7 +1302,7 @@ function ListeningExamPageContent() {
                                                     const text = (opt || '').replace(/^[A-Z]\.\s*/, '');
                                                     return (
                                                         <div key={oIdx} style={{ display: 'flex', gap: '12px', padding: '5px 10px', borderBottom: oIdx < (firstB.options.length - 1) ? '1px solid #e5e7eb' : 'none', fontSize: '13px' }}>
-                                                            <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0 }}>{letter}</span>
+                                                            <span style={{ fontWeight: 'bold', width: '16px', flexShrink: 0, fontSize: '16px' }}>{letter}</span>
                                                             <span style={{ color: cs.text }}>{text}</span>
                                                         </div>
                                                     );
@@ -1459,7 +1459,11 @@ function ListeningExamPageContent() {
                                                             e.stopPropagation();
                                                             setFocusedQuestion(q.displayNumber);
                                                             const el = document.getElementById(`q-${q.displayNumber}`);
-                                                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                            if (el) {
+                                                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                const inp = el.querySelector('input') || el.querySelector('select') || el.querySelector('textarea');
+                                                                if (inp) { inp.focus({ preventScroll: true }); if (inp.select) inp.select(); }
+                                                            }
                                                         }}
                                                         style={{
                                                             display: 'flex', flexDirection: 'column', alignItems: 'center',
