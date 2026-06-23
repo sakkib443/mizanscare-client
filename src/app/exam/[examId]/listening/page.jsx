@@ -17,7 +17,7 @@ import { listeningAPI, studentsAPI } from "@/lib/api";
 import { getPrefetched, fetchModuleData } from "@/lib/examPrefetch";
 import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import ExamSecurity from "@/components/ExamSecurity";
-import TextHighlighter from "@/components/TextHighlighter";
+import RangeHighlighter from "@/components/RangeHighlighter";
 
 const QUESTIONS_PER_PAGE = 10;
 
@@ -1106,7 +1106,7 @@ function ListeningExamPageContent() {
             ══════════════════════════════════════ */}
             <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px` }}>
                 <div style={{ maxWidth: '1000px', padding: '20px 20px' }}>
-                    <TextHighlighter passageId={`listening_page_${currentPage}`} contrastMode={contrastMode}>
+                    <RangeHighlighter passageId={`listening_page_${currentPage}`} contrastMode={contrastMode}>
 
                     {/* Section image if any */}
                     {currentSec.imageUrl && (
@@ -1377,7 +1377,7 @@ function ListeningExamPageContent() {
                             return null;
                         })}
                     </div>
-                    </TextHighlighter>
+                    </RangeHighlighter>
                 </div>
 
                 {/* ══════════════════════════════════════
