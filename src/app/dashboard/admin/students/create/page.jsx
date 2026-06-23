@@ -53,6 +53,35 @@ const FieldError = ({ error }) => {
     );
 };
 
+// Animated success overlay shown center-screen after a student is created
+const SuccessOverlay = ({ examId, name }) => (
+    <div className="success-overlay">
+        <div className="success-card">
+            <div className="success-icon-wrap">
+                <span className="success-ring" />
+                <svg className="success-check" viewBox="0 0 52 52" aria-hidden="true">
+                    <circle className="success-check__circle" cx="26" cy="26" r="24" fill="none" />
+                    <path className="success-check__path" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+                </svg>
+            </div>
+            <h2 className="success-title">Student Registered Successfully!</h2>
+            <p className="success-sub">
+                {name ? <>“{name}” has been created.</> : "The student account has been created."}
+            </p>
+            {examId && (
+                <div className="success-id">
+                    <span className="success-id__label">Exam ID</span>
+                    <span className="success-id__value">{examId}</span>
+                </div>
+            )}
+            <p className="success-redirect">
+                <FaSpinner className="animate-spin inline mr-1.5 text-[11px]" />
+                Redirecting to all students…
+            </p>
+        </div>
+    </div>
+);
+
 // Parse error from API response
 const parseApiError = (error) => {
     if (Array.isArray(error)) {
@@ -178,6 +207,7 @@ export default function CreateStudentPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(null);
+    const [created, setCreated] = useState(null); // drives the animated success overlay
     const [toast, setToast] = useState(null);
     const [fieldErrors, setFieldErrors] = useState({});
     const [copiedField, setCopiedField] = useState(null);
@@ -306,8 +336,8 @@ export default function CreateStudentPage() {
             const response = await studentsAPI.create(studentData);
 
             if (response.success && response.data) {
-                setToast({ message: "Student registered successfully!", type: "success" });
-                setTimeout(() => { router.push("/dashboard/admin/students"); }, 2000);
+                setCreated(response.data);
+                setTimeout(() => { router.push("/dashboard/admin/students"); }, 2800);
             }
         } catch (err) {
             let errorData = err.message || "Failed to register student";
@@ -395,6 +425,7 @@ export default function CreateStudentPage() {
     return (
         <div className="max-w-4xl mx-auto">
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+            {created && <SuccessOverlay examId={created?.credentials?.examId} name={created?.student?.nameEnglish} />}
 
             <style jsx global>{`
                 @keyframes slide-in {
@@ -402,6 +433,76 @@ export default function CreateStudentPage() {
                     to { transform: translateX(0); opacity: 1; }
                 }
                 .animate-slide-in { animation: slide-in 0.3s ease-out; }
+
+                /* ── Animated success overlay ── */
+                .success-overlay {
+                    position: fixed; inset: 0; z-index: 100;
+                    display: flex; align-items: center; justify-content: center;
+                    padding: 16px;
+                    background: rgba(15, 23, 42, 0.45);
+                    backdrop-filter: blur(4px);
+                    animation: success-fade 0.25s ease-out;
+                }
+                .success-card {
+                    background: #fff; border-radius: 24px; padding: 40px 48px;
+                    text-align: center; box-shadow: 0 24px 60px rgba(2, 6, 23, 0.28);
+                    max-width: 90vw;
+                    animation: success-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                .success-icon-wrap {
+                    position: relative; width: 96px; height: 96px; margin: 0 auto 22px;
+                    display: flex; align-items: center; justify-content: center;
+                }
+                .success-ring {
+                    position: absolute; inset: -6px; border-radius: 50%;
+                    background: #bbf7d0;
+                    animation: success-ring 0.9s ease-out 0.15s both;
+                }
+                .success-check {
+                    width: 96px; height: 96px; position: relative;
+                    stroke-width: 4; stroke: #16a34a; stroke-miterlimit: 10;
+                }
+                .success-check__circle {
+                    stroke-dasharray: 151; stroke-dashoffset: 151; stroke: #16a34a;
+                    animation: success-stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) 0.1s forwards;
+                }
+                .success-check__path {
+                    stroke-dasharray: 48; stroke-dashoffset: 48; stroke-linecap: round;
+                    animation: success-stroke 0.35s cubic-bezier(0.65, 0, 0.45, 1) 0.65s forwards;
+                }
+                .success-title {
+                    font-size: 1.4rem; font-weight: 700; color: #0f172a; margin: 0 0 6px;
+                    opacity: 0; animation: success-up 0.45s ease-out 0.7s both;
+                }
+                .success-sub {
+                    color: #64748b; font-size: 0.9rem; margin: 0 0 18px;
+                    opacity: 0; animation: success-up 0.45s ease-out 0.8s both;
+                }
+                .success-id {
+                    display: inline-flex; flex-direction: column; gap: 2px;
+                    background: linear-gradient(135deg, #ecfeff, #cffafe);
+                    border: 1px solid #a5f3fc; border-radius: 12px; padding: 10px 24px; margin-bottom: 16px;
+                    opacity: 0; animation: success-up 0.45s ease-out 0.9s both;
+                }
+                .success-id__label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.09em; color: #0891b2; font-weight: 700; }
+                .success-id__value { font-size: 1.1rem; font-weight: 800; color: #0e7490; font-family: ui-monospace, SFMono-Regular, monospace; letter-spacing: 0.04em; }
+                .success-redirect { font-size: 0.75rem; color: #94a3b8; margin: 0; opacity: 0; animation: success-up 0.45s ease-out 1s both; }
+
+                @keyframes success-fade { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes success-pop {
+                    0% { transform: scale(0.8); opacity: 0; }
+                    60% { transform: scale(1.03); }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+                @keyframes success-stroke { to { stroke-dashoffset: 0; } }
+                @keyframes success-ring {
+                    0% { transform: scale(0.4); opacity: 0.7; }
+                    100% { transform: scale(1.25); opacity: 0; }
+                }
+                @keyframes success-up {
+                    from { opacity: 0; transform: translateY(8px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
             `}</style>
 
             {/* Header */}
