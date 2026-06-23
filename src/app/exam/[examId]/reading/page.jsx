@@ -503,24 +503,6 @@ function ReadingExamPageContent() {
         }
     };
 
-    // ── Universal focus indicator ─────────────────────────────────────────
-    // Outline the focused question's container in blue so EVERY question type
-    // (multiple-choice, true/false, matching, summary dropdown, completion…)
-    // shows a clear indicator when reached via the bottom bar or arrows.
-    useEffect(() => {
-        document.querySelectorAll('[data-qfocused="1"]').forEach(el => {
-            el.style.outline = '';
-            el.style.outlineOffset = '';
-            el.removeAttribute('data-qfocused');
-        });
-        if (!focusedQuestion) return;
-        const el = document.getElementById(`q-${focusedQuestion}`);
-        if (el) {
-            el.style.outline = '2px solid #2563eb';
-            el.style.outlineOffset = '3px';
-            el.setAttribute('data-qfocused', '1');
-        }
-    }, [focusedQuestion, currentPassage]);
 
     const calculateScore = () => {
         let score = 0;
@@ -1179,7 +1161,7 @@ function ReadingExamPageContent() {
                                                                                     }}
                                                                                     onFocus={() => { setFocusedQuestion(qNum); setFocusedGroup(gIdx); }}
                                                                                     autoComplete="off"
-                                                                                    style={{ width: `${w}px`, height: '26px', borderBottom: `1.5px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none', padding: '0 6px' }}
+                                                                                    style={{ width: `${w}px`, height: '26px', borderBottom: focusedQuestion === qNum ? '2px solid #2563eb' : `1.5px dotted ${cs.text}`, borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', textAlign: 'center', fontSize: '14px', color: cs.text, outline: 'none', padding: '0 6px' }}
                                                                                 />
                                                                             </span>
                                                                         );
@@ -1462,7 +1444,7 @@ function ReadingExamPageContent() {
                                                 {group.summarySegments?.map((segment, sIdx) => (
                                                     segment.type === "text" ? <span key={sIdx}>{segment.content} </span> : (
                                                         <span key={sIdx} id={`q-${segment.questionNumber}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', margin: '0 4px' }}>
-                                                            <select value={answers[segment.questionNumber] || ""} onChange={e => handleAnswer(segment.questionNumber, e.target.value)} style={{ border: `1px solid ${cs.text}`, padding: '4px 8px', fontSize: '14px', background: cs.bg, color: cs.text, cursor: 'pointer', width: '70px', textAlign: 'center', borderRadius: '2px' }}>
+                                                            <select value={answers[segment.questionNumber] || ""} onChange={e => handleAnswer(segment.questionNumber, e.target.value)} style={{ border: focusedQuestion === segment.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, padding: '4px 8px', fontSize: '14px', background: cs.bg, color: cs.text, cursor: 'pointer', width: '70px', textAlign: 'center', borderRadius: '2px' }}>
                                                                 <option value="">--</option>
                                                                 {group.phraseList?.map(phrase => <option key={phrase.letter} value={phrase.letter}>{phrase.letter}</option>)}
                                                             </select>
@@ -1542,7 +1524,7 @@ function ReadingExamPageContent() {
                                                 {group.statements?.map(stmt => (
                                                     <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                                                         <span style={{ color: cs.text, fontWeight: '500', flex: 1 }}>{stmt.text}</span>
-                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px', flexShrink: 0 }}>
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px', flexShrink: 0 }}>
                                                             {!(answers[stmt.questionNumber]) && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none' }}>{stmt.questionNumber}</span>}
                                                             <input type="text" value={answers[stmt.questionNumber] || ""} onChange={e => handleAnswer(stmt.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
                                                         </span>
@@ -1565,7 +1547,7 @@ function ReadingExamPageContent() {
                                                                 <React.Fragment key={pIdx}>
                                                                     <span style={{ color: cs.text }}>{part}</span>
                                                                     {pIdx < arr.length - 1 && (
-                                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px' }}>
+                                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px' }}>
                                                                             {!(answers[stmt.questionNumber]) && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none' }}>{stmt.questionNumber}</span>}
                                                                             <input type="text" value={answers[stmt.questionNumber] || ""} onChange={e => handleAnswer(stmt.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
                                                                         </span>
@@ -1575,7 +1557,7 @@ function ReadingExamPageContent() {
                                                         ) : (
                                                             <>
                                                                 <span style={{ color: cs.text, flex: 1 }}>{stmt.text}</span>
-                                                                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px', flexShrink: 0 }}>
+                                                                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px', flexShrink: 0 }}>
                                                                     {!(answers[stmt.questionNumber]) && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none' }}>{stmt.questionNumber}</span>}
                                                                     <input type="text" value={answers[stmt.questionNumber] || ""} onChange={e => handleAnswer(stmt.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
                                                                 </span>

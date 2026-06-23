@@ -24,7 +24,7 @@ const QUESTIONS_PER_PAGE = 10;
 // ── Component: Renders Instruction with Embedded Question Inputs ──
 // Uses direct DOM manipulation. React.memo prevents re-renders from answer state changes
 // which would destroy the DOM inputs via dangerouslySetInnerHTML.
-const InstructionWithPortals = React.memo(function InstructionWithPortals({ content, answers, handleAnswer, imageUrl, textColor = '#000', bgColor = '#fff' }) {
+const InstructionWithPortals = React.memo(function InstructionWithPortals({ content, answers, handleAnswer, imageUrl, textColor = '#000', bgColor = '#fff', focusedQuestion = null }) {
     const containerRef = useRef(null);
     const handleAnswerRef = useRef(handleAnswer);
     handleAnswerRef.current = handleAnswer;
@@ -76,6 +76,18 @@ const InstructionWithPortals = React.memo(function InstructionWithPortals({ cont
             });
         };
     }, [processedHtml]); // Only re-run when HTML changes (not on answer changes)
+
+    // Blue border on the embedded blank whose question is currently focused
+    useEffect(() => {
+        if (!containerRef.current) return;
+        containerRef.current.querySelectorAll('.embedded-q-wrapper').forEach(w => {
+            const input = w.querySelector('.embedded-q-input');
+            const num = w.querySelector('.embedded-q-num');
+            const isF = input && String(focusedQuestion) === String(input.getAttribute('data-qnum'));
+            w.style.border = isF ? '2px solid #2563eb' : '1.5px solid currentColor';
+            if (num) num.style.color = isF ? '#2563eb' : 'inherit';
+        });
+    }, [focusedQuestion, processedHtml]);
 
     // ── Smart spacing: Detect block type from HTML content ──
     const raw = (content || '').trim();
@@ -494,25 +506,6 @@ function ListeningExamPageContent() {
             hasStarted.current = true;
         }
     }, [showSoundTest, showPlayOverlay, audioUrl, isLoading]);
-
-    // ── Universal focus indicator ─────────────────────────────────────────
-    // Outline the focused question's container in blue so EVERY question type
-    // (fill-in-blank, multiple-choice, matching, dropdown, map-labeling…) shows
-    // a clear indicator when reached via the bottom bar or arrow navigation.
-    useEffect(() => {
-        document.querySelectorAll('[data-qfocused="1"]').forEach(el => {
-            el.style.outline = '';
-            el.style.outlineOffset = '';
-            el.removeAttribute('data-qfocused');
-        });
-        if (!focusedQuestion) return;
-        const el = document.getElementById(`q-${focusedQuestion}`);
-        if (el) {
-            el.style.outline = '2px solid #2563eb';
-            el.style.outlineOffset = '3px';
-            el.setAttribute('data-qfocused', '1');
-        }
-    }, [focusedQuestion, currentPage]);
 
     const togglePlay = () => {
         if (!audioRef.current) return;
@@ -1159,6 +1152,7 @@ function ListeningExamPageContent() {
                                             qNumsSet={embeddedQNums}
                                             textColor={cs.text}
                                             bgColor={cs.bg}
+                                            focusedQuestion={focusedQuestion}
                                         />
                                     </div>
                                 );
@@ -1232,8 +1226,8 @@ function ListeningExamPageContent() {
                                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
                                                 {qNumbers.map(n => (
                                                     <span key={n} id={`qnum-${n}`} style={{
-                                                        border: `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px',
-                                                        padding: '0 6px', color: cs.text, background: cs.bg,
+                                                        border: focusedQuestion === n ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px',
+                                                        padding: '0 6px', color: focusedQuestion === n ? '#2563eb' : cs.text, background: cs.bg,
                                                         lineHeight: '1.8', flexShrink: 0, borderRadius: '2px', marginTop: '2px'
                                                     }}>{n}</span>
                                                 ))}
@@ -1279,8 +1273,8 @@ function ListeningExamPageContent() {
                                                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
                                                     {/* [N] box */}
                                                     <span id={`qnum-${q.displayNumber}`} style={{
-                                                        border: `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px',
-                                                        padding: '0 6px', color: cs.text, background: cs.bg,
+                                                        border: focusedQuestion === q.displayNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px',
+                                                        padding: '0 6px', color: focusedQuestion === q.displayNumber ? '#2563eb' : cs.text, background: cs.bg,
                                                         lineHeight: '1.8', flexShrink: 0, borderRadius: '2px', marginTop: '2px'
                                                     }}>{q.displayNumber}</span>
                                                     <span style={{ color: cs.text, fontSize: '15px', lineHeight: '1.5' }}>{q.questionText}</span>
@@ -1343,8 +1337,8 @@ function ListeningExamPageContent() {
                                                     style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                     {/* [N] box */}
                                                     <span id={`qnum-${q.displayNumber}`} style={{
-                                                        border: `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px',
-                                                        padding: '0 6px', color: cs.text, background: cs.bg,
+                                                        border: focusedQuestion === q.displayNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px',
+                                                        padding: '0 6px', color: focusedQuestion === q.displayNumber ? '#2563eb' : cs.text, background: cs.bg,
                                                         lineHeight: '1.8', flexShrink: 0, borderRadius: '2px'
                                                     }}>{q.displayNumber}</span>
                                                     <span style={{ flex: 1, color: cs.text, fontSize: '15px' }}>{q.questionText}</span>
@@ -1378,8 +1372,8 @@ function ListeningExamPageContent() {
                                                     style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                     {/* [N] box */}
                                                     <span id={`qnum-${q.displayNumber}`} style={{
-                                                        border: `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px',
-                                                        padding: '0 6px', color: cs.text, background: cs.bg,
+                                                        border: focusedQuestion === q.displayNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px',
+                                                        padding: '0 6px', color: focusedQuestion === q.displayNumber ? '#2563eb' : cs.text, background: cs.bg,
                                                         lineHeight: '1.8', flexShrink: 0, borderRadius: '2px'
                                                     }}>{q.displayNumber}</span>
                                                     <span style={{ flex: 1, color: cs.text, fontSize: '15px' }}>{q.questionText}</span>
