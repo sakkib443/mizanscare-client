@@ -42,3 +42,5 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# redeploy trigger 2026-06-23 — push from authorized account to unblock Vercel deploy
