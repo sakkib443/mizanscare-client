@@ -186,11 +186,16 @@ function ListeningExamPageContent() {
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [showNotes, setShowNotes] = useState(false); // note-taking panel toggle
     const [notes, setNotes] = useState([]);
-    const noteIdRef = useRef(0);
-    const addNote = (text) => {
-        noteIdRef.current += 1;
-        setNotes(prev => [...prev, { id: noteIdRef.current, text, note: '' }]);
+    const [noteFocus, setNoteFocus] = useState(null);
+    const focusSeqRef = useRef(0);
+    const focusNote = (noteId) => {
         setShowNotes(true);
+        focusSeqRef.current += 1;
+        setNoteFocus({ id: noteId, key: focusSeqRef.current });
+    };
+    const addNote = (text, noteId) => {
+        setNotes(prev => [...prev, { id: noteId, text, note: '' }]);
+        focusNote(noteId);
     };
     const updateNote = (id, value) => setNotes(prev => prev.map(n => (n.id === id ? { ...n, note: value } : n)));
     const deleteNote = (id) => setNotes(prev => prev.filter(n => n.id !== id));
@@ -1140,7 +1145,7 @@ function ListeningExamPageContent() {
             ══════════════════════════════════════ */}
             <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', paddingBottom: '70px', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px` }}>
                 <div style={{ maxWidth: '1000px', padding: '20px 20px' }}>
-                    <RangeHighlighter passageId={`listening_page_${currentPage}`} contrastMode={contrastMode} onAddNote={addNote}>
+                    <RangeHighlighter passageId={`listening_page_${currentPage}`} contrastMode={contrastMode} onAddNote={addNote} onFocusNote={focusNote}>
 
                     {/* Section image if any */}
                     {currentSec.imageUrl && (
@@ -1784,6 +1789,7 @@ function ListeningExamPageContent() {
                     onDelete={deleteNote}
                     onClose={() => setShowNotes(false)}
                     contrastMode={contrastMode}
+                    focusRequest={noteFocus}
                 />
             </div>
         </div >

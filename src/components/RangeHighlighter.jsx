@@ -73,7 +73,7 @@ function caretCharOffsetFromPoint(container, x, y) {
     return offsetFromStart(container, node, offset);
 }
 
-export default function RangeHighlighter({ children, passageId = "default", contrastMode = "black-on-white", onAddNote = null }) {
+export default function RangeHighlighter({ children, passageId = "default", contrastMode = "black-on-white", onAddNote = null, onFocusNote = null }) {
     // Unique CSS-highlight name per instance so multiple highlighters on one page
     // (e.g. Reading's passage + questions) don't overwrite each other.
     const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -81,7 +81,8 @@ export default function RangeHighlighter({ children, passageId = "default", cont
     const HL_NOTE_NAME = `exam-note-${instanceId}`; // text a note was taken on (blue)
     const containerRef = useRef(null);
     const storeRef = useRef({});          // { [passageId]: [{start, end}] }
-    const noteStoreRef = useRef({});      // { [passageId]: [{start, end}] } — noted text
+    const noteStoreRef = useRef({});      // { [passageId]: [{start, end, noteId}] } — noted text
+    const noteSeqRef = useRef(0);         // per-instance counter for unique note ids
     const savedRangeRef = useRef(null);
     const [showToolbar, setShowToolbar] = useState(false);
     const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0 });
@@ -164,11 +165,21 @@ export default function RangeHighlighter({ children, passageId = "default", cont
         const c = containerRef.current;
         if (!c) { setRemovePopup(null); return; }
         const pos = caretCharOffsetFromPoint(c, e.clientX, e.clientY);
+        if (pos == null) { setRemovePopup(null); return; }
+        // Click on noted (blue) text → jump to its note card in the sidebar.
+        const noteList = noteStoreRef.current[passageId] || [];
+        const noteHit = noteList.find(it => pos >= it.start && pos < it.end);
+        if (noteHit) {
+            setRemovePopup(null);
+            if (onFocusNote) onFocusNote(noteHit.noteId);
+            return;
+        }
+        // Click on a manual (purple) highlight → offer to remove it.
         const list = storeRef.current[passageId] || [];
-        const hit = pos == null ? null : list.find(it => pos >= it.start && pos < it.end);
+        const hit = list.find(it => pos >= it.start && pos < it.end);
         if (hit) setRemovePopup({ x: e.clientX, y: e.clientY, target: hit });
         else setRemovePopup(null);
-    }, [passageId]);
+    }, [passageId, onFocusNote]);
 
     const confirmRemove = useCallback(() => {
         const target = removePopup?.target;
@@ -210,19 +221,21 @@ export default function RangeHighlighter({ children, passageId = "default", cont
         const range = savedRangeRef.current;
         const c = containerRef.current;
         const text = range ? range.toString().trim() : '';
+        if (!text) { setShowToolbar(false); return; }
+        const noteId = `${HL_NOTE_NAME}_${++noteSeqRef.current}`;
         if (range && c && !range.collapsed) {
             const start = offsetFromStart(c, range.startContainer, range.startOffset);
             const end = offsetFromStart(c, range.endContainer, range.endOffset);
             if (end > start) {
                 const list = noteStoreRef.current[passageId] || [];
-                noteStoreRef.current[passageId] = [...list, { start, end }];
+                noteStoreRef.current[passageId] = [...list, { start, end, noteId }];
                 rebuild();
             }
         }
-        if (text && onAddNote) onAddNote(text);
+        if (onAddNote) onAddNote(text, noteId);
         window.getSelection()?.removeAllRanges();
         setShowToolbar(false);
-    }, [passageId, rebuild, onAddNote]);
+    }, [passageId, rebuild, onAddNote, HL_NOTE_NAME]);
 
     return (
         <div ref={containerRef} onMouseUp={onMouseUp} onClick={onClick} style={{ userSelect: "text", WebkitUserSelect: "text", position: "relative" }}>
