@@ -1119,6 +1119,8 @@ function ListeningExamPageContent() {
             {/* ══════════════════════════════════════
                 PART BANNER — Inspera Style
             ══════════════════════════════════════ */}
+            <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <div style={{ margin: '26px 15px 0', backgroundColor: cs.partBg, border: `1px solid ${cs.partBorder}`, padding: '12px 24px', flexShrink: 0, fontFamily: 'Arial, sans-serif', borderRadius: '4px' }}>
                 <div style={{ fontWeight: 'bold', fontSize: `${16 * tScale}px`, color: cs.text, marginBottom: '2px' }}>
                     Part {currentSectionIndex + 1}
@@ -1136,7 +1138,6 @@ function ListeningExamPageContent() {
             {/* ══════════════════════════════════════
                 SCROLLABLE CONTENT
             ══════════════════════════════════════ */}
-            <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
             <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', paddingBottom: '70px', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px` }}>
                 <div style={{ maxWidth: '1000px', padding: '20px 20px' }}>
                     <RangeHighlighter passageId={`listening_page_${currentPage}`} contrastMode={contrastMode} onAddNote={addNote}>
@@ -1774,6 +1775,7 @@ function ListeningExamPageContent() {
                     )
                 }
             </div >
+            </div>
 
                 <NotesSidebar
                     open={showNotes}

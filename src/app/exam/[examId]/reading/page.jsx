@@ -765,6 +765,8 @@ function ReadingExamPageContent() {
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                 PASSAGE BANNER â€" Inspera Style
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             < div style={{ backgroundColor: cs.partBg, borderBottom: `1px solid ${cs.partBorder}`, padding: '8px 40px', flexShrink: 0, fontFamily: 'Arial, sans-serif' }
             }>
                 <div style={{ fontWeight: 'bold', fontSize: `${15 * tScale}px`, color: cs.text, marginBottom: '2px' }}>
@@ -778,7 +780,6 @@ function ReadingExamPageContent() {
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                 MAIN CONTENT â€" Two Column Layout
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-            <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
             < div ref={containerRef} style={{ flex: 1, minWidth: 0, display: 'flex', overflow: 'hidden', position: 'relative' }}>
                 {/* LEFT: Passage Text */}
                 < div ref={passagePanelRef} style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
@@ -1587,6 +1588,7 @@ function ReadingExamPageContent() {
                     </RangeHighlighter>
                 </div >
             </div >
+            </div>
 
                 <NotesSidebar
                     open={showNotes}
