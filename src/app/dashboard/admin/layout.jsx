@@ -40,6 +40,11 @@ const menuItems = [
         badge: "New",
     },
     {
+        title: "Exam Results",
+        icon: FaChartBar,
+        href: "/dashboard/admin/results",
+    },
+    {
         title: "Exam Modules",
         icon: FaLayerGroup,
         href: "/dashboard/admin/listening",
@@ -60,11 +65,6 @@ const menuItems = [
                 href: "/dashboard/admin/writing",
             },
         ],
-    },
-    {
-        title: "Exam Results",
-        icon: FaChartBar,
-        href: "/dashboard/admin/results",
     },
     {
         title: "Design",
