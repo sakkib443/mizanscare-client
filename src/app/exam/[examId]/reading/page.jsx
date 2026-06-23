@@ -19,7 +19,7 @@ import { readingAPI, studentsAPI } from "@/lib/api";
 import { getPrefetched, fetchModuleData } from "@/lib/examPrefetch";
 import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import ExamSecurity from "@/components/ExamSecurity";
-import TextHighlighter from "@/components/TextHighlighter";
+import RangeHighlighter from "@/components/RangeHighlighter";
 
 
 
@@ -762,7 +762,7 @@ function ReadingExamPageContent() {
                 < div ref={passagePanelRef} style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
                     <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
                     {currentPass.source && <p style={{ fontSize: `${12 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text, marginBottom: '12px', fontStyle: 'italic' }}>{currentPass.source}</p>}
-                    <TextHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
+                    <RangeHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
                         {(() => {
                             const allParas = (currentPass.content || '').replace(/\\n/g, '\n').split('\n\n');
                             // Detect sequential A, B, C... paragraph labels. Only treat as labels if we find at least 3 in sequence (A, B, C).
@@ -793,7 +793,7 @@ function ReadingExamPageContent() {
                                 return <p key={index} style={{ color: cs.text, lineHeight: '1.8', marginBottom: '16px', fontSize: `${16 * tScale}px`, textAlign: 'justify' }}>{para}</p>;
                             });
                         })()}
-                    </TextHighlighter>
+                    </RangeHighlighter>
                 </div >
 
                 {/* SPLITTER — draggable resize handle */}
@@ -811,7 +811,7 @@ function ReadingExamPageContent() {
 
                 {/* RIGHT: Questions */}
                 < div ref={questionsPanelRef} style={{ flex: 1, overflowY: 'auto', padding: '20px 30px 250px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif' }}>
-                    <TextHighlighter passageId={`reading_questions_${currentPassage}`} contrastMode={contrastMode}>
+                    <RangeHighlighter passageId={`reading_questions_${currentPassage}`} contrastMode={contrastMode}>
                         {currentPass.questionGroups && currentPass.questionGroups.length > 0 ? (
                             currentPass.questionGroups.map((group, gIdx) => (
                                 <div key={gIdx} style={{ marginBottom: '24px' }}>
@@ -1562,7 +1562,7 @@ function ReadingExamPageContent() {
                                 </div>
                             ))
                         ) : null}
-                    </TextHighlighter>
+                    </RangeHighlighter>
                 </div >
             </div >
 
@@ -1599,7 +1599,7 @@ function ReadingExamPageContent() {
                                 gap: '6px', height: '100%', padding: '0 12px',
                                 cursor: 'pointer', borderRadius: '4px', overflow: 'hidden'
                             }}
-                                onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
+                                onMouseEnter={e => e.currentTarget.style.background = contrastMode === 'black-on-white' ? '#f0f0f0' : '#3a3a3a'}
                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                 onClick={() => {
                                     setCurrentPassage(pIdx);

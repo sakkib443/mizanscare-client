@@ -1428,7 +1428,7 @@ function ListeningExamPageContent() {
                                     gap: '6px', height: '100%', padding: '0 12px',
                                     cursor: 'pointer', borderRadius: '4px', overflow: 'hidden'
                                 }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
+                                    onMouseEnter={e => e.currentTarget.style.background = contrastMode === 'black-on-white' ? '#f0f0f0' : '#3a3a3a'}
                                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                     onClick={() => {
                                         const firstQ = sectionQuestions[0];

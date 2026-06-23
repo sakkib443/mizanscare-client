@@ -25,7 +25,7 @@ import { writingAPI, studentsAPI } from "@/lib/api";
 import { getPrefetched, fetchModuleData } from "@/lib/examPrefetch";
 import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import ExamSecurity from "@/components/ExamSecurity";
-import TextHighlighter from "@/components/TextHighlighter";
+import RangeHighlighter from "@/components/RangeHighlighter";
 
 
 
@@ -522,7 +522,7 @@ function WritingExamPageContent() {
                 <div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', marginBottom: '44px' }}>
                     {/* LEFT: Task Prompt + Image */}
                     <div style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
-                        <TextHighlighter passageId={`writing_part_${activePart}`} contrastMode={contrastMode}>
+                        <RangeHighlighter passageId={`writing_part_${activePart}`} contrastMode={contrastMode}>
                             {currentTaskData.prompt && (
                                 <div style={{ color: cs.text, fontSize: `${16 * tScale}px`, lineHeight: '1.8', whiteSpace: 'pre-line', marginBottom: '16px' }}>
                                     {currentTaskData.prompt}
@@ -533,7 +533,7 @@ function WritingExamPageContent() {
                                     {currentTaskData.instruction}
                                 </p>
                             )}
-                        </TextHighlighter>
+                        </RangeHighlighter>
 
                         {currentTaskData.imageUrl && (
                             <img src={currentTaskData.imageUrl} alt="Task reference" style={{ width: '100%', objectFit: 'contain', marginTop: '12px' }} />
@@ -606,7 +606,7 @@ function WritingExamPageContent() {
                                             flex: 1, position: 'relative', height: '100%', cursor: 'pointer',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
                                         }}
-                                        onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
+                                        onMouseEnter={e => e.currentTarget.style.background = contrastMode === 'black-on-white' ? '#f0f0f0' : '#3a3a3a'}
                                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                     >
                                         {/* Full-width indicator bar on top of this part */}
