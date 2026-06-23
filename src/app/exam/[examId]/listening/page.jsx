@@ -494,6 +494,25 @@ function ListeningExamPageContent() {
         }
     }, [showSoundTest, showPlayOverlay, audioUrl, isLoading]);
 
+    // ── Universal focus indicator ─────────────────────────────────────────
+    // Outline the focused question's container in blue so EVERY question type
+    // (fill-in-blank, multiple-choice, matching, dropdown, map-labeling…) shows
+    // a clear indicator when reached via the bottom bar or arrow navigation.
+    useEffect(() => {
+        document.querySelectorAll('[data-qfocused="1"]').forEach(el => {
+            el.style.outline = '';
+            el.style.outlineOffset = '';
+            el.removeAttribute('data-qfocused');
+        });
+        if (!focusedQuestion) return;
+        const el = document.getElementById(`q-${focusedQuestion}`);
+        if (el) {
+            el.style.outline = '2px solid #2563eb';
+            el.style.outlineOffset = '3px';
+            el.setAttribute('data-qfocused', '1');
+        }
+    }, [focusedQuestion, currentPage]);
+
     const togglePlay = () => {
         if (!audioRef.current) return;
         if (isPlaying) { audioRef.current.pause(); } else { audioRef.current.play(); }

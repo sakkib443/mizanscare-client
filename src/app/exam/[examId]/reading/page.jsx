@@ -502,6 +502,25 @@ function ReadingExamPageContent() {
         }
     };
 
+    // ── Universal focus indicator ─────────────────────────────────────────
+    // Outline the focused question's container in blue so EVERY question type
+    // (multiple-choice, true/false, matching, summary dropdown, completion…)
+    // shows a clear indicator when reached via the bottom bar or arrows.
+    useEffect(() => {
+        document.querySelectorAll('[data-qfocused="1"]').forEach(el => {
+            el.style.outline = '';
+            el.style.outlineOffset = '';
+            el.removeAttribute('data-qfocused');
+        });
+        if (!focusedQuestion) return;
+        const el = document.getElementById(`q-${focusedQuestion}`);
+        if (el) {
+            el.style.outline = '2px solid #2563eb';
+            el.style.outlineOffset = '3px';
+            el.setAttribute('data-qfocused', '1');
+        }
+    }, [focusedQuestion, currentPassage]);
+
     const calculateScore = () => {
         let score = 0;
         allQuestions.forEach(q => {
