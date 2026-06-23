@@ -256,9 +256,15 @@ export default function CreateStudentPage() {
 
     const handleInputChange = (e) => {
         const { name, value, type } = e.target;
+        let nextValue = type === "number" ? Number(value) : value;
+        // Sanitise ID fields on input so stray spaces / invisible unicode chars
+        // (from paste) can never sneak in and fail validation.
+        if (name === "nidNumber") nextValue = value.replace(/\D/g, "");
+        else if (name === "passportNumber") nextValue = value.replace(/[^A-Za-z0-9]/g, "");
+        else if (name === "phone") nextValue = value.replace(/\D/g, "");
         setFormData(prev => ({
             ...prev,
-            [name]: type === "number" ? Number(value) : value,
+            [name]: nextValue,
         }));
         if (fieldErrors[name]) {
             setFieldErrors(prev => ({ ...prev, [name]: null }));

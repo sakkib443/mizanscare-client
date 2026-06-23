@@ -164,7 +164,11 @@ export default function EditStudentPage() {
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({ ...prev, [name]: type === "checkbox" ? checked : (type === "number" ? Number(value) : value) }));
+        let nextValue = type === "checkbox" ? checked : (type === "number" ? Number(value) : value);
+        // Sanitise ID/phone fields so stray spaces / invisible unicode can't sneak in
+        if (name === "nidNumber" || name === "phone") nextValue = value.replace(/\D/g, "");
+        else if (name === "passportNumber") nextValue = value.replace(/[^A-Za-z0-9]/g, "");
+        setFormData(prev => ({ ...prev, [name]: nextValue }));
     };
 
     const handleSubmit = async (e) => {
