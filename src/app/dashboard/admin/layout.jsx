@@ -23,6 +23,7 @@ import {
     FaPalette,
     FaVideo,
     FaFont,
+    FaLayerGroup,
 } from "react-icons/fa";
 import Logo from "@/components/Logo";
 
@@ -39,25 +40,27 @@ const menuItems = [
         badge: "New",
     },
     {
-        title: "Listening",
-        icon: FaHeadphones,
+        title: "Exam Modules",
+        icon: FaLayerGroup,
         href: "/dashboard/admin/listening",
+        submenu: [
+            {
+                title: "Listening",
+                icon: FaHeadphones,
+                href: "/dashboard/admin/listening",
+            },
+            {
+                title: "Reading",
+                icon: FaBook,
+                href: "/dashboard/admin/reading",
+            },
+            {
+                title: "Writing",
+                icon: FaPen,
+                href: "/dashboard/admin/writing",
+            },
+        ],
     },
-    {
-        title: "Reading",
-        icon: FaBook,
-        href: "/dashboard/admin/reading",
-    },
-    {
-        title: "Writing",
-        icon: FaPen,
-        href: "/dashboard/admin/writing",
-    },
-    // {
-    //     title: "Speaking",
-    //     icon: FaMicrophone,
-    //     href: "/dashboard/admin/speaking",
-    // },
     {
         title: "Exam Results",
         icon: FaChartBar,
@@ -111,7 +114,11 @@ function AdminLayoutContent({ children }) {
     // Auto-expand sidebar groups when on a child route
     useEffect(() => {
         const matched = menuItems.find(
-            (it) => it.submenu && pathname?.startsWith(it.href + "/")
+            (it) =>
+                it.submenu &&
+                it.submenu.some(
+                    (sub) => pathname === sub.href || pathname?.startsWith(sub.href + "/")
+                )
         );
         if (matched && expandedMenu !== matched.title) {
             setExpandedMenu(matched.title);
@@ -195,11 +202,14 @@ function AdminLayoutContent({ children }) {
 
         if (item.submenu) {
             const isExpanded = expandedMenu === item.title;
+            const anySubActive = item.submenu.some(
+                (sub) => pathname === sub.href || pathname?.startsWith(sub.href + "/")
+            );
             return (
                 <div className="mb-1">
                     <button
                         onClick={() => setExpandedMenu(isExpanded ? null : item.title)}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 ${active ? "bg-gray-100 text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 ${anySubActive ? "bg-gray-100 text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                             }`}
                     >
                         <Icon className={`text-lg ${!sidebarOpen && "mx-auto"}`} />
