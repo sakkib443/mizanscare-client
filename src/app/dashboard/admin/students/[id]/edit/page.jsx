@@ -207,10 +207,10 @@ export default function EditStudentPage() {
             }
 
             const updateData = {
-                nameEnglish: formData.nameEnglish,
-                phone: formData.phone,
-                nidNumber: formData.nidNumber || undefined,
-                passportNumber: formData.passportNumber || undefined,
+                nameEnglish: formData.nameEnglish.trim(),
+                phone: formData.phone.trim(),
+                nidNumber: nid || undefined,
+                passportNumber: passport || undefined,
                 // Send fullSets so server updates assignedSets.fullSets + legacy fields
                 fullSets: fullSets.length > 0 ? fullSets : [],
                 extraSets: [],

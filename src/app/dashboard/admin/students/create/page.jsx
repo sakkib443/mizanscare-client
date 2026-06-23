@@ -267,25 +267,33 @@ export default function CreateStudentPage() {
 
     const validateForm = () => {
         const errors = {};
-        if (!formData.nameEnglish.trim()) errors.nameEnglish = "Full name is required";
-        if (!formData.email.trim()) {
+        // Trim first so a stray leading/trailing space (common with paste/autofill)
+        // never breaks an otherwise-valid value.
+        const name = formData.nameEnglish.trim();
+        const email = formData.email.trim();
+        const phone = formData.phone.trim();
+        const nid = formData.nidNumber.trim();
+        const passport = formData.passportNumber.trim();
+
+        if (!name) errors.nameEnglish = "Full name is required";
+        if (!email) {
             errors.email = "Email is required";
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             errors.email = "Please enter a valid email address";
         }
-        if (!formData.phone.trim()) {
+        if (!phone) {
             errors.phone = "Phone number is required";
-        } else if (!/^01[3-9]\d{8}$/.test(formData.phone)) {
+        } else if (!/^01[3-9]\d{8}$/.test(phone)) {
             errors.phone = "Please enter a valid 11-digit BD phone number";
         }
-        if (formData.nidNumber && !/^\d{10}$|^\d{17}$/.test(formData.nidNumber)) {
+        if (nid && !/^\d{10}$|^\d{17}$/.test(nid)) {
             errors.nidNumber = "NID must be 10 or 17 digits only";
         }
-        if (formData.passportNumber && !/^[A-Za-z0-9]{6,12}$/.test(formData.passportNumber)) {
+        if (passport && !/^[A-Za-z0-9]{6,12}$/.test(passport)) {
             errors.passportNumber = "Passport must be 6-12 letters/numbers";
         }
         // At least one of NID / Passport is required
-        if (!formData.nidNumber.trim() && !formData.passportNumber.trim()) {
+        if (!nid && !passport) {
             errors.nidNumber = "NID অথবা Passport — অন্তত একটি দিন";
             errors.passportNumber = "NID অথবা Passport — অন্তত একটি দিন";
         }
@@ -299,7 +307,17 @@ export default function CreateStudentPage() {
         const validationErrors = validateForm();
         if (Object.keys(validationErrors).length > 0) {
             setFieldErrors(validationErrors);
-            setToast({ message: "Please fix the highlighted errors", type: "error" });
+            // Show the actual first error and jump to that field so it's never
+            // hidden off-screen when the admin submits from the bottom.
+            const firstKey = Object.keys(validationErrors)[0];
+            setToast({ message: validationErrors[firstKey] || "Please fix the highlighted errors", type: "error" });
+            setTimeout(() => {
+                const el = document.querySelector(`[name="${firstKey}"]`);
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    el.focus({ preventScroll: true });
+                }
+            }, 50);
             return;
         }
 
@@ -308,6 +326,12 @@ export default function CreateStudentPage() {
         try {
             const studentData = {
                 ...formData,
+                // Trim text fields so trailing/leading spaces don't fail server validation
+                nameEnglish: formData.nameEnglish.trim(),
+                email: formData.email.trim(),
+                phone: formData.phone.trim(),
+                nidNumber: formData.nidNumber.trim(),
+                passportNumber: formData.passportNumber.trim(),
                 // Send Full Sets
                 fullSets: fullSets
                     .filter(fs => fs.listeningSetNumber || fs.readingSetNumber || fs.writingSetNumber)
