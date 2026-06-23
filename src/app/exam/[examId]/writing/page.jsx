@@ -584,44 +584,41 @@ function WritingExamPageContent() {
                 <div style={{
                     position: 'fixed', bottom: 0, left: 0, right: 0,
                     background: cs.bg,
-                    display: 'flex', alignItems: 'center',
-                    height: '44px', padding: '0', zIndex: 100
+                    display: 'flex', alignItems: 'stretch',
+                    height: '44px', padding: '0', zIndex: 100,
+                    borderTop: `1px solid ${contrastMode === 'black-on-white' ? '#d1d5db' : '#555'}`
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', flex: 1, height: '100%' }}>
-                        {/* Review checkbox */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px', height: '100%', flexShrink: 0 }}>
-                            <span style={{ fontSize: '13px', color: cs.text }}>Review</span>
-                        </div>
+                    {/* Review label */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '13px', color: cs.text }}>Review</span>
+                    </div>
 
-                        {/* Part tabs — click to switch between Part 1 and Part 2 anytime */}
-                        {displayTasks.map((task, idx) => {
+                    {/* Part tabs — span the full width; click to switch between Part 1 and Part 2 anytime */}
+                    <div style={{ display: 'flex', flex: 1, height: '100%' }}>
+                        {displayTasks.map((task) => {
                             const isActive = task.partNumber === activePart;
                             return (
                                 <div key={task.id}
                                     onClick={() => setActivePart(task.partNumber)}
                                     style={{
-                                        display: 'flex', alignItems: 'center', gap: '4px', padding: '0 12px', height: '100%',
-                                        cursor: 'pointer', borderRadius: '4px'
+                                        flex: 1, position: 'relative', height: '100%', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        borderLeft: `1px solid ${contrastMode === 'black-on-white' ? '#e5e7eb' : '#555'}`,
+                                        background: isActive ? (contrastMode === 'black-on-white' ? '#eff6ff' : '#243044') : 'transparent',
+                                        transition: 'background 0.15s ease'
                                     }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = contrastMode === 'black-on-white' ? '#f3f4f6' : '#333'; }}
+                                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
                                 >
-                                    <div style={{
-                                        display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer'
+                                    {/* Big top indicator line — spans the full tab width */}
+                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '5px', background: isActive ? '#2563eb' : (contrastMode === 'black-on-white' ? '#d1d5db' : '#666') }}></div>
+                                    <span style={{
+                                        fontSize: '15px', fontWeight: isActive ? 'bold' : '500',
+                                        color: isActive ? (contrastMode === 'black-on-white' ? '#2563eb' : cs.text) : '#888',
+                                        fontFamily: 'Arial, sans-serif', letterSpacing: '0.3px'
                                     }}>
-                                        <div style={{ width: '18px', height: '3px', background: isActive ? '#2563eb' : '#c0c0c0', marginBottom: '3px', borderRadius: '1px' }}></div>
-                                        <span style={{
-                                            fontSize: '14px', fontWeight: isActive ? 'bold' : '400',
-                                            color: isActive ? cs.text : '#888',
-                                            fontFamily: 'Arial, sans-serif',
-                                            padding: '2px 3px',
-                                            border: isActive ? '1.5px solid #2563eb' : '1.5px solid transparent',
-                                            borderRadius: '3px',
-                                            lineHeight: '1'
-                                        }}>
-                                            {task.partNumber}
-                                        </span>
-                                    </div>
+                                        Part {task.partNumber}
+                                    </span>
                                 </div>
                             );
                         })}
