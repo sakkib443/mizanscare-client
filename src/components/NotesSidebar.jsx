@@ -30,9 +30,9 @@ export default function NotesSidebar({ open, notes = [], onUpdate, onDelete, onC
 
     return (
         <div style={{
-            position: "fixed", top: "56px", right: 0, bottom: "44px", width: "340px", maxWidth: "85vw",
-            zIndex: 400, background: panelBg, borderLeft: `1px solid ${borderCol}`,
-            boxShadow: "none", display: "flex", flexDirection: "column",
+            width: "340px", maxWidth: "85vw", flexShrink: 0, minHeight: 0,
+            background: panelBg, borderLeft: `1px solid ${borderCol}`,
+            boxShadow: "none", display: "flex", flexDirection: "column", overflow: "hidden",
             fontFamily: "Arial, sans-serif", animation: "notesSlideIn 0.22s ease",
         }}>
             <style>{`
@@ -54,7 +54,7 @@ export default function NotesSidebar({ open, notes = [], onUpdate, onDelete, onC
             </div>
 
             {/* Notes list */}
-            <div className="notes-scroll" style={{ flex: 1, overflowY: "auto", padding: "12px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div className="notes-scroll" style={{ flex: 1, overflowY: "auto", padding: "12px", paddingBottom: "56px", display: "flex", flexDirection: "column", gap: "12px" }}>
                 {notes.length === 0 ? (
                     <p style={{ color: "#9ca3af", fontSize: "13px", textAlign: "center", lineHeight: 1.6, marginTop: "24px" }}>
                         Select any word, sentence or letter in the test and press the note button to add a note here.

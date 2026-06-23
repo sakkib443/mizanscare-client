@@ -761,14 +761,6 @@ function ReadingExamPageContent() {
                 </div >
             </header >
 
-            <NotesSidebar
-                open={showNotes}
-                notes={notes}
-                onUpdate={updateNote}
-                onDelete={deleteNote}
-                onClose={() => setShowNotes(false)}
-                contrastMode={contrastMode}
-            />
 
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                 PASSAGE BANNER â€" Inspera Style
@@ -786,7 +778,8 @@ function ReadingExamPageContent() {
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                 MAIN CONTENT â€" Two Column Layout
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-            < div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+            <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+            < div ref={containerRef} style={{ flex: 1, minWidth: 0, display: 'flex', overflow: 'hidden', position: 'relative' }}>
                 {/* LEFT: Passage Text */}
                 < div ref={passagePanelRef} style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
                     <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
@@ -1595,10 +1588,20 @@ function ReadingExamPageContent() {
                 </div >
             </div >
 
+                <NotesSidebar
+                    open={showNotes}
+                    notes={notes}
+                    onUpdate={updateNote}
+                    onDelete={deleteNote}
+                    onClose={() => setShowNotes(false)}
+                    contrastMode={contrastMode}
+                />
+            </div>
+
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                 FLOATING NAV ARROWS
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-            < div style={{ position: 'fixed', bottom: '60px', right: '16px', display: 'flex', gap: '4px', zIndex: 99 }}>
+            < div style={{ position: 'fixed', bottom: '60px', right: showNotes ? '356px' : '16px', display: 'flex', gap: '4px', zIndex: 99, transition: 'right 0.2s ease' }}>
                 <button onClick={goPrevQuestion} disabled={focusedQuestion <= 1} style={{ width: '56px', height: '56px', cursor: focusedQuestion <= 1 ? 'not-allowed' : 'pointer', background: focusedQuestion <= 1 ? '#c8c8c8' : '#4a4a4a', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px' }}>
                     <FaArrowLeft size={24} />
                 </button>

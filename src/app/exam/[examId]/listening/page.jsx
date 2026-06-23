@@ -1115,14 +1115,6 @@ function ListeningExamPageContent() {
                 </div>
             </header>
 
-            <NotesSidebar
-                open={showNotes}
-                notes={notes}
-                onUpdate={updateNote}
-                onDelete={deleteNote}
-                onClose={() => setShowNotes(false)}
-                contrastMode={contrastMode}
-            />
 
             {/* ══════════════════════════════════════
                 PART BANNER — Inspera Style
@@ -1144,7 +1136,8 @@ function ListeningExamPageContent() {
             {/* ══════════════════════════════════════
                 SCROLLABLE CONTENT
             ══════════════════════════════════════ */}
-            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px` }}>
+            <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+            <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', paddingBottom: '70px', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px` }}>
                 <div style={{ maxWidth: '1000px', padding: '20px 20px' }}>
                     <RangeHighlighter passageId={`listening_page_${currentPage}`} contrastMode={contrastMode} onAddNote={addNote}>
 
@@ -1425,8 +1418,8 @@ function ListeningExamPageContent() {
                 PAGE NAVIGATION ARROWS — floating in content area (Inspera style)
             ══════════════════════════════════════ */}
                 <div style={{
-                    position: 'fixed', bottom: '60px', right: '16px',
-                    display: 'flex', gap: '4px', zIndex: 99
+                    position: 'fixed', bottom: '60px', right: showNotes ? '356px' : '16px',
+                    display: 'flex', gap: '4px', zIndex: 99, transition: 'right 0.2s ease'
                 }}>
                     <button onClick={goPrevQuestion} disabled={focusedQuestion <= 1}
                         style={{
@@ -1781,6 +1774,16 @@ function ListeningExamPageContent() {
                     )
                 }
             </div >
+
+                <NotesSidebar
+                    open={showNotes}
+                    notes={notes}
+                    onUpdate={updateNote}
+                    onDelete={deleteNote}
+                    onClose={() => setShowNotes(false)}
+                    contrastMode={contrastMode}
+                />
+            </div>
         </div >
     );
 }
