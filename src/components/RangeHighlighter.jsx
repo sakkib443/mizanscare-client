@@ -80,12 +80,18 @@ export default function RangeHighlighter({ children, passageId = "default", cont
         else CSS.highlights.set(HL_NAME, new Highlight(...ranges));
     }, [supported, passageId]);
 
-    // Rebuild whenever the visible passage/part changes (restores or clears).
+    // Re-apply this passage's highlights after EVERY render, so they survive
+    // re-renders (timer tick, typing), contrast changes and page navigation.
+    // It's cheap when there are no highlights (no DOM walk).
+    useEffect(() => { rebuild(); });
+
+    // Hide the toolbar when the passage/part changes.
+    useEffect(() => { setShowToolbar(false); }, [passageId]);
+
+    // Remove the CSS highlight when this highlighter unmounts.
     useEffect(() => {
-        rebuild();
-        setShowToolbar(false);
         return () => { if (supported) CSS.highlights.delete(HL_NAME); };
-    }, [passageId, rebuild, supported]);
+    }, [supported]);
 
     const onMouseUp = useCallback((e) => {
         if (e.target?.closest?.(".rh-toolbar")) return;
