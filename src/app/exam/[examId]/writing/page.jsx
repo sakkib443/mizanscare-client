@@ -593,22 +593,22 @@ function WritingExamPageContent() {
                             <span style={{ fontSize: '13px', color: cs.text }}>Review</span>
                         </div>
 
-                        {/* Part tabs — span the full width; click to switch between Part 1 and Part 2 anytime */}
-                        {displayTasks.map((task) => {
-                            const isActive = task.partNumber === activePart;
-                            return (
-                                <div key={task.id}
-                                    onClick={() => setActivePart(task.partNumber)}
-                                    style={{
-                                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        gap: '6px', height: '100%', padding: '0 12px',
-                                        cursor: 'pointer', borderRadius: '4px', overflow: 'hidden'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                        <div style={{ width: '18px', height: '3px', background: isActive ? '#2563eb' : '#c0c0c0', marginBottom: '3px', borderRadius: '1px' }}></div>
+                        {/* Part tabs — full-width indicator bar on top, with a small gap between the two parts */}
+                        <div style={{ display: 'flex', flex: 1, height: '100%', gap: '14px' }}>
+                            {displayTasks.map((task) => {
+                                const isActive = task.partNumber === activePart;
+                                return (
+                                    <div key={task.id}
+                                        onClick={() => setActivePart(task.partNumber)}
+                                        style={{
+                                            flex: 1, position: 'relative', height: '100%', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        {/* Full-width indicator bar on top of this part */}
+                                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: isActive ? '#2563eb' : '#c0c0c0' }}></div>
                                         <span style={{
                                             fontSize: '14px', fontWeight: 'bold',
                                             color: isActive ? cs.text : '#888',
@@ -617,9 +617,9 @@ function WritingExamPageContent() {
                                             Part {task.partNumber}
                                         </span>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
 
                     {/* Submit checkmark button — same as Reading */}
