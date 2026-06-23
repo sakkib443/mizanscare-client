@@ -561,6 +561,13 @@ function WritingExamPageContent() {
                                 onChange={(e) => handleTextChange(e.target.value)}
                                 placeholder={`Enter your ${currentTaskData.title.toLowerCase()} answer...`}
                                 autoFocus
+                                spellCheck={false}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="off"
+                                data-gramm="false"
+                                data-gramm_editor="false"
+                                data-enable-grammarly="false"
                                 style={{
                                     flex: 1, padding: '20px 24px', resize: 'none', outline: 'none',
                                     border: 'none',
