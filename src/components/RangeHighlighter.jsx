@@ -53,6 +53,24 @@ function rangeFromOffsets(container, start, end) {
     }
 }
 
+// Character offset at a screen point — used to detect a click on a highlight.
+function caretCharOffsetFromPoint(container, x, y) {
+    let node = null, offset = 0;
+    if (document.caretRangeFromPoint) {
+        const r = document.caretRangeFromPoint(x, y);
+        if (!r) return null;
+        node = r.startContainer; offset = r.startOffset;
+    } else if (document.caretPositionFromPoint) {
+        const p = document.caretPositionFromPoint(x, y);
+        if (!p) return null;
+        node = p.offsetNode; offset = p.offset;
+    } else {
+        return null;
+    }
+    if (!node || !container.contains(node)) return null;
+    return offsetFromStart(container, node, offset);
+}
+
 export default function RangeHighlighter({ children, passageId = "default", contrastMode = "black-on-white" }) {
     // Unique CSS-highlight name per instance so multiple highlighters on one page
     // (e.g. Reading's passage + questions) don't overwrite each other.
@@ -62,6 +80,7 @@ export default function RangeHighlighter({ children, passageId = "default", cont
     const savedRangeRef = useRef(null);
     const [showToolbar, setShowToolbar] = useState(false);
     const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0 });
+    const [removePopup, setRemovePopup] = useState(null); // { x, y, target:{start,end} }
 
     const supported = typeof window !== "undefined"
         && typeof window.Highlight !== "undefined"
@@ -85,8 +104,16 @@ export default function RangeHighlighter({ children, passageId = "default", cont
     // It's cheap when there are no highlights (no DOM walk).
     useEffect(() => { rebuild(); });
 
-    // Hide the toolbar when the passage/part changes.
-    useEffect(() => { setShowToolbar(false); }, [passageId]);
+    // Hide the toolbar / remove popup when the passage/part changes.
+    useEffect(() => { setShowToolbar(false); setRemovePopup(null); }, [passageId]);
+
+    // Close the remove popup when clicking anywhere outside it.
+    useEffect(() => {
+        if (!removePopup) return;
+        const onDocDown = (e) => { if (!e.target?.closest?.(".rh-remove")) setRemovePopup(null); };
+        document.addEventListener("mousedown", onDocDown);
+        return () => document.removeEventListener("mousedown", onDocDown);
+    }, [removePopup]);
 
     // Remove the CSS highlight when this highlighter unmounts.
     useEffect(() => {
@@ -108,8 +135,35 @@ export default function RangeHighlighter({ children, passageId = "default", cont
         savedRangeRef.current = range.cloneRange();
         const rect = range.getBoundingClientRect();
         setToolbarPos({ x: rect.left + rect.width / 2, y: rect.bottom + 8 });
+        setRemovePopup(null);
         setShowToolbar(true);
     }, []);
+
+    // Click on a highlighted spot → offer to remove that highlight.
+    const onClick = useCallback((e) => {
+        if (e.target?.closest?.(".rh-toolbar") || e.target?.closest?.(".rh-remove")) return;
+        // Don't interfere with form controls (answer inputs etc.)
+        if (e.target?.closest?.("input, select, textarea, button, a")) { setRemovePopup(null); return; }
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed && sel.toString().trim()) return; // active selection → toolbar handles it
+        const c = containerRef.current;
+        if (!c) { setRemovePopup(null); return; }
+        const pos = caretCharOffsetFromPoint(c, e.clientX, e.clientY);
+        const list = storeRef.current[passageId] || [];
+        const hit = pos == null ? null : list.find(it => pos >= it.start && pos < it.end);
+        if (hit) setRemovePopup({ x: e.clientX, y: e.clientY, target: hit });
+        else setRemovePopup(null);
+    }, [passageId]);
+
+    const confirmRemove = useCallback(() => {
+        const target = removePopup?.target;
+        if (target) {
+            const list = storeRef.current[passageId] || [];
+            storeRef.current[passageId] = list.filter(it => !(it.start === target.start && it.end === target.end));
+            rebuild();
+        }
+        setRemovePopup(null);
+    }, [removePopup, passageId, rebuild]);
 
     const addHighlight = useCallback(() => {
         const range = savedRangeRef.current;
@@ -135,23 +189,8 @@ export default function RangeHighlighter({ children, passageId = "default", cont
         setShowToolbar(false);
     }, [passageId, rebuild]);
 
-    const removeHighlight = useCallback(() => {
-        const range = savedRangeRef.current;
-        const c = containerRef.current;
-        if (range && c) {
-            const start = offsetFromStart(c, range.startContainer, range.startOffset);
-            const end = offsetFromStart(c, range.endContainer, range.endOffset);
-            const list = storeRef.current[passageId] || [];
-            // Drop any highlight the selection overlaps.
-            storeRef.current[passageId] = list.filter(it => it.end <= start || it.start >= end);
-            rebuild();
-        }
-        window.getSelection()?.removeAllRanges();
-        setShowToolbar(false);
-    }, [passageId, rebuild]);
-
     return (
-        <div ref={containerRef} onMouseUp={onMouseUp} style={{ userSelect: "text", WebkitUserSelect: "text", position: "relative" }}>
+        <div ref={containerRef} onMouseUp={onMouseUp} onClick={onClick} style={{ userSelect: "text", WebkitUserSelect: "text", position: "relative" }}>
             {children}
 
             {showToolbar && supported && (
@@ -168,17 +207,29 @@ export default function RangeHighlighter({ children, passageId = "default", cont
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={addHighlight}
                         title="Highlight"
-                        style={{ width: "32px", height: "32px", borderRadius: "4px", border: "none", background: HL_COLOR, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "4px", border: "none", background: HL_COLOR, color: "#1f2937", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}
                     >
-                        <FaHighlighter color="#1f2937" size={14} />
+                        <FaHighlighter color="#1f2937" size={13} /> Highlight
                     </button>
+                </div>
+            )}
+
+            {removePopup && supported && (
+                <div
+                    className="rh-remove"
+                    style={{
+                        position: "fixed", left: `${removePopup.x}px`, top: `${removePopup.y + 10}px`,
+                        transform: "translateX(-50%)", zIndex: 9999,
+                        background: "#1f2937", borderRadius: "8px", padding: "6px", boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
+                    }}
+                >
                     <button
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={removeHighlight}
+                        onClick={(e) => { e.stopPropagation(); confirmRemove(); }}
                         title="Remove highlight"
-                        style={{ width: "32px", height: "32px", borderRadius: "4px", border: "none", background: "#374151", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", border: "none", borderRadius: "4px", background: "#ef4444", color: "#ffffff", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}
                     >
-                        <FaEraser color="#ffffff" size={14} />
+                        <FaEraser size={13} /> Remove highlight
                     </button>
                 </div>
             )}
