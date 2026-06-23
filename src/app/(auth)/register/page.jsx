@@ -69,7 +69,7 @@ const Register = () => {
                   <div>
                     <h4 className="font-semibold text-slate-900 mb-1">Exam ID</h4>
                     <p className="text-slate-600 text-sm">
-                      A unique exam ID (e.g., MCIM07) for your exam session
+                      A unique exam ID (e.g., MC47IM001) for your exam session
                     </p>
                   </div>
                 </div>
