@@ -32,7 +32,7 @@ export default function NotesSidebar({ open, notes = [], onUpdate, onDelete, onC
         <div style={{
             position: "fixed", top: "56px", right: 0, bottom: "44px", width: "340px", maxWidth: "85vw",
             zIndex: 400, background: panelBg, borderLeft: `1px solid ${borderCol}`,
-            boxShadow: "-8px 0 28px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column",
+            boxShadow: "none", display: "flex", flexDirection: "column",
             fontFamily: "Arial, sans-serif", animation: "notesSlideIn 0.22s ease",
         }}>
             <style>{`
