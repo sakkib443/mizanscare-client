@@ -728,7 +728,7 @@ function ReadingExamPageContent() {
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                 TOP HEADER â€" Inspera IELTS Clone
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-            <header style={{ backgroundColor: timeLeft <= 60 ? (contrastMode === 'black-on-white' ? '#fde8e8' : '#3a0d0d') : cs.bg, borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}`, height: '56px', flexShrink: 0, transition: 'background-color 0.5s ease' }}>
+            <header style={{ backgroundColor: timeLeft <= 60 ? (contrastMode === 'black-on-white' ? '#fde8e8' : '#3a0d0d') : cs.bg, borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}`, height: '56px', flexShrink: 0, position: 'sticky', top: 0, zIndex: 50, transition: 'background-color 0.5s ease' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '0 16px' }}>
                     {/* Left */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
@@ -1588,7 +1588,7 @@ function ReadingExamPageContent() {
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                 FLOATING NAV ARROWS
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-            < div style={{ position: 'fixed', bottom: '140px', right: '16px', display: 'flex', gap: '4px', zIndex: 99 }}>
+            < div style={{ position: 'fixed', bottom: '60px', right: '16px', display: 'flex', gap: '4px', zIndex: 99 }}>
                 <button onClick={goPrevQuestion} disabled={focusedQuestion <= 1} style={{ width: '56px', height: '56px', cursor: focusedQuestion <= 1 ? 'not-allowed' : 'pointer', background: focusedQuestion <= 1 ? '#c8c8c8' : '#4a4a4a', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px' }}>
                     <FaArrowLeft size={24} />
                 </button>
