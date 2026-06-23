@@ -17,6 +17,7 @@ import { listeningAPI, studentsAPI } from "@/lib/api";
 import { getPrefetched, fetchModuleData } from "@/lib/examPrefetch";
 import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import ExamSecurity from "@/components/ExamSecurity";
+import TextHighlighter from "@/components/TextHighlighter";
 
 const QUESTIONS_PER_PAGE = 10;
 
@@ -486,6 +487,7 @@ function ListeningExamPageContent() {
         if (audioRef.current && !showSoundTest && !showPlayOverlay && !isLoading && audioUrl && !hasStarted.current) {
             audioRef.current.src = audioUrl;
             audioRef.current.load();
+            audioRef.current.volume = volume;
             audioRef.current.play().catch(err => console.log("Auto-play blocked:", err));
             setIsPlaying(true);
             hasStarted.current = true;
@@ -1046,6 +1048,21 @@ function ListeningExamPageContent() {
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                             {formatTime(timeLeft)}
                         </div>
+                        {/* Audio volume control */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} title="Audio volume">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                            </svg>
+                            <input
+                                type="range" min="0" max="1" step="0.05"
+                                value={volume}
+                                onChange={handleVolumeChange}
+                                aria-label="Audio volume"
+                                style={{ width: '96px', cursor: 'pointer', accentColor: '#2563eb' }}
+                            />
+                        </div>
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12.55a11 11 0 0 1 14.08 0" />
                             <path d="M1.42 9a16 16 0 0 1 21.16 0" />
@@ -1089,6 +1106,7 @@ function ListeningExamPageContent() {
             ══════════════════════════════════════ */}
             <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px` }}>
                 <div style={{ maxWidth: '1000px', padding: '20px 20px' }}>
+                    <TextHighlighter passageId={`listening_page_${currentPage}`} contrastMode={contrastMode}>
 
                     {/* Section image if any */}
                     {currentSec.imageUrl && (
@@ -1359,6 +1377,7 @@ function ListeningExamPageContent() {
                             return null;
                         })}
                     </div>
+                    </TextHighlighter>
                 </div>
 
                 {/* ══════════════════════════════════════
