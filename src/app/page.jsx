@@ -170,7 +170,7 @@ export default function HomePage() {
     const cleanErrorMessage = (msg) => {
         // Map of technical messages to user-friendly messages
         const messageMap = {
-            "Invalid Exam ID format": "Invalid Exam ID format. Example: BACIELTS260001",
+            "Invalid Exam ID format": "Invalid Exam ID format. Example: MCIM07",
             "Invalid Exam ID": "This Exam ID does not exist. Please check and try again.",
             "Payment not confirmed": "Your payment is not confirmed yet. Please contact admin.",
             "This account has been deactivated": "Your account has been deactivated. Please contact admin.",
@@ -507,7 +507,7 @@ export default function HomePage() {
                                                 onChange={(e) => {
                                                     setExamId(e.target.value.toUpperCase());
                                                 }}
-                                                placeholder="e.g., BACIELTS240001"
+                                                placeholder="e.g., MCIM07"
                                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-4 text-slate-900 placeholder-slate-400 focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10 outline-none transition-all text-lg font-mono tracking-widest"
                                                 autoComplete="off"
                                                 spellCheck="false"

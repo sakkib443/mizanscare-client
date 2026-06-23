@@ -195,7 +195,7 @@ function ExamEntryContent() {
                                             setExamId(e.target.value.toUpperCase());
                                             setError("");
                                         }}
-                                        placeholder="Enter Exam ID (e.g., BACIELTS2500001)"
+                                        placeholder="Enter Exam ID (e.g., MCIM07)"
                                         className="w-full border-2 border-gray-300 rounded-lg pl-12 pr-4 py-4 text-gray-800 placeholder-gray-400 focus:border-cyan-600 focus:outline-none text-lg tracking-wider"
                                         autoComplete="off"
                                         spellCheck="false"
