@@ -40,12 +40,11 @@ function WritingExamPageContent() {
     const [showInstructions, setShowInstructions] = useState(!isAdminPreview);
     const [splitPercent, setSplitPercent] = useState(50);
 
-    const [phase, setPhase] = useState("select");
-    const [activePart, setActivePart] = useState(null);
-    const [completedParts, setCompletedParts] = useState([]);
+    const [phase, setPhase] = useState("writing");
+    const [activePart, setActivePart] = useState(1);
 
-    const [part1Time, setPart1Time] = useState(20 * 60);
-    const [part2Time, setPart2Time] = useState(40 * 60);
+    // Single 1-hour timer shared by both parts of the writing test
+    const [timeLeft, setTimeLeft] = useState(60 * 60);
 
     const [showSubmitPartModal, setShowSubmitPartModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,6 +64,10 @@ function WritingExamPageContent() {
     // Splitter
     const isDraggingRef = useRef(false);
     const containerRef = useRef(null);
+
+    // Keep latest answers in a ref so the timer-driven auto-submit never sends stale text
+    const answersRef = useRef(answers);
+    useEffect(() => { answersRef.current = answers; }, [answers]);
 
     const onSplitterMouseDown = useCallback((e) => {
         e.preventDefault();
@@ -118,14 +121,8 @@ function WritingExamPageContent() {
                 if (parsed.answers) {
                     setAnswers(parsed.answers);
                 }
-                if (parsed.part1Time && parsed.part1Time > 0) {
-                    setPart1Time(parsed.part1Time);
-                }
-                if (parsed.part2Time && parsed.part2Time > 0) {
-                    setPart2Time(parsed.part2Time);
-                }
-                if (parsed.completedParts && parsed.completedParts.length > 0) {
-                    setCompletedParts(parsed.completedParts);
+                if (parsed.timeLeft && parsed.timeLeft > 0) {
+                    setTimeLeft(parsed.timeLeft);
                 }
                 console.log('[AutoSave] Restored writing answers from localStorage');
             }
@@ -140,12 +137,12 @@ function WritingExamPageContent() {
         const interval = setInterval(() => {
             try {
                 localStorage.setItem(autoSaveKey, JSON.stringify({
-                    answers, part1Time, part2Time, completedParts, savedAt: Date.now()
+                    answers, timeLeft, savedAt: Date.now()
                 }));
             } catch (e) { /* ignore quota errors */ }
         }, 15000);
         return () => clearInterval(interval);
-    }, [answers, part1Time, part2Time, completedParts, isAdminPreview, isLoading]);
+    }, [answers, timeLeft, isAdminPreview, isLoading]);
 
     // ── Save on every text change (debounced) ─────────────────────────────
     useEffect(() => {
@@ -154,7 +151,7 @@ function WritingExamPageContent() {
         const t = setTimeout(() => {
             try {
                 localStorage.setItem(autoSaveKey, JSON.stringify({
-                    answers, part1Time, part2Time, completedParts, savedAt: Date.now()
+                    answers, timeLeft, savedAt: Date.now()
                 }));
             } catch (e) { /* ignore */ }
         }, 2000);
@@ -218,12 +215,6 @@ function WritingExamPageContent() {
     // Optimized: uses prefetched cache when available; redundant verifyExamId
     // call removed (completion check uses localStorage refreshed on selection page).
     useEffect(() => {
-        const applyTaskTimes = (tasks) => {
-            if (!Array.isArray(tasks)) return;
-            if (tasks[0]?.recommendedTime) setPart1Time(tasks[0].recommendedTime * 60);
-            if (tasks[1]?.recommendedTime) setPart2Time(tasks[1].recommendedTime * 60);
-        };
-
         const loadData = async () => {
             try {
                 // ═══ ADMIN PREVIEW MODE ═══
@@ -236,7 +227,6 @@ function WritingExamPageContent() {
                     }
                     if (data) {
                         setQuestionSet(data);
-                        applyTaskTimes(data.tasks);
                     } else {
                         setLoadError("Failed to load writing test.");
                     }
@@ -274,7 +264,6 @@ function WritingExamPageContent() {
                 const data = await fetchModuleData("writing", writingSetNumber);
                 if (data) {
                     setQuestionSet(data);
-                    applyTaskTimes(data.tasks);
                 } else {
                     setLoadError("Failed to load writing test questions.");
                 }
@@ -311,26 +300,20 @@ function WritingExamPageContent() {
     const currentAnswer = activePart === 1 ? answers.task1 : answers.task2;
     const wordCount = currentAnswer?.trim() ? currentAnswer.trim().split(/\s+/).length : 0;
     const meetsMinWords = wordCount >= (currentTaskData?.minWords || 150);
-    const currentTime = activePart === 1 ? part1Time : part2Time;
+    const currentTime = timeLeft;
 
-    // ===== TIMER =====
+    // ===== TIMER — single 1-hour countdown for the whole test =====
+    // Only runs once writing has actually started (not on the instructions screen).
     useEffect(() => {
-        if (phase !== "writing" || !activePart) return;
+        if (phase !== "writing" || showInstructions) return;
         const timer = setInterval(() => {
-            if (activePart === 1) {
-                setPart1Time(prev => {
-                    if (prev <= 1) { clearInterval(timer); handlePartTimeUp(1); return 0; }
-                    return prev - 1;
-                });
-            } else {
-                setPart2Time(prev => {
-                    if (prev <= 1) { clearInterval(timer); handlePartTimeUp(2); return 0; }
-                    return prev - 1;
-                });
-            }
+            setTimeLeft(prev => {
+                if (prev <= 1) { clearInterval(timer); handleFinalSubmit(); return 0; }
+                return prev - 1;
+            });
         }, 1000);
         return () => clearInterval(timer);
-    }, [phase, activePart]);
+    }, [phase, showInstructions]);
 
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
@@ -339,20 +322,6 @@ function WritingExamPageContent() {
     };
 
     // ===== HANDLERS =====
-    const handleStartPart = (partNum) => { setActivePart(partNum); setPhase("writing"); };
-    const handlePartTimeUp = (partNum) => { finishPart(partNum); };
-
-    const finishPart = (partNum) => {
-        const newCompleted = [...completedParts, partNum];
-        setCompletedParts(newCompleted);
-        if (newCompleted.includes(1) && newCompleted.includes(2)) {
-            handleFinalSubmit();
-        } else {
-            setPhase("select");
-            setActivePart(null);
-        }
-    };
-
     const handleTextChange = (value) => {
         if (activePart === 1) setAnswers(prev => ({ ...prev, task1: value }));
         else setAnswers(prev => ({ ...prev, task2: value }));
@@ -366,11 +335,13 @@ function WritingExamPageContent() {
     };
 
     const handleFinalSubmit = async () => {
+        if (submittedRef.current && phase === "done") return; // guard against double submit
         submittedRef.current = true; // Prevent emergency submit from firing
         setIsSubmitting(true);
         setPhase("done");
-        const task1Words = answers.task1?.trim().split(/\s+/).filter(Boolean).length || 0;
-        const task2Words = answers.task2?.trim().split(/\s+/).filter(Boolean).length || 0;
+        const cur = answersRef.current || answers;
+        const task1Words = cur.task1?.trim().split(/\s+/).filter(Boolean).length || 0;
+        const task2Words = cur.task2?.trim().split(/\s+/).filter(Boolean).length || 0;
         const bandScore = getWritingBandScore(task1Words, task2Words);
 
         // ═══ ADMIN PREVIEW: Show score popup ═══
@@ -389,7 +360,7 @@ function WritingExamPageContent() {
             const currentSetNumber = sessionData?.currentSetNumber;
             const response = await studentsAPI.saveModuleScore(examId, "writing", {
                 band: bandScore, task1Words, task2Words,
-                answers: { task1: answers.task1, task2: answers.task2 },
+                answers: { task1: cur.task1, task2: cur.task2 },
                 setNumber: currentSetNumber
             });
             if (response.success && sessionData) {
@@ -458,13 +429,13 @@ function WritingExamPageContent() {
                             <strong>Parts:</strong> 2 writing tasks
                         </p>
                         <p style={{ color: '#374151', marginBottom: '12px' }}>
-                            <strong>Part 1:</strong> 20 minutes — Academic Report (min. 150 words)
+                            <strong>Part 1:</strong> Academic Report — min. 150 words (spend about 20 minutes)
                         </p>
                         <p style={{ color: '#374151', marginBottom: '12px' }}>
-                            <strong>Part 2:</strong> 40 minutes — Essay (min. 250 words)
+                            <strong>Part 2:</strong> Essay — min. 250 words (spend about 40 minutes)
                         </p>
                         <p style={{ color: '#374151' }}>
-                            <strong>Instructions:</strong> You choose which part to start first. Each part has its own timer.
+                            <strong>Total time:</strong> 1 hour for both parts. You can switch between Part 1 and Part 2 at any time.
                         </p>
                     </div>
 
@@ -473,98 +444,20 @@ function WritingExamPageContent() {
                         <ul style={{ color: '#92400e', fontSize: '13px', listStyle: 'none', padding: 0, margin: 0 }}>
                             <li style={{ marginBottom: '4px' }}>• Task 2 contributes <strong>twice as much</strong> as Task 1 to your score.</li>
                             <li style={{ marginBottom: '4px' }}>• Writing below the minimum word count will lose marks.</li>
-                            <li>• Once a part's timer runs out, you <strong>cannot go back</strong>.</li>
+                            <li>• When the <strong>1-hour timer ends</strong>, both parts are submitted automatically.</li>
                         </ul>
                     </div>
 
                     <button
-                        onClick={() => { setShowInstructions(false); setPhase("select"); }}
+                        onClick={() => { setShowInstructions(false); setPhase("writing"); setActivePart(1); }}
                         style={{ width: '100%', backgroundColor: '#2563eb', color: 'white', padding: '16px', borderRadius: '12px', fontWeight: 'bold', fontSize: '18px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}
                         onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1d4ed8'}
                         onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563eb'}
                     >
                         <FaPlay style={{ fontSize: '14px' }} />
-                        <span>Continue to Part Selection</span>
+                        <span>Continue to Writing Test</span>
                         <FaArrowRight style={{ fontSize: '14px' }} />
                     </button>
-                </div>
-            </div>
-        );
-    }
-
-    // ==================== PART SELECTION ====================
-    if (phase === "select") {
-        const part1Done = completedParts.includes(1);
-        const part2Done = completedParts.includes(2);
-
-        return (
-            <div style={{ minHeight: '100vh', backgroundColor: '#f8f8f8', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Arial, sans-serif' }}>
-                <ExamSecurity examId={session?.examId} onViolationLimit={() => handleFinalSubmit()} />
-
-                <div style={{ maxWidth: '480px', width: '100%' }}>
-                    <div style={{ marginBottom: '24px' }}>
-                        <h1 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>IELTS Writing Test</h1>
-                        <p style={{ fontSize: '14px', color: '#9ca3af' }}>Select a part to begin writing.</p>
-                    </div>
-
-                    {/* Progress */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-                        <div style={{ height: '6px', flex: 1, borderRadius: '999px', backgroundColor: part1Done ? '#1f2937' : '#e5e7eb' }} />
-                        <div style={{ height: '6px', flex: 1, borderRadius: '999px', backgroundColor: part2Done ? '#1f2937' : '#e5e7eb' }} />
-                        <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '8px' }}>{completedParts.length}/2</span>
-                    </div>
-
-                    {/* Part Cards */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {displayTasks.map((task) => {
-                            const isDone = completedParts.includes(task.partNumber);
-                            const taskAnswer = task.partNumber === 1 ? answers.task1 : answers.task2;
-                            const taskWords = taskAnswer?.trim().split(/\s+/).filter(Boolean).length || 0;
-                            const remainingTime = task.partNumber === 1 ? part1Time : part2Time;
-
-                            return (
-                                <div key={task.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden', opacity: isDone ? 0.7 : 1 }}>
-                                    <div style={{ padding: '16px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: isDone ? '#16a34a' : '#1f2937', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>
-                                                    {isDone ? <FaCheck style={{ fontSize: '12px' }} /> : task.partNumber}
-                                                </div>
-                                                <div>
-                                                    <p style={{ fontWeight: '500', color: '#1f2937', fontSize: '14px' }}>{task.title}</p>
-                                                    <p style={{ fontSize: '12px', color: '#9ca3af' }}>Min. {task.minWords} words</p>
-                                                </div>
-                                            </div>
-                                            <div style={{ textAlign: 'right' }}>
-                                                {isDone ? (
-                                                    <span style={{ fontSize: '12px', fontWeight: '500', color: '#16a34a' }}>Completed</span>
-                                                ) : (
-                                                    <span style={{ fontSize: '14px', fontFamily: 'monospace', color: '#4b5563' }}>{formatTime(remainingTime)}</span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {isDone ? (
-                                            <div style={{ background: '#f9fafb', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                                                <p style={{ fontSize: '14px', color: '#4b5563' }}>{taskWords} words written</p>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleStartPart(task.partNumber)}
-                                                style={{ width: '100%', backgroundColor: '#1f2937', color: '#fff', padding: '10px', borderRadius: '6px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                                                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#111827'}
-                                                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#1f2937'}
-                                            >
-                                                <FaPlay style={{ fontSize: '10px' }} />
-                                                Start {task.title}
-                                                <span style={{ color: '#9ca3af', fontSize: '12px' }}>({task.timeMinutes} min)</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
                 </div>
             </div>
         );
@@ -574,12 +467,12 @@ function WritingExamPageContent() {
     if (phase === "writing" && currentTaskData) {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, userSelect: 'text' }}>
-                <ExamSecurity examId={session?.examId} onViolationLimit={() => { finishPart(activePart); }} />
+                <ExamSecurity examId={session?.examId} onViolationLimit={() => handleFinalSubmit()} />
 
                 {/* ═══════════════════════════════════
                     TOP HEADER — Inspera Style
                 ═══════════════════════════════════ */}
-                <header style={{ backgroundColor: (activePart === 1 ? part1Time : part2Time) <= 60 ? (contrastMode === 'black-on-white' ? '#fde8e8' : '#3a0d0d') : cs.bg, borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}`, height: '56px', flexShrink: 0, transition: 'background-color 0.5s ease' }}>
+                <header style={{ backgroundColor: timeLeft <= 60 ? (contrastMode === 'black-on-white' ? '#fde8e8' : '#3a0d0d') : cs.bg, borderBottom: `1px solid ${contrastMode === 'black-on-white' ? '#ccc' : '#555'}`, height: '56px', flexShrink: 0, transition: 'background-color 0.5s ease' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '0 16px' }}>
                         {/* Left */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
@@ -590,13 +483,11 @@ function WritingExamPageContent() {
                         </div>
                         {/* Right */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                            {/* Timer */}
-                            {activePart && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: (activePart === 1 ? part1Time : part2Time) < 300 ? '#dc2626' : cs.text, fontWeight: '700', fontSize: '18px', fontFamily: 'monospace' }}>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                                    {formatTime(activePart === 1 ? part1Time : part2Time)}
-                                </div>
-                            )}
+                            {/* Timer — single 1-hour countdown */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: timeLeft < 300 ? '#dc2626' : cs.text, fontWeight: '700', fontSize: '18px', fontFamily: 'monospace' }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                                {formatTime(timeLeft)}
+                            </div>
                             {/* WiFi */}
                             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={contrastMode === 'black-on-white' ? '#374151' : cs.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" />
@@ -702,18 +593,15 @@ function WritingExamPageContent() {
                             <span style={{ fontSize: '13px', color: cs.text }}>Review</span>
                         </div>
 
-                        {/* Part tabs */}
+                        {/* Part tabs — click to switch between Part 1 and Part 2 anytime */}
                         {displayTasks.map((task, idx) => {
                             const isActive = task.partNumber === activePart;
-                            const isDone = completedParts.includes(task.partNumber);
                             return (
                                 <div key={task.id}
-                                    onClick={() => {
-                                        if (!isDone && task.partNumber !== activePart) return;
-                                    }}
+                                    onClick={() => setActivePart(task.partNumber)}
                                     style={{
                                         display: 'flex', alignItems: 'center', gap: '4px', padding: '0 12px', height: '100%',
-                                        cursor: 'default', borderRadius: '4px'
+                                        cursor: 'pointer', borderRadius: '4px'
                                     }}
                                     onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
                                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -721,7 +609,7 @@ function WritingExamPageContent() {
                                     <div style={{
                                         display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer'
                                     }}>
-                                        <div style={{ width: '18px', height: '3px', background: isDone || isActive ? '#2563eb' : '#c0c0c0', marginBottom: '3px', borderRadius: '1px' }}></div>
+                                        <div style={{ width: '18px', height: '3px', background: isActive ? '#2563eb' : '#c0c0c0', marginBottom: '3px', borderRadius: '1px' }}></div>
                                         <span style={{
                                             fontSize: '14px', fontWeight: isActive ? 'bold' : '400',
                                             color: isActive ? cs.text : '#888',
@@ -768,28 +656,31 @@ function WritingExamPageContent() {
                         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
                             <div style={{ background: 'white', padding: '24px', maxWidth: '360px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                    <h3 style={{ fontWeight: 'bold', fontSize: '16px', color: '#1f2937' }}>Submit {currentTaskData.title}?</h3>
+                                    <h3 style={{ fontWeight: 'bold', fontSize: '16px', color: '#1f2937' }}>Submit Writing Test?</h3>
                                     <button onClick={() => setShowSubmitPartModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#6b7280' }}><FaTimes /></button>
                                 </div>
 
-                                <div style={{ background: meetsMinWords ? '#f0fdf4' : '#fffbeb', border: `1px solid ${meetsMinWords ? '#bbf7d0' : '#fcd34d'}`, padding: '16px', marginBottom: '16px', textAlign: 'center' }}>
-                                    <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#1f2937' }}>{wordCount}<span style={{ fontSize: '18px', color: '#9ca3af' }}>/{currentTaskData.minWords}</span></p>
-                                    <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '4px' }}>words written</p>
+                                <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                                    {displayTasks.map((t) => {
+                                        const ans = t.partNumber === 1 ? answers.task1 : answers.task2;
+                                        const w = ans?.trim() ? ans.trim().split(/\s+/).length : 0;
+                                        const ok = w >= t.minWords;
+                                        return (
+                                            <div key={t.id} style={{ flex: 1, background: ok ? '#f0fdf4' : '#fffbeb', border: `1px solid ${ok ? '#bbf7d0' : '#fcd34d'}`, padding: '12px', textAlign: 'center' }}>
+                                                <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>{t.title}</p>
+                                                <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>{w}<span style={{ fontSize: '13px', color: '#9ca3af' }}>/{t.minWords}</span></p>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
-                                {!meetsMinWords && (
-                                    <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '10px', marginBottom: '16px', textAlign: 'center' }}>
-                                        <p style={{ color: '#92400e', fontSize: '13px', fontWeight: '600' }}>⚠ Below minimum word count. This may affect your score.</p>
-                                    </div>
-                                )}
-
                                 <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
-                                    Time remaining: <strong>{formatTime(currentTime)}</strong>. You cannot return to this part after submitting.
+                                    Time remaining: <strong>{formatTime(currentTime)}</strong>. This will end your test and submit both parts.
                                 </p>
 
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                     <button onClick={() => setShowSubmitPartModal(false)} style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Cancel</button>
-                                    <button onClick={() => { setShowSubmitPartModal(false); finishPart(activePart); }} style={{ flex: 1, padding: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}>Submit</button>
+                                    <button onClick={() => { setShowSubmitPartModal(false); handleFinalSubmit(); }} style={{ flex: 1, padding: '10px', background: '#2563eb', color: 'white', border: 'none', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}>Submit</button>
                                 </div>
                             </div>
                         </div>
@@ -905,7 +796,7 @@ function WritingExamPageContent() {
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => { setAdminScoreResult(null); setPhase('select'); setCompletedParts([]); }} style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', borderRadius: '6px', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Restart Review</button>
+                            <button onClick={() => { setAdminScoreResult(null); setPhase('writing'); setActivePart(1); setTimeLeft(60 * 60); }} style={{ flex: 1, padding: '10px', border: '1px solid #d1d5db', borderRadius: '6px', color: '#374151', fontWeight: '600', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Restart Review</button>
                             <button onClick={() => window.close()} style={{ flex: 1, padding: '10px', background: '#4f46e5', color: 'white', borderRadius: '6px', fontWeight: '600', fontSize: '13px', cursor: 'pointer', border: 'none' }}>Close Preview</button>
                         </div>
                     </div>
