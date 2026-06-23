@@ -105,7 +105,7 @@ export default function EditStudentPage() {
 
     // Form data (basic fields)
     const [formData, setFormData] = useState({
-        nameEnglish: "", phone: "", nidNumber: "",
+        nameEnglish: "", phone: "", nidNumber: "", passportNumber: "",
         isActive: true, canRetake: false,
     });
 
@@ -129,6 +129,7 @@ export default function EditStudentPage() {
                     nameEnglish: student.nameEnglish || "",
                     phone: student.phone || "",
                     nidNumber: student.nidNumber || "",
+                    passportNumber: student.passportNumber || "",
                     isActive: student.isActive !== false,
                     canRetake: student.canRetake || false,
                 });
@@ -169,6 +170,23 @@ export default function EditStudentPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+
+        // At least one of NID / Passport is required (with format checks)
+        const nid = formData.nidNumber.trim();
+        const passport = formData.passportNumber.trim();
+        if (!nid && !passport) {
+            setError("NID অথবা Passport — অন্তত একটি দিতে হবে।");
+            return;
+        }
+        if (nid && !/^\d{10}$|^\d{17}$/.test(nid)) {
+            setError("NID must be 10 or 17 digits only.");
+            return;
+        }
+        if (passport && !/^[A-Za-z0-9]{6,12}$/.test(passport)) {
+            setError("Passport must be 6-12 letters/numbers.");
+            return;
+        }
+
         setSaving(true);
 
         try {
@@ -192,6 +210,7 @@ export default function EditStudentPage() {
                 nameEnglish: formData.nameEnglish,
                 phone: formData.phone,
                 nidNumber: formData.nidNumber || undefined,
+                passportNumber: formData.passportNumber || undefined,
                 // Send fullSets so server updates assignedSets.fullSets + legacy fields
                 fullSets: fullSets.length > 0 ? fullSets : [],
                 extraSets: [],
@@ -259,10 +278,21 @@ export default function EditStudentPage() {
                                 className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500" />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">NID / Voter ID Number (Optional)</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">NID / Voter ID Number</label>
                             <input type="text" name="nidNumber" value={formData.nidNumber} onChange={handleInputChange}
-                                placeholder="10 or 17 number (optional)"
+                                placeholder="10 or 17 digit number"
                                 className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Passport Number</label>
+                            <input type="text" name="passportNumber" value={formData.passportNumber} onChange={handleInputChange}
+                                placeholder="e.g., A01234567"
+                                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500" />
+                        </div>
+                        <div className="md:col-span-2">
+                            <p className="text-xs text-gray-500">
+                                <span className="text-red-500">*</span> NID অথবা Passport — যেকোনো একটি অবশ্যই দিতে হবে (চাইলে দুটোই দিতে পারেন)।
+                            </p>
                         </div>
                     </div>
                 </div>

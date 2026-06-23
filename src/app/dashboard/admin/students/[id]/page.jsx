@@ -1138,6 +1138,7 @@ function StudentContent() {
                             { label: "Email Address", value: student.email },
                             { label: "Phone Number", value: student.phone },
                             { label: "NID Number", value: student.nidNumber },
+                            { label: "Passport Number", value: student.passportNumber },
                         ].map((item, i) => (
                             <div key={i} className="flex justify-between items-center py-2.5 px-3 hover:bg-slate-50 rounded-md transition-colors">
                                 <span className="text-slate-500 text-sm">{item.label}</span>

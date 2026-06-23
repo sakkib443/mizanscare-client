@@ -46,6 +46,7 @@ export default function StudentProfile() {
         phone,
         examId,
         nidNumber,
+        passportNumber,
         fatherName,
         motherName,
         address,
@@ -93,6 +94,7 @@ export default function StudentProfile() {
                     <InfoField icon={FaEnvelope} label="Email" value={email} />
                     <InfoField icon={FaPhone} label="Phone" value={phone} />
                     <InfoField icon={FaIdCard} label="NID Number" value={nidNumber} />
+                    <InfoField icon={FaIdCard} label="Passport Number" value={passportNumber} />
                 </div>
             </div>
 

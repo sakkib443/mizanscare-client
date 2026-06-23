@@ -12,7 +12,6 @@ import {
     FaEnvelope,
     FaPhone,
     FaIdCard,
-    FaCalendar,
     FaHeadphones,
     FaBook,
     FaPen,
@@ -21,9 +20,6 @@ import {
     FaExclamationTriangle,
     FaPlus,
     FaTrash,
-    FaVideo,
-    FaClock,
-    FaLink,
 } from "react-icons/fa";
 import { studentsAPI, listeningAPI, readingAPI, writingAPI, speakingAPI } from "@/lib/api";
 
@@ -199,9 +195,7 @@ export default function CreateStudentPage() {
         email: "",
         phone: "",
         nidNumber: "",
-        speakingExamDate: "",
-        speakingExamTime: "",
-        speakingMeetingLink: "",
+        passportNumber: "",
     });
 
     // Full Sets state (each full set = L+R+W)
@@ -257,6 +251,14 @@ export default function CreateStudentPage() {
         if (formData.nidNumber && !/^\d{10}$|^\d{17}$/.test(formData.nidNumber)) {
             errors.nidNumber = "NID must be 10 or 17 digits only";
         }
+        if (formData.passportNumber && !/^[A-Za-z0-9]{6,12}$/.test(formData.passportNumber)) {
+            errors.passportNumber = "Passport must be 6-12 letters/numbers";
+        }
+        // At least one of NID / Passport is required
+        if (!formData.nidNumber.trim() && !formData.passportNumber.trim()) {
+            errors.nidNumber = "NID অথবা Passport — অন্তত একটি দিন";
+            errors.passportNumber = "NID অথবা Passport — অন্তত একটি দিন";
+        }
         return errors;
     };
 
@@ -276,12 +278,6 @@ export default function CreateStudentPage() {
         try {
             const studentData = {
                 ...formData,
-                // Speaking exam schedule
-                speakingExamDate: formData.speakingExamDate
-                    ? new Date(formData.speakingExamDate).toISOString()
-                    : undefined,
-                speakingExamTime: formData.speakingExamTime || undefined,
-                speakingMeetingLink: formData.speakingMeetingLink || undefined,
                 // Send Full Sets
                 fullSets: fullSets
                     .filter(fs => fs.listeningSetNumber || fs.readingSetNumber || fs.writingSetNumber)
@@ -382,8 +378,7 @@ export default function CreateStudentPage() {
                             onClick={() => {
                                 setSuccess(null);
                                 setFormData({
-                                    testType: "academic", nameEnglish: "", email: "", phone: "", nidNumber: "",
-                                    speakingExamDate: "", speakingExamTime: "", speakingMeetingLink: "",
+                                    testType: "academic", nameEnglish: "", email: "", phone: "", nidNumber: "", passportNumber: "",
                                 });
                             }}
                             className="px-6 py-2.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 cursor-pointer"
@@ -465,63 +460,26 @@ export default function CreateStudentPage() {
                             <FieldError error={fieldErrors.phone} />
                             <p className="text-xs text-gray-500 mt-1">This will be used as the student's password</p>
                         </div>
-                        <div className="md:col-span-2">
+                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <FaIdCard className="inline mr-1 text-gray-400" /> NID / Voter ID Number (Optional)
+                                <FaIdCard className="inline mr-1 text-gray-400" /> NID / Voter ID Number
                             </label>
                             <input type="text" name="nidNumber" value={formData.nidNumber} onChange={handleInputChange}
-                                className={getInputClass("nidNumber")} placeholder="10 or 17 number (optional)" />
+                                className={getInputClass("nidNumber")} placeholder="10 or 17 digit number" />
                             <FieldError error={fieldErrors.nidNumber} />
                         </div>
-                    </div>
-                </div>
-
-                {/* Speaking Exam Schedule */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                    <h3 className="font-semibold text-gray-800 mb-1 flex items-center gap-2">
-                        <FaVideo className="text-purple-500" /> Speaking Exam Schedule
-                    </h3>
-                    <p className="text-sm text-gray-400 mb-4">Optional — শুধু Speaking Exam থাকলে পূরণ করুন</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <FaCalendar className="inline mr-1 text-gray-400" /> Speaking Exam Date
+                                <FaIdCard className="inline mr-1 text-gray-400" /> Passport Number
                             </label>
-                            <input
-                                type="date"
-                                name="speakingExamDate"
-                                value={formData.speakingExamDate}
-                                onChange={handleInputChange}
-                                className={getInputClass("speakingExamDate")}
-                            />
-                            <FieldError error={fieldErrors.speakingExamDate} />
+                            <input type="text" name="passportNumber" value={formData.passportNumber} onChange={handleInputChange}
+                                className={getInputClass("passportNumber")} placeholder="e.g., A01234567" />
+                            <FieldError error={fieldErrors.passportNumber} />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <FaClock className="inline mr-1 text-gray-400" /> Speaking Exam Time
-                            </label>
-                            <input
-                                type="time"
-                                name="speakingExamTime"
-                                value={formData.speakingExamTime}
-                                onChange={handleInputChange}
-                                className={getInputClass("speakingExamTime")}
-                            />
-                            <FieldError error={fieldErrors.speakingExamTime} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <FaLink className="inline mr-1 text-gray-400" /> Meeting Link (Zoom / Meet)
-                            </label>
-                            <input
-                                type="url"
-                                name="speakingMeetingLink"
-                                value={formData.speakingMeetingLink}
-                                onChange={handleInputChange}
-                                className={getInputClass("speakingMeetingLink")}
-                                placeholder="https://zoom.us/j/..."
-                            />
-                            <FieldError error={fieldErrors.speakingMeetingLink} />
+                        <div className="md:col-span-2">
+                            <p className="text-xs text-gray-500">
+                                <span className="text-red-500">*</span> NID অথবা Passport — যেকোনো একটি অবশ্যই দিতে হবে (চাইলে দুটোই দিতে পারেন)।
+                            </p>
                         </div>
                     </div>
                 </div>
