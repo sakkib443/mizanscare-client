@@ -588,11 +588,6 @@ function WritingExamPageContent() {
                     height: '44px', padding: '0', zIndex: 100
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', flex: 1, height: '100%' }}>
-                        {/* Review label (left) */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px', height: '100%', flexShrink: 0 }}>
-                            <span style={{ fontSize: '13px', color: cs.text }}>Review</span>
-                        </div>
-
                         {/* Part tabs — full-width indicator bar on top, with a small gap between the two parts */}
                         <div style={{ display: 'flex', flex: 1, height: '100%', gap: '14px' }}>
                             {displayTasks.map((task) => {
