@@ -13,7 +13,6 @@ import {
     FaPhone,
     FaIdCard,
     FaCalendar,
-    FaMoneyBillWave,
     FaHeadphones,
     FaBook,
     FaPen,
@@ -197,15 +196,9 @@ export default function CreateStudentPage() {
     const [formData, setFormData] = useState({
         testType: "academic",
         nameEnglish: "",
-        nameBengali: "",
         email: "",
         phone: "",
         nidNumber: "",
-        examDate: "",
-        paymentStatus: "paid",
-        paymentAmount: 5000,
-        paymentMethod: "cash",
-        paymentReference: "",
         speakingExamDate: "",
         speakingExamTime: "",
         speakingMeetingLink: "",
@@ -264,7 +257,6 @@ export default function CreateStudentPage() {
         if (formData.nidNumber && !/^\d{10}$|^\d{17}$/.test(formData.nidNumber)) {
             errors.nidNumber = "NID must be 10 or 17 digits only";
         }
-        if (!formData.examDate) errors.examDate = "Exam date is required";
         return errors;
     };
 
@@ -284,7 +276,6 @@ export default function CreateStudentPage() {
         try {
             const studentData = {
                 ...formData,
-                examDate: new Date(formData.examDate).toISOString(),
                 // Speaking exam schedule
                 speakingExamDate: formData.speakingExamDate
                     ? new Date(formData.speakingExamDate).toISOString()
@@ -391,13 +382,9 @@ export default function CreateStudentPage() {
                             onClick={() => {
                                 setSuccess(null);
                                 setFormData({
-                                    nameEnglish: "", nameBengali: "", email: "", phone: "", nidNumber: "",
-                                    examDate: "", paymentStatus: "paid", paymentAmount: 5000, paymentMethod: "cash", paymentReference: "",
+                                    testType: "academic", nameEnglish: "", email: "", phone: "", nidNumber: "",
+                                    speakingExamDate: "", speakingExamTime: "", speakingMeetingLink: "",
                                 });
-                                setListeningSelectedSets([]);
-                                setReadingSelectedSets([]);
-                                setWritingSelectedSets([]);
-                                setSpeakingSelectedSets([]);
                             }}
                             className="px-6 py-2.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 cursor-pointer"
                         >Register Another</button>
@@ -462,12 +449,6 @@ export default function CreateStudentPage() {
                             <FieldError error={fieldErrors.nameEnglish} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name (Bengali)</label>
-                            <input type="text" name="nameBengali" value={formData.nameBengali} onChange={handleInputChange}
-                                className={getInputClass("nameBengali")} placeholder="e.g., মোহাম্মদ রহমান" />
-                            <FieldError error={fieldErrors.nameBengali} />
-                        </div>
-                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 <FaEnvelope className="inline mr-1 text-gray-400" /> Email Address *
                             </label>
@@ -492,19 +473,6 @@ export default function CreateStudentPage() {
                                 className={getInputClass("nidNumber")} placeholder="10 or 17 number (optional)" />
                             <FieldError error={fieldErrors.nidNumber} />
                         </div>
-                    </div>
-                </div>
-
-                {/* Exam Date */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                    <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <FaCalendar className="text-cyan-600" /> Exam Schedule
-                    </h3>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Exam Date *</label>
-                        <input type="date" name="examDate" value={formData.examDate} onChange={handleInputChange}
-                            min={new Date().toISOString().split("T")[0]} className={getInputClass("examDate")} />
-                        <FieldError error={fieldErrors.examDate} />
                     </div>
                 </div>
 
@@ -554,42 +522,6 @@ export default function CreateStudentPage() {
                                 placeholder="https://zoom.us/j/..."
                             />
                             <FieldError error={fieldErrors.speakingMeetingLink} />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Payment Information */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                    <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <FaMoneyBillWave className="text-cyan-600" /> Payment Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status *</label>
-                            <select name="paymentStatus" value={formData.paymentStatus} onChange={handleInputChange} className={getInputClass("paymentStatus")}>
-                                <option value="paid">Paid</option>
-                                <option value="pending">Pending</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount (BDT) *</label>
-                            <input type="number" name="paymentAmount" value={formData.paymentAmount} onChange={handleInputChange}
-                                min={0} className={getInputClass("paymentAmount")} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
-                            <select name="paymentMethod" value={formData.paymentMethod} onChange={handleInputChange} className={getInputClass("paymentMethod")}>
-                                <option value="cash">Cash</option>
-                                <option value="bkash">bKash</option>
-                                <option value="nagad">Nagad</option>
-                                <option value="bank">Bank Transfer</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Reference / TrxID</label>
-                            <input type="text" name="paymentReference" value={formData.paymentReference} onChange={handleInputChange}
-                                className={getInputClass("paymentReference")} placeholder="Transaction ID or reference" />
                         </div>
                     </div>
                 </div>

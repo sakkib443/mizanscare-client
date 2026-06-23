@@ -31,7 +31,6 @@ export default function AdminDashboard() {
         totalStudents: 0,
         examStatus: { completed: 0, inProgress: 0, notStarted: 0, terminated: 0 },
         averageScores: { avgOverall: 0, avgListening: 0, avgReading: 0, avgWriting: 0 },
-        todayExams: 0
     });
     const [loading, setLoading] = useState(true);
 

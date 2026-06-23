@@ -26,7 +26,6 @@ export default function StudentsListPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filters, setFilters] = useState({
         examStatus: "",
-        paymentStatus: "",
     });
     const [showFilters, setShowFilters] = useState(false);
     const [deleteModal, setDeleteModal] = useState({ show: false, student: null });
@@ -99,7 +98,6 @@ export default function StudentsListPage() {
                 limit: pagination.limit,
                 ...(searchTerm && { searchTerm }),
                 ...(filters.examStatus && { examStatus: filters.examStatus }),
-                ...(filters.paymentStatus && { paymentStatus: filters.paymentStatus }),
             };
 
             const response = await studentsAPI.getAll(params);
@@ -168,12 +166,6 @@ export default function StudentsListPage() {
         "expired": "bg-purple-100 text-purple-700",
     };
 
-    const paymentColors = {
-        pending: "bg-orange-100 text-orange-700",
-        paid: "bg-green-100 text-green-700",
-        refunded: "bg-gray-100 text-gray-600",
-    };
-
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -218,7 +210,7 @@ export default function StudentsListPage() {
 
                 {/* Filter Options */}
                 {showFilters && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Exam Status</label>
                             <select
@@ -233,23 +225,10 @@ export default function StudentsListPage() {
                                 <option value="terminated">Terminated</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
-                            <select
-                                value={filters.paymentStatus}
-                                onChange={(e) => setFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
-                                className="w-full border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-cyan-500"
-                            >
-                                <option value="">All Payments</option>
-                                <option value="pending">Pending</option>
-                                <option value="paid">Paid</option>
-                                <option value="refunded">Refunded</option>
-                            </select>
-                        </div>
                         <div className="flex items-end">
                             <button
                                 onClick={() => {
-                                    setFilters({ examStatus: "", paymentStatus: "" });
+                                    setFilters({ examStatus: "" });
                                     setSearchTerm("");
                                 }}
                                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
@@ -280,16 +259,10 @@ export default function StudentsListPage() {
                                     Phone
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Payment
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Exam Status
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Score
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Exam Date
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Actions
@@ -299,7 +272,7 @@ export default function StudentsListPage() {
                         <tbody className="divide-y divide-gray-200">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-12 text-center">
+                                    <td colSpan={7} className="px-4 py-12 text-center">
                                         <FaSpinner className="animate-spin text-3xl text-cyan-500 mx-auto" />
                                         <p className="text-gray-500 mt-2">Loading students...</p>
                                     </td>
@@ -345,11 +318,6 @@ export default function StudentsListPage() {
                                             {student.phone}
                                         </td>
                                         <td className="px-4 py-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${paymentColors[student.paymentStatus]}`}>
-                                                {student.paymentStatus}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-4">
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[student.examStatus]}`}>
                                                 {student.examStatus?.replace("-", " ")}
                                             </span>
@@ -364,9 +332,6 @@ export default function StudentsListPage() {
                                             ) : (
                                                 <span className="text-gray-400">—</span>
                                             )}
-                                        </td>
-                                        <td className="px-4 py-4 text-sm text-gray-600">
-                                            {new Date(student.examDate).toLocaleDateString()}
                                         </td>
                                         <td className="px-4 py-4">
                                             <div className="flex items-center gap-1">
@@ -406,7 +371,7 @@ export default function StudentsListPage() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-12 text-center">
+                                    <td colSpan={7} className="px-4 py-12 text-center">
                                         <div className="text-gray-400 text-5xl mb-4">👥</div>
                                         <p className="text-gray-500">No students found</p>
                                         <Link

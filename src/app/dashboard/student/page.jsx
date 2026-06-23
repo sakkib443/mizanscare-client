@@ -6,7 +6,6 @@ import {
     FaEnvelope,
     FaPhone,
     FaIdCard,
-    FaCalendarAlt,
     FaCheckCircle,
     FaExclamationCircle,
     FaClock,
@@ -18,11 +17,9 @@ import {
     FaClipboardCheck,
     FaClipboardList,
 } from "react-icons/fa";
-import { useRouter } from "next/navigation";
 import { studentsAPI } from "@/lib/api";
 
 export default function StudentDashboard() {
-    const router = useRouter();
     const [studentData, setStudentData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -76,8 +73,6 @@ export default function StudentDashboard() {
         phone,
         examId,
         examStatus,
-        examDate,
-        paymentStatus,
         scores,
         resultsPublished,
         completedModules = [],
@@ -115,49 +110,6 @@ export default function StudentDashboard() {
     const totalModuleSets = allModuleCards.length;
     const isAllCompleted = allModuleCards.length > 0 && allModuleCards.every(c => c.completed);
 
-    // Check if today is exam day
-    const isExamDay = () => {
-        if (!examDate) return false;
-        const today = new Date();
-        const exam = new Date(examDate);
-        return (
-            today.getFullYear() === exam.getFullYear() &&
-            today.getMonth() === exam.getMonth() &&
-            today.getDate() === exam.getDate()
-        );
-    };
-
-    const formatExamDate = (date) => {
-        if (!date) return "Not set";
-        return new Date(date).toLocaleDateString("en-GB", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-        });
-    };
-
-    const handleStartExam = () => {
-        if (!isExamDay()) {
-            alert(`Your exam is scheduled for ${formatExamDate(examDate)}. Please come back on that day.`);
-            return;
-        }
-        localStorage.setItem(
-            "examSession",
-            JSON.stringify({
-                examId: studentData.examId,
-                sessionId: studentData.examId, // For compatibility
-                studentName: studentData.nameEnglish,
-                name: studentData.nameEnglish,
-                email: studentData.email,
-                assignedSets: studentData.assignedSets || {},
-                completedModules: studentData.completedModules || [],
-                scores: studentData.scores || {},
-            })
-        );
-        router.push(`/exam/${examId}`);
-    };
-
     return (
         <div className="max-w-6xl mx-auto">
             {/* Welcome Header */}
@@ -171,7 +123,7 @@ export default function StudentDashboard() {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
                 <StatCard
                     label="Exam Status"
                     value={examStatus}
@@ -180,15 +132,6 @@ export default function StudentDashboard() {
                 <StatCard
                     label="Completed"
                     value={`${completedModules.length}/${totalModuleSets} Modules`}
-                />
-                <StatCard
-                    label="Exam Date"
-                    value={examDate ? new Date(examDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Not set"}
-                />
-                <StatCard
-                    label="Payment"
-                    value={paymentStatus}
-                    type="badge"
                 />
             </div>
 
@@ -209,7 +152,6 @@ export default function StudentDashboard() {
                         <InfoRow icon={FaIdCard} label="Exam ID" value={examId} />
                         <InfoRow icon={FaEnvelope} label="Email" value={email} />
                         <InfoRow icon={FaPhone} label="Phone" value={phone} />
-                        <InfoRow icon={FaCalendarAlt} label="Exam Date" value={examDate ? new Date(examDate).toLocaleDateString() : "N/A"} />
                     </div>
                 </div>
 
@@ -396,7 +338,7 @@ export default function StudentDashboard() {
                             <div className="flex-1">
                                 <h3 className="font-medium text-gray-800">Exam Not Started</h3>
                                 <p className="text-gray-500 text-sm mt-0.5">
-                                    Your exam is scheduled for {formatExamDate(examDate)}. Use your Exam ID on the homepage to start the exam.
+                                    Use your Exam ID on the homepage to start the exam.
                                 </p>
                             </div>
                             <span className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-md text-xs font-medium">

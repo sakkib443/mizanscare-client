@@ -6,7 +6,6 @@ import {
     FaEnvelope,
     FaPhone,
     FaIdCard,
-    FaCalendarAlt,
     FaMapMarkerAlt,
     FaGraduationCap,
     FaEdit,
@@ -43,7 +42,6 @@ export default function StudentProfile() {
 
     const {
         nameEnglish,
-        nameBangla,
         email,
         phone,
         examId,
@@ -51,7 +49,6 @@ export default function StudentProfile() {
         fatherName,
         motherName,
         address,
-        examDate,
         photo,
     } = studentData || {};
 
@@ -74,7 +71,6 @@ export default function StudentProfile() {
                     </div>
                     <div className="flex-1">
                         <h2 className="text-lg font-semibold text-gray-800">{nameEnglish}</h2>
-                        {nameBangla && <p className="text-gray-500 text-sm">{nameBangla}</p>}
                         <div className="flex items-center gap-2 mt-2">
                             <span className="bg-cyan-100 text-cyan-700 px-2 py-1 rounded text-xs font-medium">
                                 {examId}
@@ -97,7 +93,6 @@ export default function StudentProfile() {
                     <InfoField icon={FaEnvelope} label="Email" value={email} />
                     <InfoField icon={FaPhone} label="Phone" value={phone} />
                     <InfoField icon={FaIdCard} label="NID Number" value={nidNumber} />
-                    <InfoField icon={FaCalendarAlt} label="Exam Date" value={examDate ? new Date(examDate).toLocaleDateString() : "Not set"} />
                 </div>
             </div>
 

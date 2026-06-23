@@ -12,7 +12,7 @@ import {
     FaTimes,
 } from "react-icons/fa";
 import Logo from "@/components/Logo";
-import { FaCreditCard, FaUserCircle, FaCog } from "react-icons/fa";
+import { FaUserCircle, FaCog } from "react-icons/fa";
 
 const menuItems = [
     {
@@ -24,11 +24,6 @@ const menuItems = [
         title: "Results",
         icon: FaChartBar,
         href: "/dashboard/student/results",
-    },
-    {
-        title: "Payments",
-        icon: FaCreditCard,
-        href: "/dashboard/student/payments",
     },
     {
         title: "Profile",

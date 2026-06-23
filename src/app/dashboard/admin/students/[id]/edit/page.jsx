@@ -10,8 +10,6 @@ import {
     FaUserGraduate,
     FaEnvelope,
     FaPhone,
-    FaCalendar,
-    FaMoneyBillWave,
     FaHeadphones,
     FaBook,
     FaPen,
@@ -107,9 +105,7 @@ export default function EditStudentPage() {
 
     // Form data (basic fields)
     const [formData, setFormData] = useState({
-        nameEnglish: "", nameBengali: "", phone: "", nidNumber: "",
-        examDate: "", paymentStatus: "pending", paymentAmount: 0,
-        paymentMethod: "cash", paymentReference: "",
+        nameEnglish: "", phone: "", nidNumber: "",
         isActive: true, canRetake: false,
     });
 
@@ -131,14 +127,8 @@ export default function EditStudentPage() {
                 const student = response.data;
                 setFormData({
                     nameEnglish: student.nameEnglish || "",
-                    nameBengali: student.nameBengali || "",
                     phone: student.phone || "",
                     nidNumber: student.nidNumber || "",
-                    examDate: student.examDate ? new Date(student.examDate).toISOString().split("T")[0] : "",
-                    paymentStatus: student.paymentStatus || "pending",
-                    paymentAmount: student.paymentAmount || 0,
-                    paymentMethod: student.paymentMethod || "cash",
-                    paymentReference: student.paymentReference || "",
                     isActive: student.isActive !== false,
                     canRetake: student.canRetake || false,
                 });
@@ -200,14 +190,8 @@ export default function EditStudentPage() {
 
             const updateData = {
                 nameEnglish: formData.nameEnglish,
-                nameBengali: formData.nameBengali || undefined,
                 phone: formData.phone,
                 nidNumber: formData.nidNumber || undefined,
-                examDate: new Date(formData.examDate).toISOString(),
-                paymentStatus: formData.paymentStatus,
-                paymentAmount: formData.paymentAmount,
-                paymentMethod: formData.paymentMethod,
-                paymentReference: formData.paymentReference || undefined,
                 // Send fullSets so server updates assignedSets.fullSets + legacy fields
                 fullSets: fullSets.length > 0 ? fullSets : [],
                 extraSets: [],
@@ -268,11 +252,6 @@ export default function EditStudentPage() {
                                 className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500" />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name (Bengali)</label>
-                            <input type="text" name="nameBengali" value={formData.nameBengali} onChange={handleInputChange}
-                                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500" />
-                        </div>
-                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 <FaPhone className="inline mr-1 text-gray-400" /> Phone Number *
                             </label>
@@ -283,52 +262,6 @@ export default function EditStudentPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-1">NID / Voter ID Number (Optional)</label>
                             <input type="text" name="nidNumber" value={formData.nidNumber} onChange={handleInputChange}
                                 placeholder="10 or 17 number (optional)"
-                                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <FaCalendar className="inline mr-1 text-gray-400" /> Exam Date *
-                            </label>
-                            <input type="date" name="examDate" value={formData.examDate} onChange={handleInputChange} required
-                                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Payment Information */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                    <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <FaMoneyBillWave className="text-cyan-600" /> Payment Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status *</label>
-                            <select name="paymentStatus" value={formData.paymentStatus} onChange={handleInputChange} required
-                                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500">
-                                <option value="pending">Pending</option>
-                                <option value="paid">Paid</option>
-                                <option value="refunded">Refunded</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount (BDT) *</label>
-                            <input type="number" name="paymentAmount" value={formData.paymentAmount} onChange={handleInputChange} required min={0}
-                                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
-                            <select name="paymentMethod" value={formData.paymentMethod} onChange={handleInputChange} required
-                                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500">
-                                <option value="cash">Cash</option>
-                                <option value="bkash">bKash</option>
-                                <option value="nagad">Nagad</option>
-                                <option value="bank">Bank Transfer</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Reference / TrxID</label>
-                            <input type="text" name="paymentReference" value={formData.paymentReference} onChange={handleInputChange}
                                 className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500" />
                         </div>
                     </div>

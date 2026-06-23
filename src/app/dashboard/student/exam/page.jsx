@@ -48,7 +48,7 @@ export default function StudentExams() {
         );
     }
 
-    const { examId, completedModules = [], paymentStatus, examDate, assignedSets = {} } = studentData;
+    const { examId, completedModules = [], assignedSets = {} } = studentData;
 
     const moduleConfig = {
         listening: { title: "Listening", icon: FaHeadphones, description: "Test your ability to understand spoken English.", duration: "30-40 min", questions: 40 },
@@ -81,35 +81,10 @@ export default function StudentExams() {
             completedModules.some(m => m.startsWith(`${moduleId}:`) && !setNumber);
     };
 
-    // Check if today is exam day
-    const isExamDay = () => {
-        if (!examDate) return false;
-        const today = new Date();
-        const exam = new Date(examDate);
-        return (
-            today.getFullYear() === exam.getFullYear() &&
-            today.getMonth() === exam.getMonth() &&
-            today.getDate() === exam.getDate()
-        );
-    };
-
-    const formatExamDate = (date) => {
-        if (!date) return "Not set";
-        return new Date(date).toLocaleDateString("en-GB", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-        });
-    };
-
-    const canStartExam = paymentStatus === "paid" && isExamDay();
+    // Exam access is open anytime — no payment or scheduled-date gate
+    const canStartExam = true;
 
     const handleStartModule = (moduleId, setNumber) => {
-        if (!isExamDay()) {
-            alert(`Your exam is scheduled for ${formatExamDate(examDate)}. Please come back on that day.`);
-            return;
-        }
         localStorage.setItem(
             "examSession",
             JSON.stringify({
@@ -199,23 +174,6 @@ export default function StudentExams() {
                     </div>
                 </div>
             </div>
-
-            {/* Payment/Date Warning */}
-            {paymentStatus !== "paid" ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-6 flex items-center gap-3">
-                    <FaInfoCircle className="text-amber-600" />
-                    <p className="text-amber-800 text-sm">
-                        Your payment is pending. Please complete payment to start the exam.
-                    </p>
-                </div>
-            ) : !isExamDay() ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6 flex items-center gap-3">
-                    <FaInfoCircle className="text-blue-600" />
-                    <p className="text-blue-800 text-sm">
-                        Your exam is scheduled for <strong>{formatExamDate(examDate)}</strong>. Please come back on that day.
-                    </p>
-                </div>
-            ) : null}
 
             {/* Full Sets */}
             {fullSets.map((fs, idx) => (

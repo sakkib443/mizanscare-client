@@ -1138,7 +1138,6 @@ function StudentContent() {
                             { label: "Email Address", value: student.email },
                             { label: "Phone Number", value: student.phone },
                             { label: "NID Number", value: student.nidNumber },
-                            { label: "Payment Status", value: student.paymentStatus, badge: true, badgeColor: student.paymentStatus === 'paid' ? 'emerald' : 'amber' },
                         ].map((item, i) => (
                             <div key={i} className="flex justify-between items-center py-2.5 px-3 hover:bg-slate-50 rounded-md transition-colors">
                                 <span className="text-slate-500 text-sm">{item.label}</span>
@@ -1161,7 +1160,6 @@ function StudentContent() {
                     </h2>
                     <div className="space-y-1">
                         {[
-                            { label: "Exam Date", value: student.examDate ? new Date(student.examDate).toLocaleDateString('en-US', { dateStyle: 'long' }) : '-' },
                             { label: "Completed At", value: student.examCompletedAt ? new Date(student.examCompletedAt).toLocaleString() : '-' },
                             { label: "Violations", value: student.totalViolations, warning: student.totalViolations > 0 },
                             { label: "Results Published", value: student.resultsPublished ? 'Yes' : 'No', badge: true, badgeColor: student.resultsPublished ? 'emerald' : 'slate' },

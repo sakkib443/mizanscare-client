@@ -62,7 +62,6 @@ export default function StudentResults() {
             const {
                 nameEnglish = "N/A",
                 examId = "N/A",
-                examDate,
                 scores,
                 adminRemarks,
             } = studentData;
@@ -109,18 +108,6 @@ export default function StudentResults() {
             doc.setFontSize(9);
             doc.setTextColor(...white);
             doc.text(badgeText, pageWidth - margin - badgeWidth + 6, 20.5);
-
-            // Date
-            const dateStr = examDate
-                ? new Date(examDate).toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                })
-                : "N/A";
-            doc.setFontSize(8);
-            doc.setTextColor(200, 230, 235);
-            doc.text(`Date: ${dateStr}`, pageWidth - margin - badgeWidth + 6, 28);
 
             let y = 64;
 
@@ -481,7 +468,6 @@ export default function StudentResults() {
         adminRemarks,
         nameEnglish,
         examId,
-        examDate,
         completedModules = [],
         assignedSets = {}
     } = studentData || {};
@@ -532,33 +518,7 @@ export default function StudentResults() {
         return Math.round(avg * 2) / 2;
     };
 
-    // Check if today is exam day
-    const isExamDay = () => {
-        if (!examDate) return false;
-        const today = new Date();
-        const exam = new Date(examDate);
-        return (
-            today.getFullYear() === exam.getFullYear() &&
-            today.getMonth() === exam.getMonth() &&
-            today.getDate() === exam.getDate()
-        );
-    };
-
-    const formatExamDate = (date) => {
-        if (!date) return "Not set";
-        return new Date(date).toLocaleDateString("en-GB", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-        });
-    };
-
     const handleStartExam = () => {
-        if (!isExamDay()) {
-            alert(`Your exam is scheduled for ${formatExamDate(examDate)}. Please come back on that day.`);
-            return;
-        }
         localStorage.setItem(
             "examSession",
             JSON.stringify({
@@ -762,7 +722,7 @@ export default function StudentResults() {
                         </div>
                         <h3 className="text-lg font-semibold text-gray-800 mb-2">No Results Yet</h3>
                         <p className="text-gray-500 text-sm mb-6">
-                            Your exam is scheduled for {formatExamDate(examDate)}.
+                            You haven't taken the exam yet. Use your Exam ID to get started.
                         </p>
 
                         <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-6">
