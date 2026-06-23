@@ -74,12 +74,13 @@ export default function NotesSidebar({ open, notes = [], onUpdate, onDelete, onC
                     .notes-scroll::-webkit-scrollbar-track { background: rgba(127,127,127,0.15); border-radius: 6px; }
                     .notes-scroll::-webkit-scrollbar-thumb { background: #2563eb; border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
                     .notes-scroll::-webkit-scrollbar-thumb:hover { background: #1d4ed8; background-clip: padding-box; }
+                    .notes-scroll textarea::placeholder { color: #9ca3af; opacity: 1; }
                 `}</style>
 
                 {/* Header */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: `1px solid ${borderCol}`, flexShrink: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "16px", color: titleCol }}>
-                        <FaStickyNote color="#2563eb" /> My Notes
+                        <FaStickyNote color="#2563eb" /> Notes
                     </div>
                     <button onClick={onClose} title="Minimize" style={{ background: "none", border: "none", cursor: "pointer", color: dark ? "#9ca3af" : "#6b7280", padding: "4px", display: "flex" }}>
                         <FaTimes size={18} />
@@ -95,21 +96,27 @@ export default function NotesSidebar({ open, notes = [], onUpdate, onDelete, onC
                     ) : (
                         notes.map((n) => (
                             <div key={n.id} data-note-id={n.id} style={{ background: cardBg, border: `1px solid ${borderCol}`, borderRadius: "10px", padding: "12px", boxShadow: flashId === n.id ? "0 0 0 2px #2563eb" : "0 1px 3px rgba(0,0,0,0.06)", transition: "box-shadow 0.25s ease" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px", marginBottom: "8px" }}>
-                                    <span style={{ fontSize: "13px", fontWeight: 600, color: "#2563eb", fontStyle: "italic", wordBreak: "break-word", flex: 1, lineHeight: 1.4 }}>
-                                        “{n.text}”
-                                    </span>
-                                    <button onClick={() => onDelete(n.id)} title="Delete note" style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: "2px", flexShrink: 0, display: "flex" }}>
-                                        <FaTrash size={12} />
-                                    </button>
-                                </div>
+                                <span style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#2563eb", fontStyle: "italic", wordBreak: "break-word", lineHeight: 1.4, marginBottom: "8px" }}>
+                                    “{n.text}”
+                                </span>
                                 <textarea
                                     value={n.note}
                                     onChange={(e) => onUpdate(n.id, e.target.value)}
                                     placeholder="Write your note…"
                                     rows={3}
-                                    style={{ width: "100%", resize: "vertical", boxSizing: "border-box", border: `1px solid ${borderCol}`, borderRadius: "6px", padding: "8px", fontSize: "13px", outline: "none", background: inputBg, color: inputText, fontFamily: "Arial, sans-serif", lineHeight: 1.5 }}
+                                    style={{ width: "100%", resize: "none", overflowY: "auto", boxSizing: "border-box", border: `1px solid ${borderCol}`, borderRadius: "6px", padding: "8px", fontSize: "13px", outline: "none", background: inputBg, color: inputText, fontFamily: "Arial, sans-serif", lineHeight: 1.5 }}
                                 />
+                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
+                                    <button
+                                        onClick={() => onDelete(n.id)}
+                                        title="Delete note"
+                                        style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 12px", fontSize: "12px", fontWeight: 600, color: "#dc2626", background: "transparent", border: "1px solid #f0a9a9", borderRadius: "6px", cursor: "pointer", fontFamily: "Arial, sans-serif", transition: "all 0.15s ease" }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = "#dc2626"; e.currentTarget.style.color = "#ffffff"; e.currentTarget.style.borderColor = "#dc2626"; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#dc2626"; e.currentTarget.style.borderColor = "#f0a9a9"; }}
+                                    >
+                                        <FaTrash size={11} /> Delete
+                                    </button>
+                                </div>
                             </div>
                         ))
                     )}
