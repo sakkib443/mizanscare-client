@@ -20,6 +20,7 @@ import { getPrefetched, fetchModuleData } from "@/lib/examPrefetch";
 import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import ExamSecurity from "@/components/ExamSecurity";
 import RangeHighlighter from "@/components/RangeHighlighter";
+import NotesSidebar from "@/components/NotesSidebar";
 
 
 
@@ -86,6 +87,15 @@ function ReadingExamPageContent() {
     // Options menu states
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [showNotes, setShowNotes] = useState(false); // note-taking panel toggle
+    const [notes, setNotes] = useState([]);
+    const noteIdRef = useRef(0);
+    const addNote = (text) => {
+        noteIdRef.current += 1;
+        setNotes(prev => [...prev, { id: noteIdRef.current, text, note: '' }]);
+        setShowNotes(true);
+    };
+    const updateNote = (id, value) => setNotes(prev => prev.map(n => (n.id === id ? { ...n, note: value } : n)));
+    const deleteNote = (id) => setNotes(prev => prev.filter(n => n.id !== id));
     const [optionsView, setOptionsView] = useState('main');
     const [contrastMode, setContrastMode] = useState('black-on-white');
     const [textSizeMode, setTextSizeMode] = useState('regular');
@@ -751,6 +761,15 @@ function ReadingExamPageContent() {
                 </div >
             </header >
 
+            <NotesSidebar
+                open={showNotes}
+                notes={notes}
+                onUpdate={updateNote}
+                onDelete={deleteNote}
+                onClose={() => setShowNotes(false)}
+                contrastMode={contrastMode}
+            />
+
             {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                 PASSAGE BANNER â€" Inspera Style
             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
@@ -772,7 +791,7 @@ function ReadingExamPageContent() {
                 < div ref={passagePanelRef} style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
                     <h3 style={{ fontWeight: 'bold', fontSize: `${18 * tScale}px`, color: cs.text, marginBottom: '16px' }}>{currentPass.title}</h3>
                     {currentPass.source && <p style={{ fontSize: `${12 * tScale}px`, color: contrastMode === 'black-on-white' ? '#6b7280' : cs.text, marginBottom: '12px', fontStyle: 'italic' }}>{currentPass.source}</p>}
-                    <RangeHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode}>
+                    <RangeHighlighter passageId={`reading_passage_${currentPassage}`} contrastMode={contrastMode} onAddNote={addNote}>
                         {(() => {
                             const allParas = (currentPass.content || '').replace(/\\n/g, '\n').split('\n\n');
                             // Detect sequential A, B, C... paragraph labels. Only treat as labels if we find at least 3 in sequence (A, B, C).
@@ -821,7 +840,7 @@ function ReadingExamPageContent() {
 
                 {/* RIGHT: Questions */}
                 < div ref={questionsPanelRef} style={{ flex: 1, overflowY: 'auto', padding: '20px 30px 250px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif' }}>
-                    <RangeHighlighter passageId={`reading_questions_${currentPassage}`} contrastMode={contrastMode}>
+                    <RangeHighlighter passageId={`reading_questions_${currentPassage}`} contrastMode={contrastMode} onAddNote={addNote}>
                         {currentPass.questionGroups && currentPass.questionGroups.length > 0 ? (
                             currentPass.questionGroups.map((group, gIdx) => (
                                 <div key={gIdx} style={{ marginBottom: '24px' }}>

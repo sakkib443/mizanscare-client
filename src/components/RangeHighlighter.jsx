@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback, useId } from "react";
-import { FaHighlighter, FaEraser } from "react-icons/fa";
+import { FaHighlighter, FaEraser, FaStickyNote } from "react-icons/fa";
 
 /**
  * RangeHighlighter
@@ -71,7 +71,7 @@ function caretCharOffsetFromPoint(container, x, y) {
     return offsetFromStart(container, node, offset);
 }
 
-export default function RangeHighlighter({ children, passageId = "default", contrastMode = "black-on-white" }) {
+export default function RangeHighlighter({ children, passageId = "default", contrastMode = "black-on-white", onAddNote = null }) {
     // Unique CSS-highlight name per instance so multiple highlighters on one page
     // (e.g. Reading's passage + questions) don't overwrite each other.
     const HL_NAME = `exam-hl-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
@@ -189,6 +189,14 @@ export default function RangeHighlighter({ children, passageId = "default", cont
         setShowToolbar(false);
     }, [passageId, rebuild]);
 
+    // Send the selected text up to the module to create a note card
+    const addNote = useCallback(() => {
+        const text = savedRangeRef.current ? savedRangeRef.current.toString().trim() : '';
+        if (text && onAddNote) onAddNote(text);
+        window.getSelection()?.removeAllRanges();
+        setShowToolbar(false);
+    }, [onAddNote]);
+
     return (
         <div ref={containerRef} onMouseUp={onMouseUp} onClick={onClick} style={{ userSelect: "text", WebkitUserSelect: "text", position: "relative" }}>
             {children}
@@ -211,6 +219,16 @@ export default function RangeHighlighter({ children, passageId = "default", cont
                     >
                         <FaHighlighter color="#1f2937" size={13} /> Highlight
                     </button>
+                    {onAddNote && (
+                        <button
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={addNote}
+                            title="Add note"
+                            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "4px", border: "none", background: "#374151", color: "#ffffff", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}
+                        >
+                            <FaStickyNote size={13} /> Note
+                        </button>
+                    )}
                 </div>
             )}
 

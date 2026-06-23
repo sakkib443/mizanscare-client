@@ -18,6 +18,7 @@ import { getPrefetched, fetchModuleData } from "@/lib/examPrefetch";
 import ExamLoadingOverlay from "@/components/ExamLoadingOverlay";
 import ExamSecurity from "@/components/ExamSecurity";
 import RangeHighlighter from "@/components/RangeHighlighter";
+import NotesSidebar from "@/components/NotesSidebar";
 
 const QUESTIONS_PER_PAGE = 10;
 
@@ -184,6 +185,15 @@ function ListeningExamPageContent() {
     // Options menu states
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [showNotes, setShowNotes] = useState(false); // note-taking panel toggle
+    const [notes, setNotes] = useState([]);
+    const noteIdRef = useRef(0);
+    const addNote = (text) => {
+        noteIdRef.current += 1;
+        setNotes(prev => [...prev, { id: noteIdRef.current, text, note: '' }]);
+        setShowNotes(true);
+    };
+    const updateNote = (id, value) => setNotes(prev => prev.map(n => (n.id === id ? { ...n, note: value } : n)));
+    const deleteNote = (id) => setNotes(prev => prev.filter(n => n.id !== id));
     const [optionsView, setOptionsView] = useState('main'); // 'main' | 'contrast' | 'textsize'
     const [contrastMode, setContrastMode] = useState('black-on-white'); // 'black-on-white' | 'white-on-black' | 'yellow-on-black'
     const [textSizeMode, setTextSizeMode] = useState('regular'); // 'regular' | 'large' | 'extra-large'
@@ -1105,6 +1115,15 @@ function ListeningExamPageContent() {
                 </div>
             </header>
 
+            <NotesSidebar
+                open={showNotes}
+                notes={notes}
+                onUpdate={updateNote}
+                onDelete={deleteNote}
+                onClose={() => setShowNotes(false)}
+                contrastMode={contrastMode}
+            />
+
             {/* ══════════════════════════════════════
                 PART BANNER — Inspera Style
             ══════════════════════════════════════ */}
@@ -1127,7 +1146,7 @@ function ListeningExamPageContent() {
             ══════════════════════════════════════ */}
             <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '70px', fontFamily: 'Arial, sans-serif', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px` }}>
                 <div style={{ maxWidth: '1000px', padding: '20px 20px' }}>
-                    <RangeHighlighter passageId={`listening_page_${currentPage}`} contrastMode={contrastMode}>
+                    <RangeHighlighter passageId={`listening_page_${currentPage}`} contrastMode={contrastMode} onAddNote={addNote}>
 
                     {/* Section image if any */}
                     {currentSec.imageUrl && (
