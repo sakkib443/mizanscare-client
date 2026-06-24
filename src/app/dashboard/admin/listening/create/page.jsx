@@ -8,6 +8,7 @@ import {
     FaPlus, FaTrash, FaChevronDown, FaChevronUp, FaEye, FaEyeSlash,
     FaCode, FaCopy, FaVolumeUp, FaUpload,
 } from "react-icons/fa";
+import { toast } from "@/components/toast/Toaster";
 import { listeningAPI, uploadAudio } from "@/lib/api";
 import ListeningPreview from "@/components/listening/ListeningPreview";
 import { ListeningGroupEditor } from "@/components/listening/ListeningGroupForms";
@@ -34,7 +35,7 @@ function AudioUploadBtn({ onUploaded, label = "Upload" }) {
             const res = await uploadAudio(file);
             if (res?.data?.url) onUploaded(res.data.url);
         } catch (err) {
-            alert("Audio upload failed: " + (err.message || "Unknown"));
+            toast.error(err.message || "Please try again.", { title: "Audio upload failed" });
         } finally { setUploading(false); e.target.value = ''; }
     };
     return (

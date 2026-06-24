@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "@/components/toast/Toaster";
 import {
     FaArrowLeft,
     FaUserGraduate,
@@ -208,7 +209,6 @@ export default function CreateStudentPage() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(null);
     const [created, setCreated] = useState(null); // drives the animated success overlay
-    const [toast, setToast] = useState(null);
     const [fieldErrors, setFieldErrors] = useState({});
     const [copiedField, setCopiedField] = useState(null);
 
@@ -316,7 +316,7 @@ export default function CreateStudentPage() {
             // Show the actual first error and jump to that field so it's never
             // hidden off-screen when the admin submits from the bottom.
             const firstKey = Object.keys(validationErrors)[0];
-            setToast({ message: validationErrors[firstKey] || "Please fix the highlighted errors", type: "error" });
+            toast.error(validationErrors[firstKey] || "Please review the highlighted fields and try again.", { title: "Form incomplete" });
             setTimeout(() => {
                 const el = document.querySelector(`[name="${firstKey}"]`);
                 if (el) {
@@ -379,7 +379,7 @@ export default function CreateStudentPage() {
 
             const { fieldErrors: parsedFieldErrors, generalMessage } = parseApiError(errorData);
             if (Object.keys(parsedFieldErrors).length > 0) setFieldErrors(parsedFieldErrors);
-            setToast({ message: generalMessage, type: "error" });
+            toast.error(generalMessage || "Please try again.", { title: "Could not register student" });
         } finally {
             setLoading(false);
         }
@@ -401,8 +401,7 @@ export default function CreateStudentPage() {
     if (success) {
         return (
             <div className="max-w-2xl mx-auto">
-                {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+                                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                         <FaCheck className="text-green-600 text-3xl" />
                     </div>
@@ -454,8 +453,7 @@ export default function CreateStudentPage() {
 
     return (
         <div className="max-w-4xl mx-auto">
-            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-            {created && <SuccessOverlay examId={created?.credentials?.examId} name={created?.student?.nameEnglish} />}
+                        {created && <SuccessOverlay examId={created?.credentials?.examId} name={created?.student?.nameEnglish} />}
 
             <style jsx global>{`
                 @keyframes slide-in {

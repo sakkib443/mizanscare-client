@@ -9,6 +9,7 @@ import {
 import "./globals.css";
 
 import ReduxProviderWrapper from "@/components/ReduxProvaiderWrapper";
+import Toaster from "@/components/toast/Toaster";
 
 // Google Fonts
 const poppins = Poppins({
@@ -59,6 +60,7 @@ export default function RootLayout({ children }) {
         <ReduxProviderWrapper>
 
           {children}
+          <Toaster />
 
         </ReduxProviderWrapper>
       </body>

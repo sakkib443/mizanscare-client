@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "@/components/toast/Toaster";
 import {
     FaHeadphones,
     FaBook,
@@ -447,7 +448,7 @@ export default function StudentResults() {
             doc.save(`IELTS_Result_${examId}.pdf`);
         } catch (err) {
             console.error("PDF generation error:", err);
-            alert("Failed to generate PDF. Please try again.");
+            toast.error("We couldn't generate your result PDF. Please try again.", { title: "Download failed" });
         } finally {
             setDownloading(false);
         }

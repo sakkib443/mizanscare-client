@@ -24,6 +24,7 @@ import {
 import { LuGraduationCap, LuShieldCheck } from "react-icons/lu";
 import { HiOutlineDocumentText } from "react-icons/hi";
 import { studentsAPI } from "@/lib/api";
+import { toast } from "@/components/toast/Toaster";
 import Logo from "@/components/Logo";
 import { useSiteContent, getVideoSrc, isYouTube, renderBoldMarkers } from "@/hooks/useSiteContent";
 
@@ -88,7 +89,6 @@ const ToastPopup = ({ message, type, onClose }) => {
 export default function HomePage() {
     const router = useRouter();
     const [examId, setExamId] = useState("");
-    const [toast, setToast] = useState(null);
 
     // Dynamic site content (managed from Admin > Design)
     const SC_KEYS = [
@@ -195,7 +195,10 @@ export default function HomePage() {
 
     const showToast = (message, type = "error") => {
         const friendlyMessage = parseErrorMessage(message);
-        setToast({ message: friendlyMessage, type });
+        if (type === "success") toast.success(friendlyMessage);
+        else if (type === "info") toast.info(friendlyMessage);
+        else if (type === "warning") toast.warning(friendlyMessage);
+        else toast.error(friendlyMessage);
     };
 
     const handleStartExam = async (e) => {
@@ -278,16 +281,6 @@ export default function HomePage() {
 
     return (
         <div className="min-h-screen bg-[#f8fafc] relative overflow-hidden">
-            {/* Toast Popup */}
-            <AnimatePresence>
-                {toast && (
-                    <ToastPopup
-                        message={toast.message}
-                        type={toast.type}
-                        onClose={() => setToast(null)}
-                    />
-                )}
-            </AnimatePresence>
 
             {/* Demo Video Modal */}
             <AnimatePresence>

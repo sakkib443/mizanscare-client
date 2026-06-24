@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { toast } from "@/components/toast/Toaster";
 import {
     FaPlus,
     FaSearch,
@@ -63,8 +64,9 @@ export default function StudentsListPage() {
             setBulkModal({ show: false, action: null });
             setSelectedIds([]);
             fetchStudents();
+            toast.success(`${selected.length} exam${selected.length > 1 ? 's have' : ' has'} been reset successfully.`, { title: "Exams reset" });
         } catch (error) {
-            alert("Failed to reset some exams: " + error.message);
+            toast.error(error.message || "Please try again.", { title: "Could not reset exams" });
         } finally {
             setActionLoading(false);
         }
@@ -73,14 +75,16 @@ export default function StudentsListPage() {
     const handleBulkDelete = async () => {
         try {
             setActionLoading(true);
+            const count = selectedIds.length;
             for (const id of selectedIds) {
                 await studentsAPI.delete(id);
             }
             setBulkModal({ show: false, action: null });
             setSelectedIds([]);
             fetchStudents();
+            toast.success(`${count} student${count > 1 ? 's have' : ' has'} been deleted.`, { title: "Students deleted" });
         } catch (error) {
-            alert("Failed to delete some students: " + error.message);
+            toast.error(error.message || "Please try again.", { title: "Could not delete students" });
         } finally {
             setActionLoading(false);
         }
@@ -130,8 +134,9 @@ export default function StudentsListPage() {
             await studentsAPI.delete(deleteModal.student._id);
             setDeleteModal({ show: false, student: null });
             fetchStudents();
+            toast.success("The student has been deleted successfully.", { title: "Student deleted" });
         } catch (error) {
-            alert("Failed to delete student: " + error.message);
+            toast.error(error.message || "Please try again.", { title: "Could not delete student" });
         } finally {
             setActionLoading(false);
         }
@@ -145,8 +150,9 @@ export default function StudentsListPage() {
             await studentsAPI.resetExam(resetModal.student.examId);
             setResetModal({ show: false, student: null });
             fetchStudents();
+            toast.success("The exam has been reset. The student can now retake it.", { title: "Exam reset" });
         } catch (error) {
-            alert("Failed to reset exam: " + error.message);
+            toast.error(error.message || "Please try again.", { title: "Could not reset exam" });
         } finally {
             setActionLoading(false);
         }

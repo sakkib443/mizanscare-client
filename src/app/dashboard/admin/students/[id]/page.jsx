@@ -26,8 +26,38 @@ import {
     FaVideo
 } from "react-icons/fa";
 import { studentsAPI } from "@/lib/api";
+import { toast } from "@/components/toast/Toaster";
 
 // ==================== COMPONENTS ====================
+
+// Center modal shown after a score/mark is updated
+const MarkUpdatedModal = ({ open, title, message, onClose }) => {
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]" onClick={onClose}>
+            <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-100 overflow-hidden"
+                style={{ animation: "markPop 0.28s cubic-bezier(0.21,1.02,0.73,1)" }}
+            >
+                <style>{`@keyframes markPop { from { opacity:0; transform: translateY(12px) scale(0.96); } to { opacity:1; transform:none; } }`}</style>
+                <div className="flex flex-col items-center text-center px-7 pt-8 pb-7">
+                    <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
+                        <FaCheckCircle className="text-emerald-500" style={{ fontSize: "34px" }} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1.5">{title || "Score Updated"}</h3>
+                    <p className="text-sm text-slate-500 leading-relaxed">{message}</p>
+                    <button
+                        onClick={onClose}
+                        className="mt-6 w-full h-11 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-colors cursor-pointer"
+                    >
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // Band Score Display Component
 const BandScoreCircle = ({ score, size = "normal", label }) => {
@@ -763,6 +793,7 @@ function StudentContent() {
     // Modal states
     const [viewModal, setViewModal] = useState({ show: false, module: '', answers: null, loading: false });
     const [editModal, setEditModal] = useState({ show: false });
+    const [markUpdated, setMarkUpdated] = useState({ open: false, title: '', message: '' });
 
     // Fetch student data
     const fetchStudent = async () => {
@@ -819,10 +850,15 @@ function StudentContent() {
                 const label = scoresData.listening !== undefined ? 'Listening' :
                     scoresData.reading !== undefined ? 'Reading' :
                         scoresData.writing !== undefined ? 'Writing' : 'All';
-                alert(`✅ ${label} score${setNumber ? ` (Set #${setNumber})` : 's'} updated successfully!`);
+                const setText = setNumber ? ` for Set #${setNumber}` : '';
+                setMarkUpdated({
+                    open: true,
+                    title: `${label} Mark Updated`,
+                    message: `The ${label.toLowerCase()} ${label === 'All' ? 'scores have' : 'mark has'} been updated and saved successfully${setText}.`,
+                });
             }
         } catch (error) {
-            alert("❌ Failed to update scores: " + error.message);
+            toast.error(error?.message || "Please try again.", { title: "Could not update the mark" });
         } finally {
             setSaving(false);
         }
@@ -841,10 +877,10 @@ function StudentContent() {
             const response = await studentsAPI.publishResults(params.id, !student.resultsPublished);
             if (response.success) {
                 setStudent(prev => ({ ...prev, resultsPublished: response.data.resultsPublished }));
-                alert(response.data.message);
+                toast.success(response.data.message || (response.data.resultsPublished ? "Results are now visible to the student." : "Results have been hidden from the student."), { title: response.data.resultsPublished ? "Results published" : "Results unpublished" });
             }
         } catch (error) {
-            alert("❌ Failed to publish results: " + error.message);
+            toast.error(error?.message || "Please try again.", { title: "Could not publish results" });
         } finally {
             setPublishing(false);
         }
@@ -864,10 +900,10 @@ function StudentContent() {
             if (response.success) {
                 // Refetch full student data to ensure complete state
                 await fetchStudent();
-                alert(`✅ ${module} module reset successfully! The student can now retake this module.`);
+                toast.success(`The ${module} module has been reset. The student can now retake it.`, { title: "Module reset" });
             }
         } catch (error) {
-            alert("❌ Failed to reset module: " + error.message);
+            toast.error(error?.message || "Please try again.", { title: "Could not reset module" });
         } finally {
             setResetting(null);
         }
@@ -1228,6 +1264,13 @@ function StudentContent() {
                 saving={saving}
                 editModule={editModal.module || null}
                 editSetNumber={editModal.setNumber || null}
+            />
+
+            <MarkUpdatedModal
+                open={markUpdated.open}
+                title={markUpdated.title}
+                message={markUpdated.message}
+                onClose={() => setMarkUpdated({ open: false, title: '', message: '' })}
             />
         </div>
     );

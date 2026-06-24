@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { FaTrash, FaPlus, FaCloudUploadAlt } from "react-icons/fa";
 import { uploadAPI } from "@/lib/api";
+import { toast } from "@/components/toast/Toaster";
 
 // ═══ Shared Styles ═══
 const inp = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none";
@@ -1081,7 +1082,7 @@ export function DiagramLabelingForm({ group, onChange }) {
             const res = await uploadAPI.uploadImage(file);
             onChange({ ...group, imageUrl: res.url || res.data?.url || "" });
         } catch (err) {
-            alert("Upload failed: " + err.message);
+            toast.error(err.message || "Please try again.", { title: "Image upload failed" });
         }
         setIsUploading(false);
     };

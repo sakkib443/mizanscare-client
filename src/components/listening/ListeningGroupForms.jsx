@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { FaTrash, FaPlus, FaUpload, FaSpinner, FaTimes, FaImage, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { uploadImage } from "@/lib/api";
+import { toast } from "@/components/toast/Toaster";
 
 // ═══ Shared Styles ═══
 const inp = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none";
@@ -495,7 +496,7 @@ function MapDiagramForm({ group, onChange, typeLabel }) {
         try {
             const result = await uploadImage(file);
             if (result.success && result.data?.url) onChange({ ...group, imageUrl: result.data.url });
-        } catch (err) { alert("Upload failed"); }
+        } catch (err) { toast.error(err?.message || "Please try again.", { title: "Image upload failed" }); }
         finally { setImgUploading(false); }
     };
 
