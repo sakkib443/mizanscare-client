@@ -485,6 +485,15 @@ const ViewAnswersModal = ({ show, onClose, module, answers, loading, scores, all
     );
 };
 
+// Official IELTS Writing band: Task 2 is weighted twice Task 1, rounded to the nearest half band.
+// e.g. Task 1 = 4, Task 2 = 6 -> (4 + 2*6) / 3 = 5.33 -> 5.5
+const calcWritingOverall = (t1, t2) => {
+    const a = parseFloat(t1) || 0;
+    const b = parseFloat(t2) || 0;
+    if (a <= 0 || b <= 0) return 0;
+    return Math.round(((a + 2 * b) / 3) * 2) / 2;
+};
+
 // Comprehensive Score Edit Modal
 const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule, editSetNumber }) => {
     const [scores, setScores] = useState({
@@ -511,11 +520,11 @@ const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule, ed
                     band: (editModule === 'reading' && perSetScore) ? (perSetScore.band || 0) : (sc.reading?.band || 0),
                     correctAnswers: (editModule === 'reading' && perSetScore) ? (perSetScore.correctAnswers || 0) : (sc.reading?.correctAnswers || 0)
                 },
-                writing: {
-                    task1Band: (editModule === 'writing' && perSetScore) ? (perSetScore.task1Band || 0) : (sc.writing?.task1Band || 0),
-                    task2Band: (editModule === 'writing' && perSetScore) ? (perSetScore.task2Band || 0) : (sc.writing?.task2Band || 0),
-                    overallBand: (editModule === 'writing' && perSetScore) ? (perSetScore.overallBand || 0) : (sc.writing?.overallBand || 0)
-                },
+                writing: (() => {
+                    const t1 = (editModule === 'writing' && perSetScore) ? (perSetScore.task1Band || 0) : (sc.writing?.task1Band || 0);
+                    const t2 = (editModule === 'writing' && perSetScore) ? (perSetScore.task2Band || 0) : (sc.writing?.task2Band || 0);
+                    return { task1Band: t1, task2Band: t2, overallBand: calcWritingOverall(t1, t2) };
+                })(),
                 speaking: {
                     band: sc.speaking?.band || 0
                 },
@@ -651,7 +660,10 @@ const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule, ed
                                     <input
                                         type="number" step="0.5" min="0" max="9"
                                         value={scores.writing.task1Band}
-                                        onChange={(e) => setScores(prev => ({ ...prev, writing: { ...prev.writing, task1Band: parseFloat(e.target.value) || 0 } }))}
+                                        onChange={(e) => setScores(prev => {
+                                            const t1 = parseFloat(e.target.value) || 0;
+                                            return { ...prev, writing: { ...prev.writing, task1Band: t1, overallBand: calcWritingOverall(t1, prev.writing.task2Band) } };
+                                        })}
                                         className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none bg-slate-50 font-bold text-sm"
                                     />
                                 </div>
@@ -660,17 +672,22 @@ const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule, ed
                                     <input
                                         type="number" step="0.5" min="0" max="9"
                                         value={scores.writing.task2Band}
-                                        onChange={(e) => setScores(prev => ({ ...prev, writing: { ...prev.writing, task2Band: parseFloat(e.target.value) || 0 } }))}
+                                        onChange={(e) => setScores(prev => {
+                                            const t2 = parseFloat(e.target.value) || 0;
+                                            return { ...prev, writing: { ...prev.writing, task2Band: t2, overallBand: calcWritingOverall(prev.writing.task1Band, t2) } };
+                                        })}
                                         className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none bg-slate-50 font-bold text-sm"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Overall</label>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Overall <span className="text-indigo-500 normal-case">(auto)</span></label>
                                     <input
                                         type="number" step="0.5" min="0" max="9"
                                         value={scores.writing.overallBand}
-                                        onChange={(e) => setScores(prev => ({ ...prev, writing: { ...prev.writing, overallBand: parseFloat(e.target.value) || 0 } }))}
-                                        className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none bg-slate-50 font-bold text-sm"
+                                        readOnly
+                                        tabIndex={-1}
+                                        title="Auto-calculated from Task 1 & Task 2: (Task 1 + 2 × Task 2) ÷ 3, rounded to the nearest half band"
+                                        className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none bg-slate-100 text-slate-700 font-bold text-sm cursor-not-allowed"
                                     />
                                 </div>
                             </div>
