@@ -80,9 +80,11 @@ export default function LivePreview({ sections, title }) {
                                             Choose <span className="font-bold">ONE WORD ONLY</span> from the passage for each answer.
                                         </p>
                                     </div>
-                                    {group.mainHeading && (
-                                        <h3 className="text-xl font-bold text-blue-900 mb-4 border-b-2 border-blue-100 pb-2">{group.mainHeading}</h3>
-                                    )}
+                                    <div className="border-2 border-gray-300 rounded-md overflow-hidden">
+                                        {group.mainHeading && (
+                                            <div className="text-center font-bold text-gray-900 text-lg px-4 py-2.5 border-b-2 border-gray-300 bg-gray-50">{group.mainHeading}</div>
+                                        )}
+                                        <div className="p-4">
                                     {(group.passage || "").split('\n').map((line, lineIdx) => {
                                         const rawLine = line;
                                         const trimmed = line.trim();
@@ -142,6 +144,8 @@ export default function LivePreview({ sections, title }) {
                                             </ul>
                                         </div>
                                     ))}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
