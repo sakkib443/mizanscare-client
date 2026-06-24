@@ -563,10 +563,10 @@ const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule, ed
         }
     }, [student, editModule, editSetNumber]);
 
-    // Calculate overall band
+    // Calculate overall band — official IELTS average of the provided modules
+    // (Listening, Reading, Writing, Speaking), rounded to the nearest half band.
     const calculateOverall = () => {
-        // Filter out Speaking if it's 0 or not yet provided, to calculate average of 3 modules
-        const bands = [scores.listening.band, scores.reading.band, scores.writing.overallBand].filter(b => b > 0);
+        const bands = [scores.listening.band, scores.reading.band, scores.writing.overallBand, scores.speaking.band].filter(b => b > 0);
         if (bands.length === 0) return 0;
         const sum = bands.reduce((a, b) => a + b, 0);
         return Math.round((sum / bands.length) * 2) / 2;
@@ -724,24 +724,24 @@ const ScoreEditModal = ({ show, onClose, student, onSave, saving, editModule, ed
                         </div>
                     )}
 
-                    {/* Speaking Section - Hidden for now */}
-                    {false && (!editModule || editModule === 'speaking') && (
-                        <div className="bg-orange-50 rounded-2xl p-5 border border-orange-100">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center">
-                                    <FaMicrophone />
-                                </div>
-                                <h4 className="font-bold text-slate-800">Speaking Score</h4>
+                    {/* Speaking Section — manually entered by admin (no online test) */}
+                    {(!editModule || editModule === 'speaking') && (
+                        <div className="bg-white rounded-md p-5 border border-slate-200">
+                            <div className="flex items-center gap-2 mb-4">
+                                <FaMicrophone className="text-orange-500" />
+                                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Speaking Score</h4>
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Band Score (0-9)</label>
+                            <div className="max-w-[220px]">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Band Score <span className="text-orange-500 normal-case">(manual, 0–9)</span></label>
                                 <input
                                     type="number" step="0.5" min="0" max="9"
                                     value={scores.speaking.band}
                                     onChange={(e) => setScores(prev => ({ ...prev, speaking: { ...prev.speaking, band: parseFloat(e.target.value) || 0 } }))}
-                                    className="w-full h-12 px-4 rounded-xl border-2 border-orange-200 focus:border-orange-500 focus:ring-0 outline-none bg-white font-bold text-lg text-slate-800"
+                                    placeholder="0 - 9"
+                                    className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none bg-slate-50 font-bold text-sm focus:border-orange-400"
                                 />
                             </div>
+                            <p className="text-[11px] text-slate-400 mt-2">Speaking has no online test — enter the band manually. It is included in the official overall band.</p>
                         </div>
                     )}
 
@@ -845,11 +845,12 @@ function StudentContent() {
             if (setNumber) payload.setNumber = setNumber;
             const response = await studentsAPI.updateAllScores(params.id, payload);
             if (response.success) {
+                const editedModule = editModal.module;
                 setStudent(response.data);
                 setEditModal({ show: false });
-                const label = scoresData.listening !== undefined ? 'Listening' :
-                    scoresData.reading !== undefined ? 'Reading' :
-                        scoresData.writing !== undefined ? 'Writing' : 'All';
+                const label = editedModule
+                    ? editedModule.charAt(0).toUpperCase() + editedModule.slice(1)
+                    : 'All';
                 const setText = setNumber ? ` for Set #${setNumber}` : '';
                 setMarkUpdated({
                     open: true,
@@ -1128,7 +1129,8 @@ function StudentContent() {
                     const l = getModuleScore('listening', fs.listeningSetNumber).band;
                     const r = getModuleScore('reading', fs.readingSetNumber).band;
                     const w = getModuleScore('writing', fs.writingSetNumber).band;
-                    const bands = [l, r, w].filter(b => b > 0);
+                    const s = student.scores?.speaking?.band || 0;
+                    const bands = [l, r, w, s].filter(b => b > 0);
                     if (bands.length === 0) return 0;
                     const avg = bands.reduce((a, b) => a + b, 0) / bands.length;
                     return Math.round(avg * 2) / 2;
@@ -1155,6 +1157,31 @@ function StudentContent() {
                                         {fs.listeningSetNumber && renderCard('listening', fs.listeningSetNumber, 'Listening')}
                                         {fs.readingSetNumber && renderCard('reading', fs.readingSetNumber, 'Reading')}
                                         {fs.writingSetNumber && renderCard('writing', fs.writingSetNumber, 'Writing')}
+                                        {idx === 0 && (
+                                            <div className="relative p-5 rounded-md border bg-orange-50 border-orange-100 hover:border-orange-200 transition-all">
+                                                {(student.scores?.speaking?.band || 0) > 0 && (
+                                                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                                        <FaCheckCircle className="text-white text-[10px]" />
+                                                    </div>
+                                                )}
+                                                <div className="flex items-start gap-3 mb-3">
+                                                    <div className="w-10 h-10 rounded-md flex items-center justify-center bg-orange-500 text-white">
+                                                        <FaMicrophone className="text-base" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="text-sm font-semibold text-slate-800 truncate">Speaking</h3>
+                                                        <p className="text-xs text-slate-500">Manually scored</p>
+                                                    </div>
+                                                    <BandScoreCircle score={student.scores?.speaking?.band || 0} size="small" />
+                                                </div>
+                                                <div className="flex gap-1.5">
+                                                    <button onClick={() => setEditModal({ show: true, module: 'speaking' })}
+                                                        className="flex-1 h-8 flex items-center justify-center gap-1 bg-slate-800 text-white rounded-md text-xs font-medium hover:bg-slate-900 transition-all cursor-pointer">
+                                                        <FaEdit className="text-[10px]" /> {(student.scores?.speaking?.band || 0) > 0 ? 'Edit Score' : 'Add Score'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );
