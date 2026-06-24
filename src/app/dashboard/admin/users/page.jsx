@@ -190,7 +190,10 @@ export default function UsersPage() {
     };
 
     const term = searchTerm.toLowerCase();
-    const filteredUsers = users.filter(
+    // Officials = staff accounts only (admin / mentor). Role "user" accounts are
+    // student logins and are shown in the Students tab, not here.
+    const officials = users.filter((u) => u.role === "admin" || u.role === "mentor");
+    const filteredUsers = officials.filter(
         (u) => u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term)
     );
     const filteredStudents = students.filter(
@@ -260,7 +263,7 @@ export default function UsersPage() {
             {/* Tabs + Search */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-4 pt-2 border-b border-gray-200 flex items-center gap-1">
-                    <TabButton id="officials" icon={FaUserShield} label="Officials" count={users.length} />
+                    <TabButton id="officials" icon={FaUserShield} label="Officials" count={officials.length} />
                     <TabButton id="students" icon={FaUserGraduate} label="Students" count={students.length} />
                 </div>
 
@@ -347,7 +350,6 @@ export default function UsersPage() {
                                                                     >
                                                                         <option value="admin">Admin</option>
                                                                         <option value="mentor">Mentor</option>
-                                                                        <option value="user">User</option>
                                                                     </select>
                                                                     <DeleteButton onClick={() => setDeleteConfirm({ type: "user", item: user })} title="Delete user" />
                                                                 </div>
@@ -372,11 +374,10 @@ export default function UsersPage() {
                         </div>
 
                         <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
-                            <span>Total: {users.length} officials</span>
+                            <span>Total: {officials.length} officials</span>
                             <div className="flex items-center gap-4">
-                                <span className="flex items-center gap-1"><FaUserShield className="text-purple-500" /> {users.filter((u) => u.role === "admin").length} Admin</span>
-                                <span className="flex items-center gap-1"><FaChalkboardTeacher className="text-emerald-500" /> {users.filter((u) => u.role === "mentor").length} Mentor</span>
-                                <span className="flex items-center gap-1"><FaUser className="text-blue-400" /> {users.filter((u) => u.role === "user").length} User</span>
+                                <span className="flex items-center gap-1"><FaUserShield className="text-purple-500" /> {officials.filter((u) => u.role === "admin").length} Admin</span>
+                                <span className="flex items-center gap-1"><FaChalkboardTeacher className="text-emerald-500" /> {officials.filter((u) => u.role === "mentor").length} Mentor</span>
                             </div>
                         </div>
                     </>
@@ -555,11 +556,10 @@ export default function UsersPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-2 gap-3">
                                     {[
                                         { value: "admin", label: "Admin", icon: FaUserShield, desc: "Full system access", color: "purple" },
                                         { value: "mentor", label: "Mentor", icon: FaChalkboardTeacher, desc: "All access except user mgmt", color: "emerald" },
-                                        { value: "user", label: "User", icon: FaUser, desc: "Standard account", color: "blue" },
                                     ].map((opt) => (
                                         <button
                                             key={opt.value}
