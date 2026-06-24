@@ -7,7 +7,6 @@ import {
     FaPlus,
     FaSearch,
     FaFilter,
-    FaEye,
     FaEdit,
     FaTrash,
     FaRedo,
@@ -341,13 +340,6 @@ export default function StudentsListPage() {
                                         </td>
                                         <td className="px-4 py-4">
                                             <div className="flex items-center gap-1">
-                                                <Link
-                                                    href={`/dashboard/admin/students/${student._id}`}
-                                                    className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
-                                                    title="View Details"
-                                                >
-                                                    <FaEye />
-                                                </Link>
                                                 <Link
                                                     href={`/dashboard/admin/students/${student._id}/edit`}
                                                     className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
