@@ -12,6 +12,7 @@ import {
     FaClock,
     FaFilePdf,
     FaLock,
+    FaTimes,
 } from "react-icons/fa";
 import { studentsAPI } from "@/lib/api";
 import Link from "next/link";
@@ -222,7 +223,7 @@ function ResultsContent() {
         const fetchResults = async () => {
             setLoading(true);
             try {
-                const response = await studentsAPI.getAllResults({ page, limit: 12, searchTerm });
+                const response = await studentsAPI.getAllResults({ page, limit: 12, searchTerm: searchTerm.trim() });
                 if (response.success && response.data) {
                     setResults(Array.isArray(response.data.results) ? response.data.results : []);
                     setTotalPages(response.data.pagination?.totalPages || 1);
@@ -270,11 +271,20 @@ function ResultsContent() {
                     <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
                     <input
                         type="text"
-                        placeholder="Search student..."
+                        placeholder="Search by name or Exam ID..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 pr-4 py-2.5 border border-blue-100 rounded-lg w-full sm:w-72 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-300 text-sm bg-white shadow-sm"
+                        onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                        className="pl-10 pr-10 py-2.5 border border-blue-100 rounded-lg w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-300 text-sm bg-white shadow-sm"
                     />
+                    {searchTerm && (
+                        <button
+                            onClick={() => { setSearchTerm(""); setPage(1); }}
+                            title="Clear search"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                            <FaTimes className="text-sm" />
+                        </button>
+                    )}
                 </div>
             </div>
 
