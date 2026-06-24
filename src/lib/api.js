@@ -61,8 +61,15 @@ const apiRequest = async (endpoint, options = {}) => {
         ...options,
     };
 
+    // Guard against requests that hang forever (e.g. an unresponsive backend):
+    // abort after a timeout so the caller's catch runs instead of freezing the UI.
+    const controller = new AbortController();
+    const timeoutMs = options.timeout || 30000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...config, signal: controller.signal });
+        clearTimeout(timeoutId);
         const data = await response.json();
 
         if (!response.ok) {
@@ -88,6 +95,12 @@ const apiRequest = async (endpoint, options = {}) => {
 
         return data;
     } catch (error) {
+        clearTimeout(timeoutId);
+        if (error?.name === "AbortError") {
+            const timeoutError = new Error("Request timed out. Please check your connection and try again.");
+            timeoutError.isTimeout = true;
+            throw timeoutError;
+        }
         console.error("API Error:", error);
         throw error;
     }
