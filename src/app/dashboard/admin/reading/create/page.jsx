@@ -8,6 +8,7 @@ import {
     FaCode, FaCopy, FaEye, FaEyeSlash
 } from "react-icons/fa";
 import { readingAPI } from "@/lib/api";
+import { toast } from "@/components/toast/Toaster";
 import SectionEditor from "@/components/reading/SectionEditor";
 import LivePreview from "@/components/reading/LivePreview";
 import { generateQuestionsFromGroups } from "@/lib/readingHelpers";
@@ -41,7 +42,6 @@ export default function CreateReadingPage() {
     const [loading, setLoading] = useState(false);
     const [fetchLoading, setFetchLoading] = useState(false);
     const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
     const [activeSection, setActiveSection] = useState(0);
     const [showPreview, setShowPreview] = useState(true);
     const [editTestNumber, setEditTestNumber] = useState(null);
@@ -131,7 +131,7 @@ export default function CreateReadingPage() {
                     }
                 }
             } catch (err) {
-                setError("Failed to fetch reading test data");
+                toast.error("Could not load the reading test. Please try again.", { title: "Load failed" });
                 console.error(err);
             } finally {
                 setFetchLoading(false);
@@ -174,8 +174,7 @@ export default function CreateReadingPage() {
             }
             setShowJson(false);
             setJsonError("");
-            setSuccess("JSON imported successfully!");
-            setTimeout(() => setSuccess(""), 3000);
+            toast.success("JSON imported successfully.", { title: "Imported" });
         } catch (err) {
             setJsonError(err.message);
         }
@@ -191,16 +190,16 @@ export default function CreateReadingPage() {
     // ═══ Submit ═══
     const handleSubmit = async () => {
         if (!formData.title.trim()) {
-            setError("Title is required");
+            toast.error("Please enter a test title.", { title: "Title required" });
             return;
         }
         for (let i = 0; i < sections.length; i++) {
             if (!sections[i].title.trim()) {
-                setError(`Section ${i + 1} title is required`);
+                toast.error(`Please enter a title for Section ${i + 1}.`, { title: "Incomplete section" });
                 return;
             }
             if (!sections[i].passage.trim()) {
-                setError(`Section ${i + 1} passage is required`);
+                toast.error(`Please add the passage text for Section ${i + 1}.`, { title: "Incomplete section" });
                 return;
             }
         }
@@ -230,13 +229,13 @@ export default function CreateReadingPage() {
             }
 
             if (response.success) {
-                setSuccess(isEditMode ? "Reading test updated!" : "Reading test created!");
+                toast.success(isEditMode ? "Reading test updated successfully." : "Reading test created successfully.", { title: isEditMode ? "Test updated" : "Test created" });
                 setTimeout(() => { router.push("/dashboard/admin/reading"); }, 1500);
             } else {
-                setError(response.message || "Failed to save");
+                toast.error(response.message || "Please try again.", { title: "Couldn't save test" });
             }
         } catch (err) {
-            setError(err.message || "Failed to save reading test");
+            toast.error(err.message || "Please try again.", { title: "Couldn't save test" });
         } finally {
             setLoading(false);
         }
@@ -306,11 +305,6 @@ export default function CreateReadingPage() {
                 <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
                     <span className="text-sm">{error}</span>
                     <button onClick={() => setError("")} className="cursor-pointer"><FaTimes /></button>
-                </div>
-            )}
-            {success && (
-                <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
-                    <FaCheck /> <span className="text-sm">{success}</span>
                 </div>
             )}
 

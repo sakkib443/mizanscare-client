@@ -185,7 +185,6 @@ function CreateListeningPageContent() {
     const [loading, setLoading] = useState(false);
     const [fetchLoading, setFetchLoading] = useState(false);
     const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
     const [showPreview, setShowPreview] = useState(true);
     const [activeTab, setActiveTab] = useState(0);
     const [editorMode, setEditorMode] = useState('block'); // 'block' | 'visual'
@@ -295,7 +294,7 @@ function CreateListeningPageContent() {
                     }
                 }
             } catch (err) {
-                setError("Failed to fetch listening test data");
+                toast.error("Could not load the listening test. Please try again.", { title: "Load failed" });
             } finally {
                 setFetchLoading(false);
             }
@@ -375,13 +374,13 @@ function CreateListeningPageContent() {
                 })));
             }
             setShowJson(false); setJsonError("");
-            setSuccess("JSON imported!"); setTimeout(() => setSuccess(""), 2000);
+            toast.success("JSON imported successfully.", { title: "Imported" });
         } catch (err) { setJsonError(err.message); }
     };
 
     // ═══ Submit ═══
     const handleSubmit = async () => {
-        if (!formData.title.trim()) { setError("Title is required"); return; }
+        if (!formData.title.trim()) { toast.error("Please enter a test title.", { title: "Title required" }); return; }
         setLoading(true); setError("");
 
         try {
@@ -423,13 +422,13 @@ function CreateListeningPageContent() {
             }
 
             if (response.success) {
-                setSuccess(isEditMode ? "Listening test updated!" : "Listening test created!");
+                toast.success(isEditMode ? "Listening test updated successfully." : "Listening test created successfully.", { title: isEditMode ? "Test updated" : "Test created" });
                 setTimeout(() => router.push("/dashboard/admin/listening"), 1500);
             } else {
-                setError(response.message || "Failed");
+                toast.error(response.message || "Please try again.", { title: "Couldn't save test" });
             }
         } catch (err) {
-            setError(err.message || "Failed");
+            toast.error(err.message || "Please try again.", { title: "Couldn't save test" });
         } finally { setLoading(false); }
     };
 
@@ -505,11 +504,6 @@ function CreateListeningPageContent() {
                 <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between text-sm">
                     <span>{error}</span>
                     <button onClick={() => setError("")} className="cursor-pointer"><FaTimes /></button>
-                </div>
-            )}
-            {success && (
-                <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2 text-sm">
-                    <FaCheck /> <span>{success}</span>
                 </div>
             )}
 

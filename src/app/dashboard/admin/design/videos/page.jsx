@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { toast } from "@/components/toast/Toaster";
 import {
     FaVideo,
     FaCloudUploadAlt,
@@ -48,7 +49,6 @@ function VideoCard({ item, onUpdated }) {
     );
     const [file, setFile] = useState(null);
     const [busy, setBusy] = useState(false);
-    const [msg, setMsg] = useState(null);
 
     const SourceIcon = SOURCE_LABELS[item.videoSource]?.icon || FaVideo;
     const isLocalCurrent = item.videoSource === "local";
@@ -68,13 +68,12 @@ function VideoCard({ item, onUpdated }) {
     })();
 
     const handleSubmit = async () => {
-        setMsg(null);
         setBusy(true);
         try {
             let result;
             if (pendingSource === "youtube") {
                 if (!youtubeUrl.trim()) {
-                    setMsg({ type: "error", text: "Please enter a YouTube URL." });
+                    toast.error("Please enter a YouTube URL.", { title: "URL required" });
                     setBusy(false);
                     return;
                 }
@@ -84,14 +83,14 @@ function VideoCard({ item, onUpdated }) {
                 });
             } else if (pendingSource === "cloudinary") {
                 if (!file) {
-                    setMsg({ type: "error", text: "Please select a video file." });
+                    toast.error("Please select a video file.", { title: "File required" });
                     setBusy(false);
                     return;
                 }
                 result = await siteContentAPI.uploadCloudinaryVideo(item.contentKey, file);
             } else if (pendingSource === "local") {
                 if (!file) {
-                    setMsg({ type: "error", text: "Please select a video file." });
+                    toast.error("Please select a video file.", { title: "File required" });
                     setBusy(false);
                     return;
                 }
@@ -99,15 +98,15 @@ function VideoCard({ item, onUpdated }) {
             }
 
             if (result?.success) {
-                setMsg({ type: "success", text: "Updated successfully." });
+                toast.success("The video has been updated successfully.", { title: "Saved" });
                 setFile(null);
                 setYoutubeUrl("");
                 onUpdated?.(result.data);
             } else {
-                setMsg({ type: "error", text: result?.message || "Update failed." });
+                toast.error(result?.message || "Please try again.", { title: "Update failed" });
             }
         } catch (e) {
-            setMsg({ type: "error", text: e.message || "Update failed." });
+            toast.error(e.message || "Please try again.", { title: "Update failed" });
         } finally {
             setBusy(false);
         }
@@ -209,11 +208,7 @@ function VideoCard({ item, onUpdated }) {
 
             {/* Action */}
             <div className="flex items-center justify-between mt-4">
-                {msg ? (
-                    <span className={`text-xs ${msg.type === "success" ? "text-green-600" : "text-red-600"}`}>
-                        {msg.type === "success" ? "✓ " : "✗ "}{msg.text}
-                    </span>
-                ) : <span />}
+                <span />
                 <button
                     disabled={busy}
                     onClick={handleSubmit}

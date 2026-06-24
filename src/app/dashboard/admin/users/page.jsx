@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "@/components/toast/Toaster";
 import {
     FaUsers,
     FaSearch,
@@ -29,7 +30,6 @@ export default function UsersPage() {
     const [creating, setCreating] = useState(false);
     const [deleting, setDeleting] = useState(null);
     const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
     const [currentUserRole, setCurrentUserRole] = useState("");
     const [currentUserId, setCurrentUserId] = useState("");
 
@@ -81,16 +81,15 @@ export default function UsersPage() {
             const response = await usersAPI.create(formData);
             if (response.success) {
                 const roleLabel = formData.role === "admin" ? "Admin" : formData.role === "mentor" ? "Mentor" : "User";
-                setSuccess(`${roleLabel} "${formData.name}" created successfully!`);
+                toast.success(`${roleLabel} "${formData.name}" has been created successfully.`, { title: "User created" });
                 setShowCreateModal(false);
                 setFormData({ name: "", email: "", phone: "", password: "", role: "admin" });
                 fetchUsers();
-                setTimeout(() => setSuccess(""), 4000);
             } else {
-                setError(response.message || "Failed to create user");
+                toast.error(response.message || "Please try again.", { title: "Could not create user" });
             }
         } catch (err) {
-            setError(err.message || "Failed to create user");
+            toast.error(err.message || "Please try again.", { title: "Could not create user" });
         } finally {
             setCreating(false);
         }
@@ -103,15 +102,14 @@ export default function UsersPage() {
         try {
             const response = await usersAPI.delete(userId);
             if (response.success) {
-                setSuccess("User deleted successfully!");
+                toast.success("The user has been deleted successfully.", { title: "User deleted" });
                 setDeleteConfirm(null);
                 setUsers(prev => prev.filter(u => u._id !== userId));
-                setTimeout(() => setSuccess(""), 4000);
             } else {
-                setError(response.message || "Failed to delete user");
+                toast.error(response.message || "Please try again.", { title: "Could not delete user" });
             }
         } catch (err) {
-            setError(err.message || "Failed to delete user");
+            toast.error(err.message || "Please try again.", { title: "Could not delete user" });
         } finally {
             setDeleting(null);
         }
@@ -122,11 +120,10 @@ export default function UsersPage() {
             const response = await usersAPI.updateRole(userId, newRole);
             if (response.success) {
                 setUsers(prev => prev.map(u => u._id === userId ? { ...u, role: newRole } : u));
-                setSuccess(`Role updated to ${newRole}`);
-                setTimeout(() => setSuccess(""), 3000);
+                toast.success(`The user's role has been updated to ${newRole}.`, { title: "Role updated" });
             }
         } catch (err) {
-            setError(err.message || "Failed to update role");
+            toast.error(err.message || "Please try again.", { title: "Could not update role" });
         }
     };
 
@@ -161,11 +158,6 @@ export default function UsersPage() {
             </div>
 
             {/* Success/Error Messages */}
-            {success && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-2 text-emerald-700 text-sm">
-                    <FaCheckCircle /> {success}
-                </div>
-            )}
             {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 text-red-700 text-sm">
                     <FaExclamationTriangle /> {error}

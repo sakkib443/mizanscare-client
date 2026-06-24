@@ -24,24 +24,6 @@ import {
 } from "react-icons/fa";
 import { studentsAPI, listeningAPI, readingAPI, writingAPI, speakingAPI } from "@/lib/api";
 
-// Toast Notification Component
-const Toast = ({ message, type, onClose }) => {
-    useEffect(() => {
-        const timer = setTimeout(() => { onClose(); }, 5000);
-        return () => clearTimeout(timer);
-    }, [onClose]);
-
-    const bgColor = type === "error" ? "bg-red-500" : type === "success" ? "bg-green-500" : "bg-yellow-500";
-    const Icon = type === "error" ? FaTimes : type === "success" ? FaCheck : FaExclamationTriangle;
-
-    return (
-        <div className={`fixed top-4 right-4 z-50 ${bgColor} text-white px-6 py-4 rounded-xl shadow-2xl flex items-start gap-3 max-w-md animate-slide-in`}>
-            <div className="flex-shrink-0 mt-0.5"><Icon className="text-lg" /></div>
-            <div className="flex-1"><p className="font-medium">{message}</p></div>
-            <button onClick={onClose} className="flex-shrink-0 hover:bg-white/20 p-1 rounded cursor-pointer"><FaTimes /></button>
-        </div>
-    );
-};
 
 // Field Error Display
 const FieldError = ({ error }) => {
