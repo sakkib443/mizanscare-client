@@ -250,7 +250,7 @@ function ResultsContent() {
     };
 
     const ScoreCell = ({ value }) => (
-        <td className="px-4 py-4 text-center">
+        <td className="px-2.5 py-4 text-center">
             <span className={`font-semibold tabular-nums ${bandColorClass(value)}`}>
                 {fmtBand(value)}
             </span>
@@ -258,7 +258,7 @@ function ResultsContent() {
     );
 
     return (
-        <div className="min-h-screen bg-sky-50 p-6 lg:p-8">
+        <div className="min-h-screen bg-sky-50 p-4 lg:p-6">
             {/* Header Area */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
@@ -292,17 +292,17 @@ function ResultsContent() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm border-collapse">
                             <thead>
-                                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-                                    <th className="px-6 py-4 text-left">Student</th>
-                                    <th className="px-6 py-4 text-left">Exam ID</th>
-                                    <th className="px-6 py-4 text-left">Status</th>
-                                    <th className="px-4 py-4 text-center">L</th>
-                                    <th className="px-4 py-4 text-center">R</th>
-                                    <th className="px-4 py-4 text-center">W</th>
-                                    <th className="px-4 py-4 text-center">S</th>
-                                    <th className="px-4 py-4 text-center">Overall</th>
-                                    <th className="px-6 py-4 text-center">Result Status</th>
-                                    <th className="px-6 py-4 text-center">Action</th>
+                                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap">
+                                    <th className="px-4 py-4 text-left">Student</th>
+                                    <th className="px-4 py-4 text-left">Exam ID</th>
+                                    <th className="px-4 py-4 text-left">Status</th>
+                                    <th className="px-2.5 py-4 text-center">L</th>
+                                    <th className="px-2.5 py-4 text-center">R</th>
+                                    <th className="px-2.5 py-4 text-center">W</th>
+                                    <th className="px-2.5 py-4 text-center">S</th>
+                                    <th className="px-2.5 py-4 text-center">Overall</th>
+                                    <th className="px-2.5 py-4 text-center">Result Status</th>
+                                    <th className="px-2.5 py-4 text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -313,7 +313,7 @@ function ResultsContent() {
                                     return (
                                         <tr key={result._id} className="hover:bg-sky-50/50 transition-colors">
                                             {/* Student */}
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white flex items-center justify-center font-semibold text-sm shrink-0">
                                                         {(result.nameEnglish || "?").charAt(0).toUpperCase()}
@@ -329,15 +329,15 @@ function ResultsContent() {
                                             </td>
 
                                             {/* Exam ID */}
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <span className="font-mono text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded px-2 py-1">
                                                     {result.examId}
                                                 </span>
                                             </td>
 
                                             {/* Exam Status */}
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${isCompleted ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                                            <td className="px-4 py-4">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${isCompleted ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
                                                     {isCompleted ? <FaCheckCircle className="text-[10px]" /> : <FaClock className="text-[10px]" />}
                                                     <span className="capitalize">{result.examStatus}</span>
                                                 </span>
@@ -350,18 +350,18 @@ function ResultsContent() {
                                             <ScoreCell value={s.speaking} />
 
                                             {/* Overall */}
-                                            <td className="px-4 py-4 text-center">
+                                            <td className="px-2.5 py-4 text-center">
                                                 <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold tabular-nums">
                                                     {fmtBand(s.overall)}
                                                 </span>
                                             </td>
 
                                             {/* Result Status */}
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <div className="flex items-center justify-center gap-2">
                                                     {published ? (
                                                         <>
-                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-emerald-100 text-emerald-700">
                                                                 <FaCheckCircle className="text-[10px]" /> Published
                                                             </span>
                                                             <button
@@ -378,7 +378,7 @@ function ResultsContent() {
                                                             </button>
                                                         </>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-slate-100 text-slate-500">
                                                             <FaLock className="text-[9px]" /> Not Published
                                                         </span>
                                                     )}
@@ -386,7 +386,7 @@ function ResultsContent() {
                                             </td>
 
                                             {/* Action */}
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <div className="flex items-center justify-center">
                                                     <Link
                                                         href={`/dashboard/admin/students/${result._id}`}
