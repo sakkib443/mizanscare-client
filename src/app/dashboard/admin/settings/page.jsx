@@ -7,7 +7,6 @@ import {
     FaSpinner,
     FaGlobe,
     FaClock,
-    FaMoneyBillWave,
     FaShieldAlt,
     FaEnvelope,
     FaCheck,
@@ -28,10 +27,6 @@ export default function SettingsPage() {
         writingDuration: 60,
         maxViolations: 3,
         autoTerminateOnViolation: true,
-
-        // Payment Settings
-        examFee: 5000,
-        currency: "BDT",
 
         // Notification Settings
         sendEmailOnRegistration: true,
@@ -206,43 +201,6 @@ export default function SettingsPage() {
                             </p>
                         </div>
                     </label>
-                </div>
-            </div>
-
-            {/* Payment Settings */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <FaMoneyBillWave className="text-cyan-600" />
-                    Payment Settings
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Default Exam Fee
-                        </label>
-                        <input
-                            type="number"
-                            name="examFee"
-                            value={settings.examFee}
-                            onChange={handleChange}
-                            min={0}
-                            className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Currency
-                        </label>
-                        <select
-                            name="currency"
-                            value={settings.currency}
-                            onChange={handleChange}
-                            className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-cyan-500"
-                        >
-                            <option value="BDT">BDT (৳)</option>
-                            <option value="USD">USD ($)</option>
-                        </select>
-                    </div>
                 </div>
             </div>
 
