@@ -117,7 +117,7 @@ const generateResultPDF = async (result) => {
     // ── Student info card ──
     y += 8;
     const cardTop = y;
-    const cardH = 42;
+    const cardH = 44;
     doc.setDrawColor(...LINE);
     doc.setLineWidth(0.3);
     doc.setFillColor(...SOFT);
@@ -132,7 +132,7 @@ const generateResultPDF = async (result) => {
         ["Result Status", result.resultsPublished ? "Published" : "Pending"],
     ];
     const colW = contentW / 2;
-    const rowH = cardH / 3;
+    const rowH = 11.5;
     info.forEach((pair, i) => {
         const col = i % 2;
         const row = Math.floor(i / 2);
