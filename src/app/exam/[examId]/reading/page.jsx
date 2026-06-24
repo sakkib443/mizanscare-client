@@ -864,7 +864,7 @@ function ReadingExamPageContent() {
                                                 )}
                                             </div>
 
-                                            {group.mainHeading && <h3 style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginBottom: '12px', borderBottom: `2px solid ${contrastMode === 'black-on-white' ? '#dbeafe' : cs.text}`, paddingBottom: '6px' }}>{group.mainHeading}</h3>}
+                                            {group.mainHeading && group.notesTable?.length > 0 && <h3 style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginBottom: '12px', textAlign: 'center' }}>{group.mainHeading}</h3>}
 
                                             {/* ── TABLE FORMAT (notesTable) ── */}
                                             {group.notesTable?.length > 0 && (() => {
@@ -917,6 +917,14 @@ function ReadingExamPageContent() {
                                             })()}
 
                                             {/* ── PASSAGE FORMAT (existing, unchanged) ── */}
+                                            {!(group.notesTable?.length > 0) && (
+                                                <div style={{ border: `1.5px solid ${cs.text}`, borderRadius: '4px', overflow: 'hidden' }}>
+                                                    {group.mainHeading && (
+                                                        <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: `${16 * tScale}px`, color: cs.text, padding: '10px 16px', borderBottom: `1.5px solid ${cs.text}`, background: contrastMode === 'black-on-white' ? '#f1f5f9' : 'rgba(255,255,255,0.06)' }}>
+                                                            {group.mainHeading}
+                                                        </div>
+                                                    )}
+                                                    <div style={{ padding: '14px 18px' }}>
                                             {!(group.notesTable?.length > 0) && (group.passage || "").split('\n').map((line, lineIdx) => {
                                                 const rawLine = line;
                                                 const trimmedLine = line.trim();
@@ -975,6 +983,9 @@ function ReadingExamPageContent() {
                                                     </div>
                                                 </div>
                                             ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
