@@ -57,11 +57,49 @@ const loadImageData = (url) =>
         img.src = url;
     });
 
+// Fetch a TTF font and return it base64-encoded (for embedding in jsPDF). Null on failure.
+const loadFontBase64 = async (url) => {
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 6000);
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) return null;
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        let binary = "";
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+        }
+        return btoa(binary);
+    } catch {
+        return null;
+    }
+};
+
 // ───────────────────────── PDF generator ─────────────────────────
 
 const generateResultPDF = async (result) => {
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+    // Embed the Poppins brand font for a more polished, official look (falls back to Helvetica).
+    let FONT = "helvetica";
+    try {
+        const [reg, semibold] = await Promise.all([
+            loadFontBase64("https://cdn.jsdelivr.net/gh/google/fonts/ofl/poppins/Poppins-Regular.ttf"),
+            loadFontBase64("https://cdn.jsdelivr.net/gh/google/fonts/ofl/poppins/Poppins-SemiBold.ttf"),
+        ]);
+        if (reg && semibold) {
+            doc.addFileToVFS("Poppins-Regular.ttf", reg);
+            doc.addFont("Poppins-Regular.ttf", "Poppins", "normal");
+            doc.addFileToVFS("Poppins-SemiBold.ttf", semibold);
+            doc.addFont("Poppins-SemiBold.ttf", "Poppins", "bold");
+            FONT = "Poppins";
+        }
+    } catch {
+        FONT = "helvetica";
+    }
 
     const pageW = 210;
     const margin = 15;
@@ -87,17 +125,17 @@ const generateResultPDF = async (result) => {
         }
         doc.addImage(logo.data, "PNG", margin, 11, dw, dh);
     } else {
-        doc.setFont("helvetica", "bold");
+        doc.setFont(FONT, "bold");
         doc.setFontSize(18);
         doc.setTextColor(204, 0, 0);
         doc.text("Mizan's Care", margin, 20);
     }
 
-    doc.setFont("helvetica", "bold");
+    doc.setFont(FONT, "bold");
     doc.setFontSize(11);
     doc.setTextColor(...CYAN);
     doc.text("IELTS MOCK TEST", pageW - margin, 16, { align: "right" });
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setFontSize(9);
     doc.setTextColor(...GRAY);
     doc.text("Official Result Report", pageW - margin, 21, { align: "right" });
@@ -109,7 +147,7 @@ const generateResultPDF = async (result) => {
 
     // ── Title ──
     let y = 42;
-    doc.setFont("helvetica", "bold");
+    doc.setFont(FONT, "bold");
     doc.setFontSize(18);
     doc.setTextColor(...DARK);
     doc.text("Candidate Result Report", pageW / 2, y, { align: "center" });
@@ -138,11 +176,11 @@ const generateResultPDF = async (result) => {
         const row = Math.floor(i / 2);
         const x = margin + 7 + col * colW;
         const ry = cardTop + 9 + row * rowH;
-        doc.setFont("helvetica", "normal");
+        doc.setFont(FONT, "normal");
         doc.setFontSize(7.5);
         doc.setTextColor(...GRAY);
         doc.text(pair[0].toUpperCase(), x, ry);
-        doc.setFont("helvetica", "bold");
+        doc.setFont(FONT, "bold");
         doc.setFontSize(11);
         doc.setTextColor(...DARK);
         doc.text(String(pair[1]), x, ry + 5.5);
@@ -150,7 +188,7 @@ const generateResultPDF = async (result) => {
 
     // ── Band scores ──
     y = cardTop + cardH + 14;
-    doc.setFont("helvetica", "bold");
+    doc.setFont(FONT, "bold");
     doc.setFontSize(13);
     doc.setTextColor(...DARK);
     doc.text("Band Scores", margin, y);
@@ -171,11 +209,11 @@ const generateResultPDF = async (result) => {
         doc.setLineWidth(0.3);
         doc.setFillColor(255, 255, 255);
         doc.roundedRect(x, y, boxW, boxH, 2, 2, "FD");
-        doc.setFont("helvetica", "bold");
+        doc.setFont(FONT, "bold");
         doc.setFontSize(8.5);
         doc.setTextColor(...CYAN);
         doc.text(m[0].toUpperCase(), x + boxW / 2, y + 9, { align: "center" });
-        doc.setFont("helvetica", "bold");
+        doc.setFont(FONT, "bold");
         doc.setFontSize(23);
         doc.setTextColor(...DARK);
         doc.text(String(m[1]), x + boxW / 2, y + 24, { align: "center" });
@@ -186,7 +224,7 @@ const generateResultPDF = async (result) => {
     const obH = 24;
     doc.setFillColor(...CYAN);
     doc.roundedRect(margin, y, contentW, obH, 2.5, 2.5, "F");
-    doc.setFont("helvetica", "bold");
+    doc.setFont(FONT, "bold");
     doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
     doc.text("OVERALL BAND SCORE", margin + 9, y + 14.5);
@@ -198,7 +236,7 @@ const generateResultPDF = async (result) => {
     doc.setDrawColor(...LINE);
     doc.setLineWidth(0.3);
     doc.line(margin, fY, pageW - margin, fY);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
     doc.text("This is a computer-generated IELTS mock test report issued by Mizan's Care.", margin, fY + 5);
