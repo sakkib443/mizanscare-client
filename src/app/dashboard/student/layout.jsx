@@ -12,7 +12,7 @@ import {
     FaTimes,
 } from "react-icons/fa";
 import Logo from "@/components/Logo";
-import { FaUserCircle, FaCog } from "react-icons/fa";
+import { FaUserCircle } from "react-icons/fa";
 
 const menuItems = [
     {
@@ -29,11 +29,6 @@ const menuItems = [
         title: "Profile",
         icon: FaUserCircle,
         href: "/dashboard/student/profile",
-    },
-    {
-        title: "Settings",
-        icon: FaCog,
-        href: "/dashboard/student/settings",
     },
 ];
 

@@ -6,9 +6,6 @@ import {
     FaEnvelope,
     FaPhone,
     FaIdCard,
-    FaMapMarkerAlt,
-    FaGraduationCap,
-    FaEdit,
 } from "react-icons/fa";
 import { studentsAPI } from "@/lib/api";
 
@@ -47,9 +44,6 @@ export default function StudentProfile() {
         examId,
         nidNumber,
         passportNumber,
-        fatherName,
-        motherName,
-        address,
         photo,
     } = studentData || {};
 
@@ -96,27 +90,6 @@ export default function StudentProfile() {
                     <InfoField icon={FaIdCard} label="NID Number" value={nidNumber} />
                     <InfoField icon={FaIdCard} label="Passport Number" value={passportNumber} />
                 </div>
-            </div>
-
-            {/* Family Information */}
-            <div className="bg-white border border-gray-200 rounded-md p-5 mb-4">
-                <h3 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
-                    <FaGraduationCap size={12} className="text-gray-400" />
-                    Family Information
-                </h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                    <InfoField label="Father's Name" value={fatherName} />
-                    <InfoField label="Mother's Name" value={motherName} />
-                </div>
-            </div>
-
-            {/* Address */}
-            <div className="bg-white border border-gray-200 rounded-md p-5">
-                <h3 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
-                    <FaMapMarkerAlt size={12} className="text-gray-400" />
-                    Address
-                </h3>
-                <p className="text-gray-700 text-sm">{address || "Not provided"}</p>
             </div>
 
             {/* Note */}
