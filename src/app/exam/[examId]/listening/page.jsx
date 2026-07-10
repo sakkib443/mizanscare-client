@@ -173,6 +173,8 @@ function ListeningExamPageContent() {
 
     const [answers, setAnswers] = useState({});
     const [timeLeft, setTimeLeft] = useState(40 * 60);
+    // Guards against overwriting a restored (auto-saved) timer when the test data loads
+    const timeInitializedRef = useRef(false);
     const [showSubmitModal, setShowSubmitModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSoundTest, setShowSoundTest] = useState(!isAdminPreview);  // Skip sound test in admin preview
@@ -241,6 +243,7 @@ function ListeningExamPageContent() {
                 }
                 if (parsed.timeLeft && parsed.timeLeft > 0) {
                     setTimeLeft(parsed.timeLeft);
+                    timeInitializedRef.current = true; // resumed timer wins over audio-based init
                 }
                 if (parsed.currentPage != null) {
                     setCurrentPage(parsed.currentPage);
@@ -485,6 +488,18 @@ function ListeningExamPageContent() {
     const firstPageBlock = pageBlocks.find(b => !b._isInstruction);
     const currentSectionIndex = firstPageBlock?._sectionIndex ?? 0;
     const currentSec = sections[currentSectionIndex] || {};
+
+    // ── Total time = audio length + 2 extra minutes ───────────────────────
+    // e.g. a 26-minute audio gives the student 28 minutes in total. Falls back
+    // to the default 40:00 when the test has no audioDuration recorded.
+    useEffect(() => {
+        if (timeInitializedRef.current) return;
+        const dur = Number(questionSet?.audioDuration);
+        if (dur > 0) {
+            setTimeLeft(Math.round(dur) + 120);
+            timeInitializedRef.current = true;
+        }
+    }, [questionSet]);
 
     // ── Timer ─────────────────────────────────────────────────────────────
     const formatTime = (s) => {
