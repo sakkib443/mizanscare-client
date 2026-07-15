@@ -19,7 +19,9 @@ import {
     FaTimes,
     FaExclamationCircle,
     FaArrowRight,
-    FaVideo
+    FaVideo,
+    FaFacebookF,
+    FaGlobe
 } from "react-icons/fa";
 import { LuGraduationCap, LuShieldCheck } from "react-icons/lu";
 import { HiOutlineDocumentText } from "react-icons/hi";
@@ -572,6 +574,32 @@ export default function HomePage() {
                             <span className="hover:text-[#41bfb8] cursor-pointer transition-colors">Terms of Service</span>
                             <span className="hover:text-[#41bfb8] cursor-pointer transition-colors">Support</span>
                         </div>
+                    </div>
+
+                    {/* Developed by credit */}
+                    <div className="max-w-7xl mx-auto mt-6 pt-6 border-t border-slate-200 flex items-center justify-center gap-3 text-slate-500 text-sm">
+                        <span>
+                            Developed by{" "}
+                            <span className="font-semibold text-slate-700">Extrain Web</span>
+                        </span>
+                        <a
+                            href="https://www.facebook.com/extrainweb"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Extrain Web on Facebook"
+                            className="text-slate-500 hover:text-[#1877F2] transition-colors"
+                        >
+                            <FaFacebookF className="w-4 h-4" />
+                        </a>
+                        <a
+                            href="https://www.extrainweb.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Extrain Web website"
+                            className="text-slate-500 hover:text-[#41bfb8] transition-colors"
+                        >
+                            <FaGlobe className="w-4 h-4" />
+                        </a>
                     </div>
                 </footer>
             </div>
