@@ -212,7 +212,7 @@ const Login = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block bg-white px-5 py-2 rounded-xl shadow-lg border border-white/20">
-            <Logo size="small" />
+            <Logo size="large" />
           </Link>
         </div>
 
