@@ -118,7 +118,7 @@ function StudentLayoutContent({ children }) {
                 {/* Logo */}
                 <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
                     {sidebarOpen ? (
-                        <Logo className="w-28" />
+                        <Logo size="small" />
                     ) : (
                         <div className="w-8 h-8 bg-cyan-600 rounded-md flex items-center justify-center text-white font-bold text-sm">
                             B

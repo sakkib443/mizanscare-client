@@ -149,7 +149,7 @@ function ExamEntryContent() {
                 {/* Logo */}
                 <div className="text-center mb-8">
                     <div className="flex items-center justify-center mb-2">
-                        <Logo className="w-40" />
+                        <Logo size="large" />
                     </div>
                     <p className="text-gray-500">Online Examination System</p>
                 </div>

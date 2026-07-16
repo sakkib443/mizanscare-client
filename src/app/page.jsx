@@ -373,7 +373,7 @@ export default function HomePage() {
                         animate={{ opacity: 1, y: 0 }}
                         className="flex items-center justify-between max-w-7xl mx-auto"
                     >
-                        <Logo size="2xl" />
+                        <Logo size="xl" />
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setShowDemoVideo(true)}

@@ -283,9 +283,9 @@ function AdminLayoutContent({ children }) {
                     } ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
             >
                 {/* Logo Area */}
-                <div className="h-20 flex items-center px-4 border-b border-gray-200">
+                <div className="h-16 flex items-center px-4 border-b border-gray-200">
                     {sidebarOpen ? (
-                        <Logo size="xl" className="w-44" />
+                        <Logo size="small" />
                     ) : (
                         <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
                             MC
@@ -329,7 +329,7 @@ function AdminLayoutContent({ children }) {
             {/* Main Content Area */}
             <main className={`transition-all duration-300 ease-in-out ${sidebarOpen ? "lg:ml-64" : "lg:ml-20"}`}>
                 {/* Top Navbar */}
-                <header className="h-20 px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 bg-white border-b border-gray-200">
+                <header className="h-16 px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 bg-white border-b border-gray-200">
                     <div className="flex items-center gap-4">
                         <button onClick={() => setMobileMenuOpen(true)} className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
                             <FaBars />
