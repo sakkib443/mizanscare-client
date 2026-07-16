@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { QuestionGroupEditor } from "./QuestionGroupForms";
 import { QUESTION_TYPES, createGroupTemplate, getNextQuestionNumber, renumberGroups } from "@/lib/readingHelpers";
@@ -12,16 +12,35 @@ export default function SectionEditor({ section, sectionIndex, onChange }) {
     const [showTypeMenu, setShowTypeMenu] = useState(false);
     const [passageCollapsed, setPassageCollapsed] = useState(false);
     const [showParagraphs, setShowParagraphs] = useState((section.paragraphs || []).length > 0);
+    const passageRef = useRef(null);
 
     const updateField = (field, value) => {
         onChange({ ...section, [field]: value });
     };
 
+    // Wrap the selected passage text (or insert a placeholder) as a bold sub-heading (**...**),
+    // so a non-technical admin doesn't need to know the markdown syntax.
+    const insertBoldHeading = () => {
+        const text = section.passage || "";
+        const el = passageRef.current;
+        const start = el ? el.selectionStart : text.length;
+        const end = el ? el.selectionEnd : text.length;
+        const selected = text.slice(start, end);
+        const insert = selected ? `**${selected}**` : "**Heading**";
+        const newText = text.slice(0, start) + insert + text.slice(end);
+        updateField("passage", newText);
+        setTimeout(() => {
+            if (passageRef.current) {
+                const pos = start + insert.length;
+                passageRef.current.focus();
+                passageRef.current.setSelectionRange(pos, pos);
+            }
+        }, 0);
+    };
+
     const addQuestionGroup = (type) => {
         const groups = section.questionGroups || [];
         const startQ = getNextQuestionNumber(groups);
-        // If section has already some questions, adjust startQ relative to section
-        const globalOffset = sectionIndex * 14; // approximate
         const template = createGroupTemplate(type, startQ);
         onChange({ ...section, questionGroups: [...groups, template] });
         setShowTypeMenu(false);
@@ -78,7 +97,14 @@ export default function SectionEditor({ section, sectionIndex, onChange }) {
                 </div>
                 {!passageCollapsed && (
                     <div className="p-3 space-y-3">
-                        <textarea className={textarea} rows={10} value={section.passage || ""} onChange={e => updateField("passage", e.target.value)} placeholder="Paste the entire reading passage here..." />
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-gray-400">Passage টেক্সট paste করুন। Sub-heading bold করতে: heading টেক্সট সিলেক্ট করে ডানের বাটন চাপুন।</span>
+                            <button type="button" onClick={insertBoldHeading}
+                                className="text-[11px] font-semibold text-blue-600 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-50 cursor-pointer flex items-center gap-1">
+                                <span className="font-extrabold">B</span> Bold Heading
+                            </button>
+                        </div>
+                        <textarea ref={passageRef} className={textarea} rows={10} value={section.passage || ""} onChange={e => updateField("passage", e.target.value)} placeholder={"Paste the entire reading passage here...\n\nSub-heading bold করতে: **Butterflies versus Moths**"} />
 
                         {/* Optional Paragraphs (A, B, C, etc.) */}
                         <div>

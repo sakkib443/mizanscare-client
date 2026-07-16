@@ -14,8 +14,6 @@ export const QUESTION_TYPES = [
     { value: "multiple-choice-full", label: "Multiple Choice (A/B/C/D)", icon: "🔤" },
     { value: "summary-with-options", label: "Summary with Word List", icon: "📋" },
     { value: "choose-two-letters", label: "Choose Two Letters", icon: "✌️" },
-    { value: "diagram-labeling", label: "Diagram / Flowchart Labeling", icon: "🗺️" },
-    { value: "custom-flowchart-1", label: "Custom Flowchart (Mock 01)", icon: "🔄" },
 ];
 
 // Get next available question number from existing groups
@@ -513,18 +511,15 @@ export function renumberGroups(groups) {
                 updated.endQuestion = qNum - 1;
                 break;
             }
-            case "diagram-labeling":
-                return {
-                    groupType,
-                    startQuestion,
-                    endQuestion: startQuestion,
-                    mainInstruction: "Questions " + startQuestion,
-                    subInstruction: "Complete the flow-chart below.",
-                    imageUrl: "",
-                    markers: [
-                        { questionNumber: startQuestion, x: 50, y: 50, correctAnswer: "" }
-                    ]
-                };
+            case "diagram-labeling": {
+                updated.markers = (g.markers || []).map(m => {
+                    const item = { ...m, questionNumber: qNum };
+                    qNum++;
+                    return item;
+                });
+                updated.endQuestion = qNum - 1;
+                break;
+            }
 
             default:
                 updated.endQuestion = qNum - 1;

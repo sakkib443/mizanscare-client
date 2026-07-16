@@ -1239,10 +1239,12 @@ export function QuestionGroupEditor({ group, index, onUpdate, onRemove }) {
         { value: "yes-no-not-given", label: "Yes / No / Not Given", icon: "🔘", color: "teal" },
         { value: "matching-information", label: "Matching Information", icon: "🔗", color: "indigo" },
         { value: "matching-headings", label: "Matching Headings", icon: "📑", color: "purple" },
-        { value: "matching-features", icon: "👥", color: "violet" },
+        { value: "matching-features", label: "Matching Features", icon: "👥", color: "violet" },
         { value: "multiple-choice-full", label: "Multiple Choice (A/B/C/D)", icon: "🔤", color: "orange" },
         { value: "summary-with-options", label: "Summary + Options", icon: "📋", color: "amber" },
         { value: "choose-two-letters", label: "Choose Two Letters", icon: "✌️", color: "rose" },
+        { value: "diagram-labeling", label: "Diagram / Flowchart Labeling", icon: "🗺️", color: "sky" },
+        { value: "custom-flowchart-1", label: "Custom Flowchart (Mock 01)", icon: "🔄", color: "slate" },
     ].find(t => t.value === group.groupType) || { label: group.groupType, icon: "❓", color: "gray" };
 
     const renderForm = () => {
@@ -1258,7 +1260,7 @@ export function QuestionGroupEditor({ group, index, onUpdate, onRemove }) {
             case "multiple-choice-full": return <MCQFullForm group={group} onChange={onUpdate} />;
             case "summary-with-options": return <SummaryOptionsForm group={group} onChange={onUpdate} />;
             case "choose-two-letters": return <ChooseTwoForm group={group} onChange={onUpdate} />;
-            case "diagram-labeling": 
+            case "diagram-labeling": return <DiagramLabelingForm group={group} onChange={onUpdate} />;
             case "custom-flowchart-1": return <CustomFlowchartForm group={group} onChange={onUpdate} />;
             default: return <p className="text-sm text-gray-500">Unknown question type</p>;
         }
