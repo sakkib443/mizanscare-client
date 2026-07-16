@@ -14,7 +14,7 @@ const QUESTION_TYPES = [
     "multiple-choice", "multiple-choice-multi", "matching",
     "form-completion", "note-completion", "table-completion",
     "sentence-completion", "summary-completion", "flow-chart-completion",
-    "short-answer", "map-labeling", "diagram-labeling", "plan-labeling"
+    "short-answer", "map-labeling", "diagram-labeling"
 ];
 
 // ═══════════════════════════════════════════════════════

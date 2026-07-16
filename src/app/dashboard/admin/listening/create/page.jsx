@@ -187,7 +187,9 @@ function CreateListeningPageContent() {
     const [error, setError] = useState("");
     const [showPreview, setShowPreview] = useState(true);
     const [activeTab, setActiveTab] = useState(0);
-    const [editorMode, setEditorMode] = useState('block'); // 'block' | 'visual'
+    // New tests default to the friendly Visual Builder; editing an existing test
+    // opens in Block Editor so the saved data is shown/kept exactly as-is.
+    const [editorMode, setEditorMode] = useState(editId ? 'block' : 'visual'); // 'block' | 'visual'
     const [splitPercent, setSplitPercent] = useState(50); // editor width %
     const isDragging = useRef(false);
     const containerRef = useRef(null);
@@ -387,8 +389,12 @@ function CreateListeningPageContent() {
             const finalSections = sections.map(s => {
                 let questions;
                 if (editorMode === 'block') {
-                    // Block Editor: use raw questions directly
-                    questions = s.questions || [];
+                    // Block Editor: use raw questions directly. If this section has no
+                    // raw blocks yet but was built in the Visual Builder, fall back to the
+                    // generated questions so toggling modes never loses the admin's work.
+                    questions = (s.questions && s.questions.length)
+                        ? s.questions
+                        : ((s.questionGroups || []).length ? generateListeningQuestions(s.questionGroups) : []);
                 } else {
                     // Visual Builder: generate from groups
                     const groups = s.questionGroups || [];
