@@ -1468,6 +1468,10 @@ function ReadingExamPageContent() {
                                                 {group.summarySegments?.map((segment, sIdx) => (
                                                     segment.type === "text" ? <span key={sIdx}>{segment.content} </span> : (
                                                         <span key={sIdx} id={`q-${segment.questionNumber}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', margin: '0 4px' }}>
+                                                            {/* The dropdown only carries letters, so the question number is shown
+                                                                beside it — otherwise the candidate cannot tell which numbered
+                                                                question each blank belongs to. */}
+                                                            <span style={{ border: focusedQuestion === segment.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, fontWeight: 'bold', fontSize: '12px', padding: '0 6px', color: focusedQuestion === segment.questionNumber ? '#2563eb' : cs.text, background: cs.bg, lineHeight: '1.8', flexShrink: 0, borderRadius: '2px' }}>{segment.questionNumber}</span>
                                                             <select value={answers[segment.questionNumber] || ""} onChange={e => handleAnswer(segment.questionNumber, e.target.value)} style={{ border: focusedQuestion === segment.questionNumber ? '2px solid #2563eb' : `1px solid ${cs.text}`, padding: '4px 8px', fontSize: '14px', background: cs.bg, color: cs.text, cursor: 'pointer', width: '70px', textAlign: 'center', borderRadius: '2px' }}>
                                                                 <option value="">--</option>
                                                                 {group.phraseList?.map(phrase => <option key={phrase.letter} value={phrase.letter}>{phrase.letter}</option>)}
@@ -1540,23 +1544,12 @@ function ReadingExamPageContent() {
                                     )}
 
                                     {/* â"€â"€ SHORT ANSWER â"€â"€ */}
-                                    {(group.questionType === "short-answer" || group.groupType === "short-answer") && (
-                                        <div style={{ marginBottom: '20px' }}>
-                                            <p style={{ color: cs.text, fontWeight: '500', marginBottom: '4px' }}>{group.mainInstruction}</p>
-                                            {group.subInstruction && <p style={{ color: cs.text, fontSize: `${13 * tScale}px`, fontStyle: 'italic', marginBottom: '8px' }}>{group.subInstruction}</p>}
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                {group.statements?.map(stmt => (
-                                                    <div key={stmt.questionNumber} id={`q-${stmt.questionNumber}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                                                        <span style={{ color: cs.text, fontWeight: '500', flex: 1 }}>{stmt.text}</span>
-                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: focusedQuestion === stmt.questionNumber ? '2px solid #2563eb' : `1.5px solid ${cs.text}`, background: 'transparent', width: '190px', height: '32px', flexShrink: 0 }}>
-                                                            {!(answers[stmt.questionNumber]) && <span style={{ position: 'absolute', fontWeight: 'bold', fontSize: '15px', color: cs.text, pointerEvents: 'none' }}>{stmt.questionNumber}</span>}
-                                                            <input type="text" value={answers[stmt.questionNumber] || ""} onChange={e => handleAnswer(stmt.questionNumber, e.target.value)} autoComplete="off" style={{ border: 'none', width: '100%', height: '100%', fontSize: '15px', outline: 'none', background: 'transparent', color: cs.text, padding: '0 8px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }} />
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                                    {/* NOTE: short-answer is rendered by the block above, which reads group.questions.
+                                        A second short-answer block used to sit here reading group.statements; every
+                                        short-answer group stores its items in `questions` and leaves `statements`
+                                        empty, so that block contributed no questions and only reprinted the
+                                        instruction — which is why short-answer groups showed their instruction
+                                        twice. It has been removed. */}
 
                                     {/* â"€â"€ SENTENCE COMPLETION â"€â"€ */}
                                     {(group.questionType === "sentence-completion" || group.groupType === "sentence-completion") && (
