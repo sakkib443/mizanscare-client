@@ -115,7 +115,7 @@ const generateResultPDF = async (result) => {
     const s = getModuleScores(result);
 
     // ── Header: logo + report label ──
-    const logo = await loadImageData("/images/IMG_5177.PNG");
+    const logo = await loadImageData("/images/logo.png");
     if (logo) {
         let dh = 15;
         let dw = (logo.w / logo.h) * dh;
