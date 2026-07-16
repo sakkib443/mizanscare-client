@@ -3,7 +3,8 @@ export default function Logo({ className = "", size = "default" }) {
         size === "small" ? "h-8"
             : size === "large" ? "h-14"
                 : size === "xl" ? "h-16"
-                    : "h-10";
+                    : size === "2xl" ? "h-20"
+                        : "h-10";
 
     return (
         <div className={`flex items-center ${className}`}>
