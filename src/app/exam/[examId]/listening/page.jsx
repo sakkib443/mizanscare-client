@@ -36,9 +36,11 @@ const InstructionWithPortals = React.memo(function InstructionWithPortals({ cont
         let html = (content || "").replace(
             /(?:<strong>\s*)?\[(\d+)\](?:\s*<\/strong>)?/g,
             (match, qNum) => {
+                // The question number is the input's native placeholder: the browser shows it
+                // while the box is empty and hides it the instant the candidate types, so the
+                // number can never overlap a typed answer (no JS toggling to get wrong).
                 return `<span class="embedded-q-wrapper" style="display: inline-flex; align-items: center; justify-content: center; margin: 0 6px; vertical-align: middle; position: relative; border: 1.5px solid currentColor; background: transparent; width: 190px; height: 32px; border-radius: 4px;">` +
-                    `<span class="embedded-q-num" data-for="${qNum}" style="position: absolute; font-weight: bold; font-size: 15px; color: inherit; pointer-events: none; user-select: none;">${qNum}</span>` +
-                    `<input type="text" data-qnum="${qNum}" class="embedded-q-input" ` +
+                    `<input type="text" data-qnum="${qNum}" class="embedded-q-input" placeholder="${qNum}" ` +
                     `style="border: none; width: 100%; height: 100%; font-size: 15px; outline: none; background: transparent; color: inherit; padding: 0 8px; text-align: center; font-family: Arial, sans-serif;" />` +
                     `</span>`;
             }
@@ -64,18 +66,13 @@ const InstructionWithPortals = React.memo(function InstructionWithPortals({ cont
         inputs.forEach(input => {
             const qNum = input.getAttribute('data-qnum');
 
-            // Set initial value from answers state (for when user navigates back)
+            // Set initial value from answers state (for when user navigates back).
+            // The number is a placeholder, so it hides automatically once a value is present.
             const initialValue = answers[qNum] || answers[parseInt(qNum)] || '';
             if (initialValue) input.value = initialValue;
 
-            // Attach input event listener
-            // Hide the number label when user types
-            const numLabel = containerRef.current.querySelector(`.embedded-q-num[data-for="${qNum}"]`);
-            if (initialValue && numLabel) numLabel.style.display = 'none';
-
             const handler = (e) => {
                 handleAnswerRef.current(parseInt(qNum), e.target.value);
-                if (numLabel) numLabel.style.display = e.target.value ? 'none' : '';
             };
             input.addEventListener('input', handler);
             handlers.push({ input, handler });
@@ -93,10 +90,8 @@ const InstructionWithPortals = React.memo(function InstructionWithPortals({ cont
         if (!containerRef.current) return;
         containerRef.current.querySelectorAll('.embedded-q-wrapper').forEach(w => {
             const input = w.querySelector('.embedded-q-input');
-            const num = w.querySelector('.embedded-q-num');
             const isF = input && String(focusedQuestion) === String(input.getAttribute('data-qnum'));
             w.style.border = isF ? '2px solid #2563eb' : '1.5px solid currentColor';
-            if (num) num.style.color = isF ? '#2563eb' : 'inherit';
         });
     }, [focusedQuestion, processedHtml]);
 
@@ -111,6 +106,10 @@ const InstructionWithPortals = React.memo(function InstructionWithPortals({ cont
 
     return (
         <div style={{ marginTop: topMargin, marginBottom: bottomMargin, lineHeight: '1.6', color: textColor }}>
+            {/* Render the number-placeholder like the old centred label: full colour + bold,
+                and keep it visible while the empty box is focused (until the candidate types). */}
+            <style>{`.embedded-q-input::placeholder{color:currentColor;opacity:1;font-weight:bold;}
+.embedded-q-input:focus::placeholder{color:currentColor;opacity:1;}`}</style>
             <div
                 ref={containerRef}
                 className="instruction-html-container"
