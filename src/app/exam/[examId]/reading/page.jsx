@@ -965,7 +965,7 @@ function ReadingExamPageContent() {
                                                     <div style={{ paddingLeft: '16px' }}>
                                                         {section.bullets?.map((bullet, bIdx) => (
                                                             <div key={bIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px', color: cs.text }}>
-                                                                <span style={{ marginTop: '4px' }}>â€¢</span>
+                                                                <span style={{ marginTop: '4px' }}>{'•'}</span>
                                                                 {bullet.type === "context" ? (
                                                                     <span>{bullet.text}</span>
                                                                 ) : (
