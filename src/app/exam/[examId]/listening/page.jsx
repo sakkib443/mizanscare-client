@@ -33,7 +33,7 @@ const InstructionWithPortals = React.memo(function InstructionWithPortals({ cont
 
     // Process HTML: replace [N] with actual inline input elements
     const processedHtml = React.useMemo(() => {
-        return (content || "").replace(
+        let html = (content || "").replace(
             /(?:<strong>\s*)?\[(\d+)\](?:\s*<\/strong>)?/g,
             (match, qNum) => {
                 return `<span class="embedded-q-wrapper" style="display: inline-flex; align-items: center; justify-content: center; margin: 0 6px; vertical-align: middle; position: relative; border: 1.5px solid currentColor; background: transparent; width: 190px; height: 32px; border-radius: 4px;">` +
@@ -43,6 +43,15 @@ const InstructionWithPortals = React.memo(function InstructionWithPortals({ cont
                     `</span>`;
             }
         );
+        // Table headers etc. hardcode a LIGHT background (e.g. background:#f3f4f6) but no text
+        // colour, so their text inherits the contrast colour (white / yellow in the dark modes)
+        // and becomes invisible on the light band. Force a dark text colour on any element that
+        // has a hardcoded light background so the header stays readable in every contrast mode.
+        html = html.replace(
+            /(style=['"][^'"]*?)background:\s*(#[eEfFdD][0-9a-fA-F]{2,5})/g,
+            (m, pre, col) => (/color\s*:/i.test(pre) ? m : `${pre}color:#1f2937;background:${col}`)
+        );
+        return html;
     }, [content]);
 
     // Attach event listeners + set initial values from state (runs on mount)
