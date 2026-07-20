@@ -1,130 +1,59 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect } from "react";
 
 /**
- * Exam Security — Fullscreen Lock
+ * Exam Security
  *
- * ⚠️ BROWSER LIMITATION (important, read this):
- * No website can remove the browser's own "Exit fullscreen" UI or block the
- * Esc / F11 keys. That is a hard browser security rule — if a page could trap
- * you in fullscreen forever, every malicious site would. So the browser ALWAYS
- * guarantees an escape. There is no code that disables it.
+ * The exam opens in fullscreen and copying / inspecting is deterred — but leaving fullscreen is
+ * deliberately NOT punished: there is no lock overlay.
  *
- * What we CAN do (and what this does) is make leaving pointless:
- * the instant the student leaves fullscreen — OR switches tab / app / window —
- * an opaque lock covers the entire exam. They cannot see or answer anything
- * until they return to fullscreen. The exam timer keeps running behind the
- * lock, so leaving only wastes their own time.
- *
- * For a TRUE no-exit exam (kiosk mode), you need a dedicated locked browser
- * such as "Safe Exam Browser" (a desktop app), not a website.
+ * There used to be one, covering the whole paper the instant the window lost focus. It fired on
+ * things the candidate never did — opening a native <select> hands focus to an OS-level popup,
+ * an OS notification steals focus — so it blanked the exam mid-question, repeatedly, while the
+ * timer kept running. And it never bought much: no website can trap anyone in fullscreen (the
+ * browser guarantees Esc / F11), so the lock cost honest candidates time without stopping a
+ * determined one. For a true no-exit exam you need a locked-down browser such as Safe Exam
+ * Browser, not a web page.
  */
-export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
-    const [locked, setLocked] = useState(false);
-    const hasBeenFullscreenRef = useRef(false);
-    const mountedRef = useRef(false);
-
-    const isFullscreen = () =>
-        !!(
-            document.fullscreenElement ||
-            document.webkitFullscreenElement ||
-            document.msFullscreenElement
-        );
-
-    // Request fullscreen (cross-browser). Needs a user gesture the first time.
-    const requestFullscreen = useCallback(async () => {
-        try {
-            if (isFullscreen()) return true;
-            const el = document.documentElement;
-            if (el.requestFullscreen) await el.requestFullscreen();
-            else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-            else if (el.msRequestFullscreen) await el.msRequestFullscreen();
-            return true;
-        } catch {
-            return false;
-        }
-    }, []);
-
-    // Left fullscreen → lock instantly. Re-entering clears the lock.
-    const handleFullscreenChange = useCallback(() => {
-        if (isFullscreen()) {
-            hasBeenFullscreenRef.current = true;
-            setLocked(false);
-        } else if (hasBeenFullscreenRef.current && mountedRef.current) {
-            setLocked(true);          // lock immediately — nothing visible outside fullscreen
-            requestFullscreen();      // opportunistic silent recovery (works in some browsers)
-        }
-    }, [requestFullscreen]);
-
-    // Switched tab / minimized → lock (covers the case where they peek elsewhere).
-    const handleVisibility = useCallback(() => {
-        if (document.visibilityState === "hidden" && hasBeenFullscreenRef.current) {
-            setLocked(true);
-        }
-    }, []);
-
-    // Window lost focus (alt-tab to another app) → lock.
-    //
-    // Careful: opening a native <select> (the matching questions use them) hands focus to an
-    // OS-level popup, which fires window blur even though the candidate never left the page —
-    // that was locking the exam every time a dropdown was opened, with the dropdown drawn on
-    // top of the lock. Ignore that case, then confirm on the next tick with document.hasFocus():
-    // a real alt-tab still reports false, so genuine app-switching is still caught (and tab
-    // switches / minimising are covered by the visibilitychange handler regardless).
-    const handleBlur = useCallback(() => {
-        if (!hasBeenFullscreenRef.current || !mountedRef.current) return;
-        const active = document.activeElement;
-        if (active && active.tagName === "SELECT") return;
-        setTimeout(() => {
-            if (mountedRef.current && !document.hasFocus()) setLocked(true);
-        }, 150);
-    }, []);
-
-    // Mount: auto-enter fullscreen + wire all detectors.
+export default function ExamSecurity({ examId, onViolationLimit = () => { } }) {
+    // Open the exam in fullscreen. Some browsers need a user gesture, so retry a few times and
+    // then let it go — failing to enter fullscreen must never block the exam.
     useEffect(() => {
-        mountedRef.current = true;
+        let cancelled = false;
 
-        document.addEventListener("fullscreenchange", handleFullscreenChange);
-        document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
-        document.addEventListener("visibilitychange", handleVisibility);
-        window.addEventListener("blur", handleBlur);
+        const isFullscreen = () =>
+            !!(
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.msFullscreenElement
+            );
+
+        const requestFullscreen = async () => {
+            try {
+                if (isFullscreen()) return true;
+                const el = document.documentElement;
+                if (el.requestFullscreen) await el.requestFullscreen();
+                else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+                else if (el.msRequestFullscreen) await el.msRequestFullscreen();
+                return true;
+            } catch {
+                return false;
+            }
+        };
 
         const tryFullscreen = async (attempts = 0) => {
-            if (isFullscreen()) return;
+            if (cancelled || isFullscreen()) return;
             const ok = await requestFullscreen();
             if (!ok && attempts < 4) setTimeout(() => tryFullscreen(attempts + 1), 400);
         };
-        const timer = setTimeout(() => tryFullscreen(), 150);
 
+        const timer = setTimeout(() => tryFullscreen(), 150);
         return () => {
-            mountedRef.current = false;
-            document.removeEventListener("fullscreenchange", handleFullscreenChange);
-            document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
-            document.removeEventListener("visibilitychange", handleVisibility);
-            window.removeEventListener("blur", handleBlur);
+            cancelled = true;
             clearTimeout(timer);
         };
-    }, [handleFullscreenChange, handleVisibility, handleBlur, requestFullscreen]);
-
-    // While locked: the FIRST interaction of any kind (click / tap / key)
-    // instantly re-enters fullscreen. pointerdown fires earlier than click,
-    // so it snaps back the moment the student touches the screen.
-    useEffect(() => {
-        if (!locked) return;
-        const reenter = (e) => {
-            if (e.type === "keydown") e.preventDefault();
-            requestFullscreen();
-        };
-        window.addEventListener("pointerdown", reenter, { capture: true });
-        window.addEventListener("touchstart", reenter, { capture: true });
-        window.addEventListener("keydown", reenter, { capture: true });
-        return () => {
-            window.removeEventListener("pointerdown", reenter, { capture: true });
-            window.removeEventListener("touchstart", reenter, { capture: true });
-            window.removeEventListener("keydown", reenter, { capture: true });
-        };
-    }, [locked, requestFullscreen]);
+    }, []);
 
     // Warn before closing / refreshing the tab.
     useEffect(() => {
@@ -137,11 +66,10 @@ export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
         return () => window.removeEventListener("beforeunload", onBeforeUnload);
     }, []);
 
-    // Deter inspecting & copying: block right-click, dev-tools shortcuts, and
-    // copy / cut / paste. Blocking the native copy/cut/paste events covers every
-    // trigger — keyboard, the (already-blocked) right-click menu, the browser's
-    // Edit menu, and programmatic calls — so pre-written essays can't be pasted
-    // and questions/passages can't be copied out.
+    // Deter inspecting & copying: block right-click, dev-tools shortcuts, and copy / cut / paste.
+    // Blocking the native copy/cut/paste events covers every trigger — keyboard, the
+    // (already-blocked) right-click menu, the browser's Edit menu, and programmatic calls — so
+    // pre-written essays can't be pasted and questions/passages can't be copied out.
     useEffect(() => {
         const onContextMenu = (e) => e.preventDefault();
         const onCopyCutPaste = (e) => e.preventDefault();
@@ -175,51 +103,5 @@ export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
         };
     }, []);
 
-    if (!locked) return null;
-
-    return (
-        <div
-            onClick={requestFullscreen}
-            style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 2147483647,
-                backgroundColor: "rgba(244, 246, 251, 0.96)",
-                backdropFilter: "blur(8px)",
-                WebkitBackdropFilter: "blur(8px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                userSelect: "none",
-            }}
-        >
-            <div style={{ textAlign: "center", color: "#1f2937", pointerEvents: "none", padding: "24px" }}>
-                <div
-                    style={{
-                        fontSize: "56px",
-                        marginBottom: "16px",
-                        animation: "examLockPulse 1.5s ease-in-out infinite",
-                    }}
-                >
-                    ⛶
-                </div>
-                <p style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "10px" }}>
-                    Tap to return to fullscreen
-                </p>
-                <p style={{ fontSize: "15px", marginBottom: "6px", color: "#374151" }}>
-                    The exam must stay in fullscreen.
-                </p>
-                <p style={{ fontSize: "13px", color: "#6b7280" }}>
-                    Your timer is still running.
-                </p>
-                <style>{`
-                    @keyframes examLockPulse {
-                        0%, 100% { opacity: 1; transform: scale(1); }
-                        50% { opacity: 0.65; transform: scale(1.12); }
-                    }
-                `}</style>
-            </div>
-        </div>
-    );
+    return null;
 }
