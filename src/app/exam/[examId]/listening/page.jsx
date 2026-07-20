@@ -272,6 +272,21 @@ function ListeningExamPageContent() {
                     answers, timeLeft, currentPage, savedAt: Date.now()
                 }));
             } catch (e) { /* ignore quota errors */ }
+            // Mirror the draft to the server. localStorage dies with the browser, so without
+            // this a sitting that never submits cleanly loses every answer the candidate typed.
+            // Fire-and-forget: a failed autosave must never interrupt the exam.
+            try {
+                if (Object.keys(answers).length > 0) {
+                    let setNumber = null;
+                    try { setNumber = JSON.parse(localStorage.getItem("examSession") || "{}")?.currentSetNumber ?? null; } catch (e) { }
+                    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api") + "/students/save-draft", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ examId: params.examId, module: "listening", answers, setNumber, timeLeft }),
+                        keepalive: true,
+                    }).catch(() => { });
+                }
+            } catch (e) { /* never interrupt the exam */ }
         }, 15000);
         return () => clearInterval(interval);
     }, [answers, timeLeft, currentPage, isAdminPreview, isLoading]);
