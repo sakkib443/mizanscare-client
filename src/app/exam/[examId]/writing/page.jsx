@@ -140,24 +140,36 @@ function WritingExamPageContent() {
                     answers, timeLeft, savedAt: Date.now()
                 }));
             } catch (e) { /* ignore quota errors */ }
-            // Mirror the draft to the server. localStorage dies with the browser, so without
-            // this a sitting that never submits cleanly loses everything the candidate wrote.
-            // Fire-and-forget: a failed autosave must never interrupt the exam.
-            try {
-                if (Object.keys(answers).length > 0) {
-                    let setNumber = null;
-                    try { setNumber = JSON.parse(localStorage.getItem("examSession") || "{}")?.currentSetNumber ?? null; } catch (e) { }
-                    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api") + "/students/save-draft", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ examId: params.examId, module: "writing", answers, setNumber, timeLeft }),
-                        keepalive: true,
-                    }).catch(() => { });
-                }
-            } catch (e) { /* never interrupt the exam */ }
         }, 15000);
         return () => clearInterval(interval);
     }, [answers, timeLeft, isAdminPreview, isLoading]);
+
+    // ── Mirror the draft to the server every 15s ──────────────────────────
+    // localStorage dies with the browser, so without this a sitting that never submits cleanly
+    // loses everything the candidate wrote. This lives in its own effect, reading through a
+    // ref: the effect above lists `timeLeft` in its deps, so it tears down and recreates its
+    // interval every single second and can never actually reach 15s. Deps here stay stable.
+    const draftRef = useRef({ answers, timeLeft });
+    useEffect(() => { draftRef.current = { answers, timeLeft }; });
+
+    useEffect(() => {
+        if (isAdminPreview || isLoading) return;
+        const t = setInterval(() => {
+            try {
+                const { answers: a, timeLeft: tl } = draftRef.current;
+                if (!a || Object.keys(a).length === 0) return;
+                let setNumber = null;
+                try { setNumber = JSON.parse(localStorage.getItem("examSession") || "{}")?.currentSetNumber ?? null; } catch (e) { }
+                fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api") + "/students/save-draft", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ examId: params.examId, module: "writing", answers: a, setNumber, timeLeft: tl }),
+                    keepalive: true,
+                }).catch(() => { });
+            } catch (e) { /* never interrupt the exam */ }
+        }, 15000);
+        return () => clearInterval(t);
+    }, [isAdminPreview, isLoading, params.examId]);
 
     // ── Save on every text change (debounced) ─────────────────────────────
     useEffect(() => {

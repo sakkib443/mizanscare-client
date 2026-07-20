@@ -65,8 +65,20 @@ export default function ExamSecurity({ examId, onViolationLimit = () => {} }) {
     }, []);
 
     // Window lost focus (alt-tab to another app) → lock.
+    //
+    // Careful: opening a native <select> (the matching questions use them) hands focus to an
+    // OS-level popup, which fires window blur even though the candidate never left the page —
+    // that was locking the exam every time a dropdown was opened, with the dropdown drawn on
+    // top of the lock. Ignore that case, then confirm on the next tick with document.hasFocus():
+    // a real alt-tab still reports false, so genuine app-switching is still caught (and tab
+    // switches / minimising are covered by the visibilitychange handler regardless).
     const handleBlur = useCallback(() => {
-        if (hasBeenFullscreenRef.current && mountedRef.current) setLocked(true);
+        if (!hasBeenFullscreenRef.current || !mountedRef.current) return;
+        const active = document.activeElement;
+        if (active && active.tagName === "SELECT") return;
+        setTimeout(() => {
+            if (mountedRef.current && !document.hasFocus()) setLocked(true);
+        }, 150);
     }, []);
 
     // Mount: auto-enter fullscreen + wire all detectors.
