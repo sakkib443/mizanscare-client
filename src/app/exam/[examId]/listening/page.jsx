@@ -515,11 +515,16 @@ function ListeningExamPageContent() {
         return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
     };
 
+    // The timer effect below is created ONCE, when the exam starts. Calling handleSubmit
+    // directly from it would capture that first render's closure — where `answers` is still
+    // empty — so a time-out auto-submit would send a BLANK paper. Always call the latest one.
+    const handleSubmitRef = useRef(null);
+
     useEffect(() => {
         if (showSoundTest || showPlayOverlay || isLoading) return;
         const t = setInterval(() => {
             setTimeLeft(prev => {
-                if (prev <= 1) { clearInterval(t); handleSubmit(); return 0; }
+                if (prev <= 1) { clearInterval(t); handleSubmitRef.current?.(); return 0; }
                 return prev - 1;
             });
         }, 1000);
@@ -688,6 +693,10 @@ function ListeningExamPageContent() {
         try { localStorage.removeItem(autoSaveKey); } catch (e) { /* ignore */ }
         router.push(`/exam/${params.examId}`);
     };
+
+    // Keep the ref pointing at the current handleSubmit so the one-shot timer above always
+    // submits the answers the candidate actually typed (see the note on handleSubmitRef).
+    useEffect(() => { handleSubmitRef.current = handleSubmit; });
 
     const answeredCount = Object.keys(answers).filter(k => answers[k] !== "").length;
 

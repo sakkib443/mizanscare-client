@@ -446,6 +446,11 @@ function ReadingExamPageContent() {
         return 2.0;
     };
 
+    // The timer effect below is created ONCE, when the exam starts. Calling handleSubmit
+    // directly from it would capture that first render's closure — where `answers` is still
+    // empty — so a time-out auto-submit would send a BLANK paper. Always call the latest one.
+    const handleSubmitRef = useRef(null);
+
     // Timer
     useEffect(() => {
         if (showInstructions || isLoading) return;
@@ -454,7 +459,7 @@ function ReadingExamPageContent() {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
                     clearInterval(timer);
-                    handleSubmit();
+                    handleSubmitRef.current?.();
                     return 0;
                 }
                 return prev - 1;
@@ -598,6 +603,10 @@ function ReadingExamPageContent() {
     // answeredCount already defined above
 
     // Get question type label
+    // Keep the ref pointing at the current handleSubmit so the one-shot timer above always
+    // submits the answers the candidate actually typed (see the note on handleSubmitRef).
+    useEffect(() => { handleSubmitRef.current = handleSubmit; });
+
     const getQuestionTypeLabel = (type) => {
         switch (type) {
             case "true-false-not-given":
