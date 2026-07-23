@@ -622,49 +622,78 @@ function WritingExamPageContent() {
                     height: '44px', padding: '0', zIndex: 100
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', flex: 1, height: '100%' }}>
-                        {/* Part tabs — full-width indicator bar on top, with a small gap between the two parts */}
-                        <div style={{ display: 'flex', flex: 1, height: '100%', gap: '14px' }}>
-                            {displayTasks.map((task) => {
-                                const isActive = task.partNumber === activePart;
-                                return (
-                                    <div key={task.id}
-                                        onClick={() => setActivePart(task.partNumber)}
+                        {/* Part tabs — the active part is blue, the other grey. A left/right arrow
+                            sits between the two parts so the candidate can step between them either
+                            by clicking a part or by clicking the arrow. */}
+                        <div style={{ display: 'flex', flex: 1, height: '100%', alignItems: 'center' }}>
+                            {(() => {
+                                const arrowFor = (num) => (
+                                    <button
+                                        key={`arrow-${num}`}
+                                        onClick={() => setActivePart(num)}
+                                        title={num === 1 ? 'Go to Part 1' : 'Go to Part 2'}
                                         style={{
-                                            flex: 1, position: 'relative', height: '100%', cursor: 'pointer',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
-                                        }}
-                                        onMouseEnter={e => e.currentTarget.style.background = contrastMode === 'black-on-white' ? '#f0f0f0' : '#3a3a3a'}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                    >
-                                        {/* Full-width indicator bar on top of this part */}
-                                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: isActive ? '#2563eb' : '#c0c0c0' }}></div>
-                                        <span style={{
-                                            fontSize: '14px', fontWeight: 'bold',
-                                            color: isActive ? cs.text : '#888',
-                                            fontFamily: 'Arial, sans-serif', whiteSpace: 'nowrap'
+                                            width: '38px', height: '100%', flexShrink: 0, cursor: 'pointer',
+                                            background: 'transparent', border: 'none',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            color: activePart === num ? '#2563eb' : '#9ca3af'
                                         }}>
-                                            Part {task.partNumber}
-                                        </span>
-                                    </div>
+                                        {num === 1
+                                            ? <FaArrowLeft style={{ fontSize: '15px' }} />
+                                            : <FaArrowRight style={{ fontSize: '15px' }} />}
+                                    </button>
                                 );
-                            })}
+                                const partTab = (task) => {
+                                    const isActive = task.partNumber === activePart;
+                                    return (
+                                        <div key={task.id}
+                                            onClick={() => setActivePart(task.partNumber)}
+                                            style={{
+                                                flex: 1, position: 'relative', height: '100%', cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = contrastMode === 'black-on-white' ? '#f0f0f0' : '#3a3a3a'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            {/* Full-width indicator bar on top of this part */}
+                                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: isActive ? '#2563eb' : '#c0c0c0' }}></div>
+                                            <span style={{
+                                                fontSize: '14px', fontWeight: 'bold',
+                                                color: isActive ? '#2563eb' : '#888',
+                                                fontFamily: 'Arial, sans-serif', whiteSpace: 'nowrap'
+                                            }}>
+                                                Part {task.partNumber}
+                                            </span>
+                                        </div>
+                                    );
+                                };
+                                // Part 1  ‹  ›  Part 2 : left arrow -> Part 1, right arrow -> Part 2
+                                return (
+                                    <>
+                                        {partTab(displayTasks[0])}
+                                        {arrowFor(1)}
+                                        {arrowFor(2)}
+                                        {partTab(displayTasks[1])}
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
 
-                    {/* Submit checkmark button — same as Reading */}
+                    {/* Submit button — a labelled "Submit" instead of the bare checkmark icon. */}
                     <button
                         onClick={() => setShowSubmitPartModal(true)}
-                        onMouseEnter={e => e.currentTarget.style.background = '#c8c8c8'}
-                        onMouseLeave={e => e.currentTarget.style.background = '#e5e7eb'}
+                        onMouseEnter={e => e.currentTarget.style.background = '#1d4ed8'}
+                        onMouseLeave={e => e.currentTarget.style.background = '#2563eb'}
                         style={{
-                            width: '48px', height: '44px', cursor: 'pointer',
-                            background: '#e5e7eb', border: 'none',
+                            height: '44px', padding: '0 22px', cursor: 'pointer',
+                            background: '#2563eb', color: '#ffffff', border: 'none',
+                            fontSize: '14px', fontWeight: 'bold', fontFamily: 'Arial, sans-serif',
+                            letterSpacing: '0.3px',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             flexShrink: 0, borderRadius: 0
                         }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        Submit
                     </button>
                 </div>
 
