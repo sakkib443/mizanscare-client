@@ -9,6 +9,7 @@ import {
     FaEdit,
     FaTimes,
     FaSpinner,
+    FaFilePdf,
     FaSave,
     FaHeadphones,
     FaBook,
@@ -149,8 +150,123 @@ const ModuleScoreCard = ({
 };
 
 // View Answers Modal Component
-const ViewAnswersModal = ({ show, onClose, module, answers, loading, scores, allSetsData }) => {
+// Download a student's writing submission as a PDF: both prompts, both essays in full, the word
+// counts and whatever bands have been given. Built with jsPDF's text wrapping (not a screenshot of
+// the modal) so a long essay flows across pages and stays selectable/searchable in the PDF.
+const downloadWritingPDF = async ({ student, answers, scores, countWords }) => {
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+    const M = 15;                                   // page margin
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const LINE = 5;
+    let y = M;
+
+    const nextPageIfNeeded = (needed = LINE) => {
+        if (y + needed > H - M) {
+            doc.addPage();
+            y = M;
+        }
+    };
+
+    // Write wrapped text, breaking across pages as needed.
+    const write = (text, { size = 10, style = "normal", color = [31, 41, 55], gap = 0 } = {}) => {
+        doc.setFont("helvetica", style);
+        doc.setFontSize(size);
+        doc.setTextColor(...color);
+        const lines = doc.splitTextToSize(String(text ?? ""), W - M * 2);
+        for (const line of lines) {
+            nextPageIfNeeded();
+            doc.text(line, M, y);
+            y += size * 0.42 + 1.2;
+        }
+        y += gap;
+    };
+
+    const rule = () => {
+        nextPageIfNeeded(4);
+        doc.setDrawColor(226, 232, 240);
+        doc.line(M, y, W - M, y);
+        y += 4;
+    };
+
+    // ── Header ────────────────────────────────────────────────────────────
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, W, 26, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(255, 255, 255);
+    doc.text("IELTS Writing — Student Submission", M, 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(203, 213, 225);
+    doc.text(
+        `${student?.nameEnglish || "Student"}   |   ${student?.examId || ""}   |   ${new Date().toLocaleDateString()}`,
+        M,
+        19
+    );
+    y = 34;
+
+    // ── Bands ─────────────────────────────────────────────────────────────
+    const w = scores?.writing;
+    if (w && (w.task1Band || w.task2Band || w.overallBand)) {
+        write(
+            `Task 1 band: ${w.task1Band || "—"}     Task 2 band: ${w.task2Band || "—"}     Writing overall: ${w.overallBand || "—"}`,
+            { size: 10, style: "bold", color: [55, 65, 81], gap: 2 }
+        );
+        rule();
+    }
+
+    // ── Each task: prompt, then the essay ─────────────────────────────────
+    const task = (n, promptObj, essay) => {
+        nextPageIfNeeded(20);
+        write(`WRITING TASK ${n}`, { size: 12, style: "bold", color: [30, 41, 59], gap: 1 });
+
+        if (promptObj?.prompt) write(promptObj.prompt, { size: 10, style: "bold", color: [55, 65, 81] });
+        if (promptObj?.instructions) write(promptObj.instructions, { size: 9, color: [107, 114, 128] });
+        if (promptObj?.images?.length) {
+            write(`[ ${promptObj.images.length} image(s) in the question — see the dashboard ]`, {
+                size: 8,
+                color: [148, 163, 184],
+            });
+        }
+        y += 1;
+
+        write(`Student's answer — ${countWords(essay)} words`, {
+            size: 9,
+            style: "bold",
+            color: [79, 70, 229],
+            gap: 1,
+        });
+        write(essay || "(No submission for this task)", {
+            size: 10,
+            color: essay ? [31, 41, 55] : [148, 163, 184],
+            gap: 4,
+        });
+        rule();
+    };
+
+    task(1, answers?.questions?.task1, answers?.task1);
+    task(2, answers?.questions?.task2, answers?.task2);
+
+    // ── Page numbers ──────────────────────────────────────────────────────
+    const pages = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+        doc.setPage(p);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Page ${p} of ${pages}`, W - M, H - 8, { align: "right" });
+    }
+
+    const safeName = String(student?.nameEnglish || "student").replace(/[^a-z0-9]+/gi, "_");
+    doc.save(`Writing_${safeName}_${student?.examId || ""}.pdf`);
+};
+
+const ViewAnswersModal = ({ show, onClose, module, answers, loading, scores, allSetsData, student }) => {
     const [activeSetTab, setActiveSetTab] = useState('latest');
+    const [pdfBusy, setPdfBusy] = useState(false);
 
     if (!show) return null;
 
@@ -204,9 +320,38 @@ const ViewAnswersModal = ({ show, onClose, module, answers, loading, scores, all
                             <p className="text-slate-500 text-xs">Student submission history</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-200 transition-colors cursor-pointer">
-                        <FaTimes className="text-slate-400" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {/* Download the writing submission as a PDF. Writing only — the other
+                            modules are answer grids, which the dashboard already lays out. */}
+                        {module?.toLowerCase() === 'writing' && !loading && (
+                            <button
+                                onClick={async () => {
+                                    setPdfBusy(true);
+                                    try {
+                                        // Use `answers`, the same source the writing body below
+                                        // renders, so the PDF always matches what is on screen.
+                                        await downloadWritingPDF({ student, answers, scores, countWords });
+                                    } catch (e) {
+                                        console.error('Writing PDF failed', e);
+                                        alert('Could not generate the PDF. Please try again.');
+                                    } finally {
+                                        setPdfBusy(false);
+                                    }
+                                }}
+                                disabled={pdfBusy}
+                                title="Download this writing submission as PDF"
+                                className="flex items-center gap-2 px-3 h-8 rounded-md bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                            >
+                                {pdfBusy
+                                    ? <FaSpinner className="animate-spin text-xs" />
+                                    : <FaFilePdf className="text-sm" />}
+                                <span className="text-xs font-bold">{pdfBusy ? 'Preparing…' : 'PDF'}</span>
+                            </button>
+                        )}
+                        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-200 transition-colors cursor-pointer">
+                            <FaTimes className="text-slate-400" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Multi-Set Tabs */}
