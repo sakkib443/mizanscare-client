@@ -66,10 +66,9 @@ export default function StudentProfile() {
                     </div>
                     <div className="flex-1">
                         <h2 className="text-lg font-semibold text-gray-800">{nameEnglish}</h2>
+                        {/* The exam ID is deliberately not shown — it is handed to the candidate
+                            in person before the sitting. */}
                         <div className="flex items-center gap-2 mt-2">
-                            <span className="bg-cyan-100 text-cyan-700 px-2 py-1 rounded text-xs font-medium">
-                                {examId}
-                            </span>
                             <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-medium">
                                 IELTS Candidate
                             </span>

@@ -101,9 +101,6 @@ function ResultContent() {
                         </div>
                         <span className="text-slate-900 font-black tracking-tight text-xl uppercase">IELTS Dashboard</span>
                     </div>
-                    <div className="text-slate-400 text-xs font-bold uppercase tracking-widest">
-                        Ref ID: {params.examId}
-                    </div>
                 </div>
             </header>
 

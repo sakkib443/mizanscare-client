@@ -307,9 +307,6 @@ export default function ExamSelectionPage() {
                             <FaUser className="text-cyan-600 text-xs" />
                             <span>{session?.studentName || "Student"}</span>
                         </div>
-                        <div className="text-gray-500 text-xs bg-gray-100 px-3 py-1.5 rounded font-mono">
-                            {session?.examId}
-                        </div>
                     </div>
                 </div>
             </header>
@@ -487,9 +484,6 @@ export default function ExamSelectionPage() {
                             </button>
                         </div>
 
-                        <p className="mt-5 text-gray-400 text-[10px] uppercase tracking-widest font-mono">
-                            ID: {session?.examId}
-                        </p>
                     </div>
                 ) : (
                     <>

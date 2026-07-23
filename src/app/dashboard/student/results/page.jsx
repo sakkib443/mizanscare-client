@@ -99,8 +99,9 @@ export default function StudentResults() {
             doc.setTextColor(200, 230, 235);
             doc.text("Mizan's Care — Official Score Report", margin, 32);
 
-            // Exam ID badge (right side)
-            const badgeText = `Exam ID: ${examId}`;
+            // Candidate badge (right side). Deliberately the name, not the exam ID — the exam ID
+            // is never shown to the candidate; it is handed to them in person.
+            const badgeText = `${nameEnglish || "Candidate"}`;
             const badgeWidth = doc.getTextWidth(badgeText) + 12;
             doc.setFillColor(255, 255, 255);
             doc.setGState(new doc.GState({ opacity: 0.2 }));
@@ -445,7 +446,7 @@ export default function StudentResults() {
             doc.text(" REPORT", pageWidth - margin - 26, footerY - 13);
 
             // ====== SAVE ======
-            doc.save(`IELTS_Result_${examId}.pdf`);
+            doc.save(`IELTS_Result_${String(nameEnglish || "Candidate").replace(/[^a-z0-9]+/gi, "_")}.pdf`);
         } catch (err) {
             console.error("PDF generation error:", err);
             toast.error("We couldn't generate your result PDF. Please try again.", { title: "Download failed" });
@@ -668,10 +669,6 @@ export default function StudentResults() {
                                     Pending
                                 </span>
                             </div>
-                            <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-center">
-                                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Exam ID</p>
-                                <p className="text-sm font-medium text-gray-700">{examId}</p>
-                            </div>
                         </div>
 
                         <div className="bg-cyan-50 border border-cyan-100 rounded-md p-4">
@@ -723,13 +720,9 @@ export default function StudentResults() {
                         </div>
                         <h3 className="text-lg font-semibold text-gray-800 mb-2">No Results Yet</h3>
                         <p className="text-gray-500 text-sm mb-6">
-                            You haven't taken the exam yet. Use your Exam ID to get started.
+                            You haven't taken the exam yet.
                         </p>
 
-                        <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-6">
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Exam ID</p>
-                            <p className="text-sm font-medium text-gray-700">{examId}</p>
-                        </div>
 
                         <button
                             onClick={handleStartExam}

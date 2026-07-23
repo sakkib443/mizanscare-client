@@ -5,7 +5,6 @@ import {
     FaUser,
     FaEnvelope,
     FaPhone,
-    FaIdCard,
     FaCheckCircle,
     FaExclamationCircle,
     FaClock,
@@ -148,8 +147,9 @@ export default function StudentDashboard() {
                         </div>
                     </div>
 
+                    {/* The exam ID is deliberately not shown anywhere a student can reach it —
+                        it is handed to them in person before the sitting. */}
                     <div className="space-y-3">
-                        <InfoRow icon={FaIdCard} label="Exam ID" value={examId} />
                         <InfoRow icon={FaEnvelope} label="Email" value={email} />
                         <InfoRow icon={FaPhone} label="Phone" value={phone} />
                     </div>

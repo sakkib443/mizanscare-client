@@ -152,7 +152,6 @@ export default function FullExamPage() {
                         <span className="text-cyan-600 font-bold text-xl">IELTS</span>
                         <span className="text-gray-600">| Full Exam</span>
                     </div>
-                    <span className="text-gray-400 text-sm">Exam ID: {params.examId}</span>
                 </div>
             </header>
 
