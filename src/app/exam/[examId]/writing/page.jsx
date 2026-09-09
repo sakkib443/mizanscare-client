@@ -551,9 +551,22 @@ function WritingExamPageContent() {
                     <div style={{ width: `${splitPercent}%`, overflowY: 'auto', padding: '20px 30px', backgroundColor: cs.bg, color: cs.text, fontSize: `${16 * tScale}px`, fontFamily: 'Arial, sans-serif', flexShrink: 0 }}>
                         <RangeHighlighter passageId={`writing_part_${activePart}`} contrastMode={contrastMode}>
                             {currentTaskData.prompt && (
-                                <div style={{ color: cs.text, fontSize: `${16 * tScale}px`, lineHeight: '1.8', whiteSpace: 'pre-line', marginBottom: '16px' }}>
-                                    {currentTaskData.prompt}
-                                </div>
+                                /<table/i.test(currentTaskData.prompt) ? (
+                                    // Task 1 prompts can carry a data table. A plain-text table collapses
+                                    // under white-space:pre-line (runs of spaces become one), so a table
+                                    // stored as real HTML is rendered here instead. Borders use currentColor
+                                    // so the grid stays visible in every contrast mode; no cell background,
+                                    // so nothing goes invisible on the dark/yellow themes.
+                                    <>
+                                        <style>{`.writing-prompt-html table{border-collapse:collapse;margin:14px 0}.writing-prompt-html th,.writing-prompt-html td{border:1px solid currentColor;padding:6px 14px;text-align:left}.writing-prompt-html th{font-weight:bold}`}</style>
+                                        <div className="writing-prompt-html" style={{ color: cs.text, fontSize: `${16 * tScale}px`, lineHeight: '1.8', marginBottom: '16px' }}
+                                            dangerouslySetInnerHTML={{ __html: currentTaskData.prompt }} />
+                                    </>
+                                ) : (
+                                    <div style={{ color: cs.text, fontSize: `${16 * tScale}px`, lineHeight: '1.8', whiteSpace: 'pre-line', marginBottom: '16px' }}>
+                                        {currentTaskData.prompt}
+                                    </div>
+                                )
                             )}
                             {currentTaskData.instruction && (
                                 <p style={{ color: cs.text, fontSize: `${15 * tScale}px`, lineHeight: '1.6', whiteSpace: 'pre-line', fontStyle: 'italic', marginBottom: '16px' }}>
