@@ -1266,8 +1266,12 @@ function ReadingExamPageContent() {
                                     {/* â"€â"€ SUMMARY COMPLETION â"€â"€ */}
                                     {group.groupType === "summary-completion" && (
                                         <div style={{ marginBottom: '20px' }}>
-                                            <p style={{ color: cs.text, fontStyle: 'italic', marginBottom: '4px' }}>{group.mainInstruction}</p>
-                                            <p style={{ color: cs.text, marginBottom: '8px' }}>Choose <b>ONE WORD ONLY</b> from the passage for each answer.</p>
+                                            {group.mainInstruction && <p style={{ color: cs.text, fontStyle: 'italic', marginBottom: '4px' }}>{group.mainInstruction}</p>}
+                                            {/* Show this generic word-limit line ONLY when the group's own mainInstruction does
+                                                not already state a limit — otherwise the two duplicated and contradicted each other
+                                                (reading 18 Q23-26 showed both "NO MORE THAN TWO WORDS" and "ONE WORD ONLY"). Groups
+                                                whose mainInstruction is just "Complete the summary below." still get this line. */}
+                                            {!/one word|two words?|three words?|no more than|word limit/i.test(group.mainInstruction || '') && <p style={{ color: cs.text, marginBottom: '8px' }}>Choose <b>ONE WORD ONLY</b> from the passage for each answer.</p>}
                                             <h3 style={{ fontWeight: 'bold', fontSize: `${17 * tScale}px`, color: cs.text, marginTop: '12px' }}>{group.mainHeading}</h3>
                                             <div style={{ color: cs.text, lineHeight: '1.8', marginTop: '8px' }}>
                                                 {group.summarySegments?.map((segment, sIdx) => (
