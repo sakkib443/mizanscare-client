@@ -1881,6 +1881,11 @@ function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFoc
     const normalizedText = displayText.replace(/\{blank\}/g, '________');
     const cleanedText = normalizedText.replace(/\[\d+\]/g, '').trim();
 
+    // When the label text IS just the question number (e.g. plan/map labelling where
+    // the row is "16 [ box ]"), the number is already shown to the left, so the box
+    // itself must stay blank — don't repeat the number inside it as a placeholder.
+    const isBareNumber = /^\d+$/.test(cleanedText);
+
     // Single box input — number shows centered when empty, answer replaces it
     const answerValue = answers[q.displayNumber] || '';
     const InlineInput = (
@@ -1897,8 +1902,10 @@ function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFoc
             height: '32px',
             borderRadius: '4px'
         }}>
-            {/* Question number — centered, visible only when input is empty */}
-            {!answerValue && (
+            {/* Question number — centered, visible only when input is empty.
+                Hidden when the number is already the row's left-hand label (isBareNumber),
+                so the box reads as a blank fill-in with the number beside it. */}
+            {!answerValue && !isBareNumber && (
                 <span style={{
                     position: 'absolute',
                     fontWeight: 'bold',
@@ -1960,7 +1967,7 @@ function NoteCompletionRow({ q, answers, handleAnswer, textColor = '#000', isFoc
         <div id={`q-${q.displayNumber}`} style={rowStyle}>
             {!noBullet && <span style={{ color: textColor, fontSize: '18px', marginRight: '10px' }}>•</span>}
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ verticalAlign: 'middle' }}>{cleanedText}</span>
+                <span style={{ verticalAlign: 'middle', fontWeight: isBareNumber ? 'bold' : 'normal', minWidth: isBareNumber ? '24px' : undefined }}>{cleanedText}</span>
                 {InlineInput}
             </div>
         </div>
